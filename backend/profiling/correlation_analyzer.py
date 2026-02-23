@@ -62,20 +62,24 @@ class CorrelationAnalyzer:
                 if len(v1) > 2 and v1.nunique() > 1 and v2.nunique() > 1:
                     # Pearson
                     r, p_val = stats.pearsonr(v1, v2)
-                    if not np.isnan(r):
-                        matrix[col1][col2] = float(r)
-                        matrix[col2][col1] = float(r)
+                    if not np.isnan(r) and not np.isinf(r):
+                        r_f = float(r)
+                        p_f = float(p_val) if not np.isnan(p_val) else 1.0
+                        matrix[col1][col2] = r_f
+                        matrix[col2][col1] = r_f
                         all_pairs.append(CorrelationPair(
-                            col1=col1, col2=col2, score=float(r), p_value=float(p_val),
-                            metric="Pearson", is_significant=(p_val < 0.05)
+                            col1=col1, col2=col2, score=r_f, p_value=p_f,
+                            metric="Pearson", is_significant=(p_f < 0.05)
                         ))
                     
                     # Spearman for rank
                     rho, p_val_s = stats.spearmanr(v1, v2)
-                    if not np.isnan(rho):
+                    if not np.isnan(rho) and not np.isinf(rho):
+                        rho_f = float(rho)
+                        p_s_f = float(p_val_s) if not np.isnan(p_val_s) else 1.0
                         all_pairs.append(CorrelationPair(
-                            col1=col1, col2=col2, score=float(rho), p_value=float(p_val_s),
-                            metric="Spearman", is_significant=(p_val_s < 0.05)
+                            col1=col1, col2=col2, score=rho_f, p_value=p_s_f,
+                            metric="Spearman", is_significant=(p_s_f < 0.05)
                         ))
 
         # 3. Categorical - Categorical: Cramér's V
@@ -142,7 +146,8 @@ class CorrelationAnalyzer:
             min_dim = min(confusion.shape) - 1
             if min_dim == 0 or n == 0:
                 return 0.0
-            return float(np.sqrt(chi2 / (n * min_dim)))
+            res = float(np.sqrt(chi2 / (n * min_dim)))
+            return res if not np.isnan(res) and not np.isinf(res) else None
         except Exception:
             return None
 
@@ -164,7 +169,8 @@ class CorrelationAnalyzer:
             ss_between = (group_counts * (group_means - mean_total)**2).sum()
             
             eta2 = ss_between / ss_total
-            return float(min(max(eta2, 0.0), 1.0))
+            res = float(min(max(eta2, 0.0), 1.0))
+            return res if not np.isnan(res) and not np.isinf(res) else None
         except Exception:
             return None
 
@@ -185,9 +191,10 @@ class CorrelationAnalyzer:
                 return None, None
                 
             r, p = stats.pointbiserialr(numeric_bin, df_curr['n'])
-            if np.isnan(r):
+            if np.isnan(r) or np.isinf(r):
                 return None, None
-            return float(r), float(p)
+            p_f = float(p) if not np.isnan(p) else 1.0
+            return float(r), p_f
         except Exception:
             return None, None
 
@@ -238,8 +245,9 @@ class CorrelationAnalyzer:
                     mi_scores = mutual_info_regression(X, y, discrete_features=discrete_features_idx, random_state=42)
                 
                 for feat, score in zip(features, mi_scores):
-                    mi_dict[feat][target] = float(score)
-                    mi_dict[target][feat] = float(score)
+                    s_f = float(score) if not np.isnan(score) and not np.isinf(score) else 0.0
+                    mi_dict[feat][target] = s_f
+                    mi_dict[target][feat] = s_f
 
         except Exception as e:
             # Fallback if MI fails

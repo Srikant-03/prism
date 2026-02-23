@@ -114,27 +114,29 @@ class KeyDetector:
                 if len(values_b) == 0:
                     continue
 
-                # Check if A is subset of B
-                if values_a < values_b:
-                    overlap = len(values_a) / len(values_b) if values_b else 0
+                intersection = len(values_a.intersection(values_b))
+                overlap_a = intersection / len(values_a)
+                overlap_b = intersection / len(values_b)
+
+                # Check if A is largely a subset of B
+                if overlap_a >= 0.95:
                     candidates.append(KeyCandidate(
                         columns=[col_a, col_b],
-                        uniqueness=overlap,
+                        uniqueness=overlap_a,
                         justification=(
-                            f"All {len(values_a)} unique values in '{col_a}' exist in "
+                            f"{overlap_a:.1%} of unique values in '{col_a}' exist in "
                             f"'{col_b}' ({len(values_b)} unique values). "
                             f"Potential join key relationship."
                         ),
                     ))
 
-                # Check if B is subset of A
-                elif values_b < values_a:
-                    overlap = len(values_b) / len(values_a) if values_a else 0
+                # Check if B is largely a subset of A
+                elif overlap_b >= 0.95:
                     candidates.append(KeyCandidate(
                         columns=[col_b, col_a],
-                        uniqueness=overlap,
+                        uniqueness=overlap_b,
                         justification=(
-                            f"All {len(values_b)} unique values in '{col_b}' exist in "
+                            f"{overlap_b:.1%} of unique values in '{col_b}' exist in "
                             f"'{col_a}' ({len(values_a)} unique values). "
                             f"Potential join key relationship."
                         ),

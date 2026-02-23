@@ -94,21 +94,29 @@ class NumericProfiler:
             skew_val = float(skew(vals.values, nan_policy="omit"))
             kurt_val = float(kurtosis(vals.values, nan_policy="omit"))
 
-            profile.skewness = skew_val
-            if abs(skew_val) < 0.5:
+            if math.isnan(skew_val):
+                profile.skewness = 0.0
                 profile.skewness_interpretation = SkewnessInterpretation.SYMMETRIC
-            elif abs(skew_val) < 1.0:
-                profile.skewness_interpretation = SkewnessInterpretation.MODERATELY_SKEWED
             else:
-                profile.skewness_interpretation = SkewnessInterpretation.HIGHLY_SKEWED
+                profile.skewness = skew_val
+                if abs(skew_val) < 0.5:
+                    profile.skewness_interpretation = SkewnessInterpretation.SYMMETRIC
+                elif abs(skew_val) < 1.0:
+                    profile.skewness_interpretation = SkewnessInterpretation.MODERATELY_SKEWED
+                else:
+                    profile.skewness_interpretation = SkewnessInterpretation.HIGHLY_SKEWED
 
-            profile.kurtosis = kurt_val
-            if abs(kurt_val) < 0.5:
+            if math.isnan(kurt_val):
+                profile.kurtosis = 0.0
                 profile.kurtosis_interpretation = KurtosisInterpretation.MESOKURTIC
-            elif kurt_val > 0:
-                profile.kurtosis_interpretation = KurtosisInterpretation.LEPTOKURTIC
             else:
-                profile.kurtosis_interpretation = KurtosisInterpretation.PLATYKURTIC
+                profile.kurtosis = kurt_val
+                if abs(kurt_val) < 0.5:
+                    profile.kurtosis_interpretation = KurtosisInterpretation.MESOKURTIC
+                elif kurt_val > 0:
+                    profile.kurtosis_interpretation = KurtosisInterpretation.LEPTOKURTIC
+                else:
+                    profile.kurtosis_interpretation = KurtosisInterpretation.PLATYKURTIC
         except Exception:
             pass
 

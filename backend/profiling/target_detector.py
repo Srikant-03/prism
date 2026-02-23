@@ -78,6 +78,9 @@ class TargetDetector:
 
         s = df[target_name].dropna()
         n_unique_vals = s.nunique()
+        total_vals = len(s)
+        is_numeric = pd.api.types.is_numeric_dtype(s)
+        is_float = pd.api.types.is_float_dtype(s)
 
         if col_type == 'boolean' or n_unique_vals == 2:
             problem_type = "binary_classification"
@@ -86,17 +89,35 @@ class TargetDetector:
             if len(counts) == 2:
                 imbalance_ratio = float(counts.max() / counts.min())
         
-        elif col_type in ('categorical_nominal', 'categorical_ordinal', 'free_text') or (
-            col_type in ('numeric_discrete', 'numeric_continuous') and n_unique_vals <= 15
-        ):
-            problem_type = "multiclass_classification"
-            counts = s.value_counts(normalize=True)
-            class_dist = {str(k): float(v) for k, v in counts.head(10).items()} # Top 10 classes
-            if len(counts) > 1:
-                imbalance_ratio = float(counts.max() / counts.min())
+        elif not is_numeric:
+            if n_unique_vals <= 100:
+                problem_type = "multiclass_classification"
+                counts = s.value_counts(normalize=True)
+                class_dist = {str(k): float(v) for k, v in counts.head(10).items()}
+                if len(counts) > 1:
+                    imbalance_ratio = float(counts.max() / counts.min())
+            else:
+                problem_type = "classification_high_cardinality"
                 
         else:
-            problem_type = "regression"
+            # Numeric column
+            if is_float and n_unique_vals > 15:
+                # Continuous floats are almost always regression
+                problem_type = "regression"
+            elif n_unique_vals <= 20:
+                # Small number of distinct numeric values
+                problem_type = "multiclass_classification"
+            elif not is_float and n_unique_vals < (total_vals * 0.1):
+                # Integers where categories make up less than 10% of dataset size
+                problem_type = "multiclass_classification"
+            else:
+                problem_type = "regression"
+                
+            if problem_type == "multiclass_classification":
+                counts = s.value_counts(normalize=True)
+                class_dist = {str(k): float(v) for k, v in counts.head(20).items()}
+                if len(counts) > 1:
+                    imbalance_ratio = float(counts.max() / counts.min())
 
         # 3. Pull Top Predictors from Correlation Matrix
         top_predictors: List[FeatureImportance] = []
