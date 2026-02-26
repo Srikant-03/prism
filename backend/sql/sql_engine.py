@@ -298,6 +298,17 @@ class SQLEngine:
         name = re.sub(r"^[0-9]+", "", name)
         # Collapse multiple underscores
         name = re.sub(r"_+", "_", name).strip("_")
+        
+        # Guard against DuckDB SQL reserved keywords
+        reserved = {
+            "select", "from", "where", "group", "by", "order", "having", 
+            "limit", "table", "view", "index", "as", "join", "on", 
+            "using", "insert", "update", "delete", "create", "drop", 
+            "alter", "with", "all", "and", "or", "not", "is", "null"
+        }
+        if name.lower() in reserved:
+            name = f"tbl_{name}"
+            
         # Ensure non-empty
         return name or "table"
 

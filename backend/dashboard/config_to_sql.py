@@ -243,7 +243,11 @@ def _fallback_sql(
                 conditions.append(f'"{col}" BETWEEN \'{v1}\' AND \'{v2}\'')
             else:
                 val = str(f.value).replace(chr(39), chr(39)*2)
-                conditions.append(f'"{col}" {f.operator} \'{val}\'')
+                # Sanitize operator to prevent SQL injection 
+                valid_ops = {"=", "!=", ">", "<", ">=", "<=", "like", "ilike", "not like"}
+                op = f.operator.lower().strip()
+                safe_op = op if op in valid_ops else "=" 
+                conditions.append(f'"{col}" {safe_op} \'{val}\'')
         if conditions:
             parts.append("WHERE " + " AND ".join(conditions))
 
