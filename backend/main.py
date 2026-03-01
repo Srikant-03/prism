@@ -109,6 +109,17 @@ def create_app() -> FastAPI:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        logger.error(f"Unhandled global exception: {str(exc)}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False, 
+                "error": str(exc) if AppConfig.DEBUG else "Internal server error. See logs for details."
+            }
+        )
+
     # Register API routes with API Key requirement
     app.include_router(upload_router, dependencies=[Depends(verify_api_key)])
     app.include_router(profiling_router, dependencies=[Depends(verify_api_key)])

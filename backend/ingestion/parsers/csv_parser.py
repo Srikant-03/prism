@@ -265,13 +265,22 @@ class CSVParser(BaseParser):
     def _infer_types(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Attempt intelligent type inference on string columns.
-        Converts to numeric/datetime where appropriate, leaving strings untouched.
+        Converts to numeric/datetime ONLY if there is zero data loss
+        (i.e. no valid non-empty string is coerced into NaN).
         """
         for col in df.columns:
+            # Skip empty columns
+            if len(df) == 0:
+                continue
+                
+            original_empty = (df[col] == "").sum() + df[col].isna().sum()
+
             # Try numeric
             try:
                 numeric = pd.to_numeric(df[col], errors="coerce")
-                if numeric.notna().sum() / max(len(df), 1) > 0.5:
+                new_nans = numeric.isna().sum()
+                # Only convert if we didn't destroy any non-empty strings
+                if new_nans == original_empty:
                     df[col] = numeric
                     continue
             except Exception:
@@ -279,8 +288,10 @@ class CSVParser(BaseParser):
 
             # Try datetime
             try:
-                dt = pd.to_datetime(df[col], errors="coerce", infer_datetime_format=True)
-                if dt.notna().sum() / max(len(df), 1) > 0.5:
+                # Use format="mixed" for strictness if supported, else rely on coerce
+                dt = pd.to_datetime(df[col], errors="coerce")
+                new_nans = dt.isna().sum()
+                if new_nans == original_empty and dt.notna().sum() > 0:
                     df[col] = dt
                     continue
             except Exception:

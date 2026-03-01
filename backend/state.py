@@ -19,11 +19,7 @@ import os
 import diskcache
 from collections.abc import MutableMapping
 
-from ingestion.orchestrator import (
-    get_stored_data,
-    get_stored_dataframe,
-    update_stored_dataframe,
-)
+
 
 CACHE_DIR = os.path.join(os.path.dirname(__file__), ".prism_cache")
 os.makedirs(CACHE_DIR, exist_ok=True)
@@ -79,16 +75,19 @@ watchlist_store = TTLStore("watchlist", max_entries=1, ttl_seconds=3600*24*30)
 
 def get_df(file_id: str) -> Optional[pd.DataFrame]:
     """Get the stored DataFrame for a file_id. Returns None if not found."""
+    from ingestion.orchestrator import get_stored_dataframe
     return get_stored_dataframe(file_id)
 
 
 def set_df(file_id: str, df: pd.DataFrame) -> None:
     """Update / replace the stored DataFrame for a file_id."""
+    from ingestion.orchestrator import update_stored_dataframe
     update_stored_dataframe(file_id, df)
 
 
 def get_meta(file_id: str) -> Optional[dict]:
     """Get the full ingestion metadata envelope for a file_id."""
+    from ingestion.orchestrator import get_stored_data
     return get_stored_data(file_id)
 
 
@@ -115,6 +114,18 @@ def set_cleaning_state(file_id: str, state: dict) -> None:
 # ── Backward-compat exports ──────────────────────────────────────────
 # These keep existing `from state import get_stored_dataframe` working
 # while callers migrate to the short names above.
+
+def get_stored_dataframe(file_id: str) -> Optional[pd.DataFrame]:
+    from ingestion.orchestrator import get_stored_dataframe as _gsdf
+    return _gsdf(file_id)
+
+def get_stored_data(file_id: str) -> Optional[dict]:
+    from ingestion.orchestrator import get_stored_data as _gsd
+    return _gsd(file_id)
+
+def update_stored_dataframe(file_id: str, df: pd.DataFrame) -> None:
+    from ingestion.orchestrator import update_stored_dataframe as _usd
+    _usd(file_id, df)
 
 __all__ = [
     # New stable API
