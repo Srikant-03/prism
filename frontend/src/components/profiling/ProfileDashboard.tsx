@@ -56,7 +56,7 @@ const ProfileDashboard: React.FC<ProfileDashboardProps> = ({ profile, fileId }) 
 
     // Filtered columns
     const filteredColumns = useMemo(() => {
-        let cols = profile.columns;
+        let cols = profile.columns || [];
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             cols = cols.filter(c => c.name.toLowerCase().includes(term));
@@ -70,7 +70,7 @@ const ProfileDashboard: React.FC<ProfileDashboardProps> = ({ profile, fileId }) 
     // Type summary for filter badges
     const typeCounts = useMemo(() => {
         const counts: Record<string, number> = {};
-        profile.columns.forEach(c => {
+        (profile.columns || []).forEach(c => {
             counts[c.semantic_type] = (counts[c.semantic_type] || 0) + 1;
         });
         return counts;

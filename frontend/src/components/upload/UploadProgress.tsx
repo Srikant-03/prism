@@ -99,8 +99,8 @@ const UploadProgress: React.FC<UploadProgressProps> = ({
                             '100%': '#52c41a',
                         }
                 }
-                trailColor="rgba(255,255,255,0.08)"
-                strokeWidth={10}
+                railColor="rgba(255,255,255,0.08)"
+                size={{ height: 10 }}
                 className="main-progress"
             />
 
@@ -110,7 +110,7 @@ const UploadProgress: React.FC<UploadProgressProps> = ({
                         {statusMessage}
                     </Text>
                 )}
-                <Space className="progress-stats" split={<span className="stat-divider">â€¢</span>}>
+                <Space className="progress-stats" separator={<span className="stat-divider">•</span>}>
                     {bytesRead != null && totalBytes != null && totalBytes > 0 && (
                         <Text type="secondary" className="stat-item">
                             {formatBytes(bytesRead)} / {formatBytes(totalBytes)}

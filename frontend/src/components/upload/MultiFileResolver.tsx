@@ -101,7 +101,7 @@ const MultiFileResolver: React.FC<MultiFileResolverProps> = ({
                 <Progress
                     percent={Math.round(comparison.confidence * 100)}
                     strokeColor={config.color}
-                    trailColor="rgba(255,255,255,0.1)"
+                    railColor="rgba(255,255,255,0.1)"
                     size="small"
                     format={(pct) => `${pct}% confidence`}
                     style={{ maxWidth: 300, marginTop: 12 }}
