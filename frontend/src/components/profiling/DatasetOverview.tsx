@@ -117,19 +117,19 @@ const DatasetOverview: React.FC<DatasetOverviewProps> = ({ profile }) => {
                 )}
                 <Col xs={24} md={profile.temporal_coverage ? 16 : 24}>
                     <Collapse ghost>
-                        {profile.primary_key_candidates.length > 0 && (
+                        {profile.primary_key_candidates?.length > 0 && (
                             <Panel header={<Space><KeyOutlined /> Primary Key Candidates ({profile.primary_key_candidates.length})</Space>} key="pk">
                                 <Table dataSource={profile.primary_key_candidates.map((k, i) => ({ ...k, key: i }))}
                                     columns={keyColumns} pagination={false} size="small" />
                             </Panel>
                         )}
-                        {profile.foreign_key_candidates.length > 0 && (
+                        {profile.foreign_key_candidates?.length > 0 && (
                             <Panel header={<Space><LinkOutlined /> Foreign Key Candidates ({profile.foreign_key_candidates.length})</Space>} key="fk">
                                 <Table dataSource={profile.foreign_key_candidates.map((k, i) => ({ ...k, key: i }))}
                                     columns={keyColumns} pagination={false} size="small" />
                             </Panel>
                         )}
-                        {profile.id_columns.length > 0 && (
+                        {profile.id_columns?.length > 0 && (
                             <Panel header={<Space><IdcardOutlined /> ID Columns ({profile.id_columns.length})</Space>} key="id">
                                 <Space wrap>{profile.id_columns.map(c => <Tag key={c} color="warning">{c}</Tag>)}</Space>
                                 <Text type="secondary" style={{ display: 'block', marginTop: 8, fontSize: 12 }}>
