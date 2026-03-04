@@ -1,0 +1,6 @@
+
+> frontend@0.0.0 build
+> tsc -b && vite build
+
+src/components/profiling/TargetAnalysisPanel.tsx(4,10): error TS6133: 'AimOutlined' is declared but its value is never read.
+src/components/profiling/TargetAnalysisPanel.tsx(82,34): error TS2304: Cannot find name 'TargetOutlined'.

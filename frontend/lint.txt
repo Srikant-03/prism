@@ -1,0 +1,66 @@
+
+> frontend@0.0.0 lint
+> eslint .
+
+
+C:\abbu\frontend\src\api\ingestion.ts
+   64:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   79:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  102:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  132:61  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\abbu\frontend\src\components\common\DataPreview.tsx
+  95:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\abbu\frontend\src\components\profiling\ColumnDetail.tsx
+    9:5   error  'NumberOutlined' is defined but never used             @typescript-eslint/no-unused-vars
+    9:21  error  'FontSizeOutlined' is defined but never used           @typescript-eslint/no-unused-vars
+    9:39  error  'CalendarOutlined' is defined but never used           @typescript-eslint/no-unused-vars
+    9:57  error  'CheckCircleOutlined' is defined but never used        @typescript-eslint/no-unused-vars
+   10:5   error  'FileTextOutlined' is defined but never used           @typescript-eslint/no-unused-vars
+   10:40  error  'SafetyCertificateOutlined' is defined but never used  @typescript-eslint/no-unused-vars
+   11:45  error  'KeyOutlined' is defined but never used                @typescript-eslint/no-unused-vars
+   90:61  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+  117:55  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+
+C:\abbu\frontend\src\components\profiling\DatasetOverview.tsx
+  9:5   error  'SafetyCertificateOutlined' is defined but never used  @typescript-eslint/no-unused-vars
+  9:32  error  'CheckCircleOutlined' is defined but never used        @typescript-eslint/no-unused-vars
+
+C:\abbu\frontend\src\components\upload\FileUploader.tsx
+   7:42  error  'message' is defined but never used                @typescript-eslint/no-unused-vars
+  15:5   error  'FileOutlined' is defined but never used           @typescript-eslint/no-unused-vars
+  47:11  error  'handleUpload' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\abbu\frontend\src\components\upload\MalformedViewer.tsx
+   8:5   error  'Card' is defined but never used                @typescript-eslint/no-unused-vars
+  26:32  error  'MalformedRow' is defined but never used        @typescript-eslint/no-unused-vars
+  28:9   error  'Title' is assigned a value but never used      @typescript-eslint/no-unused-vars
+  28:22  error  'Paragraph' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\abbu\frontend\src\components\upload\SheetSelector.tsx
+  6:34  error  'Table' is defined but never used  @typescript-eslint/no-unused-vars
+  6:74  error  'Badge' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\abbu\frontend\src\components\upload\UploadProgress.tsx
+  18:15  error  'Title' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\abbu\frontend\src\hooks\useUpload.ts
+   11:5   error  'ProgressUpdate' is defined but never used  @typescript-eslint/no-unused-vars
+   91:23  error  Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  111:23  error  Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  126:27  error  Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  143:27  error  Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+
+C:\abbu\frontend\src\types\ingestion.ts
+   45:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   53:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  126:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  134:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\abbu\frontend\src\types\profiling.ts
+  20:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  94:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 37 problems (37 errors, 0 warnings)
+
