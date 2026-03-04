@@ -9,7 +9,7 @@ import json
 from typing import Any, Optional
 
 import google.generativeai as genai
-from config import settings
+from config import LLMConfig
 
 
 # ── Context builder ──────────────────────────────────────────────────
@@ -96,7 +96,7 @@ class ChatEngine:
 
     def __init__(self):
         try:
-            genai.configure(api_key=settings.GEMINI_API_KEY)
+            genai.configure(api_key=LLMConfig.GEMINI_API_KEY)
             self.model = genai.GenerativeModel("gemini-2.0-flash")
         except Exception:
             self.model = None
