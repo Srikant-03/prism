@@ -1,5 +1,5 @@
-/**
- * PrivacyDisclosure.tsx — Mandatory disclosure for LLM usage.
+﻿/**
+ * PrivacyDisclosure.tsx â€” Mandatory disclosure for LLM usage.
  */
 
 import React, { useState } from 'react';
@@ -40,3 +40,4 @@ const PrivacyDisclosure: React.FC = () => {
 };
 
 export default PrivacyDisclosure;
+

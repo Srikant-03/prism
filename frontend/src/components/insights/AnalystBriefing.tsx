@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Card, Typography, Divider, Button, Space, message } from 'antd';
 import { FilePdfOutlined, FileWordOutlined } from '@ant-design/icons';
 import type { AnalystBriefing } from '../../types/insight';
@@ -47,7 +47,7 @@ const AnalystBriefingPanel: React.FC<AnalystBriefingProps> = ({ data, fileId }) 
         <Card
             className="glass-panel"
             title="Auto-Generated Analyst Briefing"
-            bordered={false}
+            variant="borderless"
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
             extra={
                 <Space>
@@ -104,3 +104,4 @@ const AnalystBriefingPanel: React.FC<AnalystBriefingProps> = ({ data, fileId }) 
 };
 
 export default AnalystBriefingPanel;
+

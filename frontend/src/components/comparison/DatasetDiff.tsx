@@ -1,5 +1,5 @@
-/**
- * DatasetDiff — Upload and compare two datasets (structural + statistical diff).
+﻿/**
+ * DatasetDiff â€” Upload and compare two datasets (structural + statistical diff).
  */
 
 import React, { useState, useCallback } from 'react';
@@ -104,10 +104,10 @@ const DatasetDiff: React.FC<Props> = ({ fileIdA }) => {
             ),
         },
         {
-            title: 'Mean A → B',
+            title: 'Mean A â†’ B',
             render: (_: any, r: any) => (
                 <span style={{ fontFamily: 'monospace', fontSize: 11 }}>
-                    {r.mean_a?.toFixed(2)} → {r.mean_b?.toFixed(2)}
+                    {r.mean_a?.toFixed(2)} â†’ {r.mean_b?.toFixed(2)}
                 </span>
             ),
         },
@@ -175,7 +175,7 @@ const DatasetDiff: React.FC<Props> = ({ fileIdA }) => {
                             ))}
                             {result.schema_diff.type_changed.map(c => (
                                 <Tag key={c.column} color="orange" icon={<SwapOutlined />}>
-                                    {c.column}: {c.from}→{c.to}
+                                    {c.column}: {c.from}â†’{c.to}
                                 </Tag>
                             ))}
                             {result.schema_diff.added_columns.length === 0 &&
@@ -201,7 +201,7 @@ const DatasetDiff: React.FC<Props> = ({ fileIdA }) => {
                             </Col>
                             <Col span={4}>
                                 <Statistic title="Removed" value={result.row_diff.removed_rows}
-                                    valueStyle={{ color: '#ef4444', fontSize: 16 }} prefix="−" />
+                                    valueStyle={{ color: '#ef4444', fontSize: 16 }} prefix="âˆ’" />
                             </Col>
                             <Col span={4}>
                                 <Statistic title="Modified" value={result.row_diff.modified_rows}
@@ -232,3 +232,4 @@ const DatasetDiff: React.FC<Props> = ({ fileIdA }) => {
 };
 
 export default DatasetDiff;
+

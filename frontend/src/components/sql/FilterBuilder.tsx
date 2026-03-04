@@ -1,5 +1,5 @@
-/**
- * FilterBuilder — Visual WHERE/HAVING clause builder.
+﻿/**
+ * FilterBuilder â€” Visual WHERE/HAVING clause builder.
  * Supports dynamic operators by type, AND/OR grouping, value autocomplete.
  */
 
@@ -69,7 +69,7 @@ const FilterBuilder: React.FC<Props> = ({
         const colType = getColumnType(cond.column);
         const op = cond.op || '=';
 
-        // IN / NOT IN — multi-select
+        // IN / NOT IN â€” multi-select
         if (op === 'IN' || op === 'NOT IN') {
             const cached = valueCache[cond.column] || [];
             return (
@@ -86,7 +86,7 @@ const FilterBuilder: React.FC<Props> = ({
             );
         }
 
-        // BETWEEN — two inputs
+        // BETWEEN â€” two inputs
         if (op === 'BETWEEN') {
             const vals = cond.values || ['', ''];
             return (
@@ -137,7 +137,7 @@ const FilterBuilder: React.FC<Props> = ({
             );
         }
 
-        // Categorical — show select with actual values
+        // Categorical â€” show select with actual values
         if (colType === 'categorical') {
             const cached = valueCache[cond.column] || [];
             return (
@@ -278,3 +278,4 @@ const FilterBuilder: React.FC<Props> = ({
 };
 
 export default FilterBuilder;
+

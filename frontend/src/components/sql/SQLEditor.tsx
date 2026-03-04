@@ -1,5 +1,5 @@
-/**
- * SQLEditor — Raw SQL editor with syntax highlighting, format/prettify, and auto-generated SQL preview.
+﻿/**
+ * SQLEditor â€” Raw SQL editor with syntax highlighting, format/prettify, and auto-generated SQL preview.
  */
 
 import React, { useState } from 'react';
@@ -116,3 +116,4 @@ const SQLEditor: React.FC<Props> = ({
 };
 
 export default SQLEditor;
+

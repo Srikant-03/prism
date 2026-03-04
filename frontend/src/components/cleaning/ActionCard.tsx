@@ -1,5 +1,5 @@
-/**
- * ActionCard — Displays a single CleaningAction with evidence chain,
+﻿/**
+ * ActionCard â€” Displays a single CleaningAction with evidence chain,
  * before/after preview, impact estimate, and action buttons.
  */
 
@@ -93,18 +93,18 @@ const ActionCard: React.FC<ActionCardProps> = ({ action, onApply, onSkip, loadin
                         {action.action_type.replace(/_/g, ' ').toUpperCase()}
                     </Text>
                     <Tag color={isDefinitive ? 'success' : 'warning'}>
-                        {isDefinitive ? '✓ Definitive' : '⚡ Judgment Call'}
+                        {isDefinitive ? 'âœ“ Definitive' : 'âš¡ Judgment Call'}
                     </Tag>
                     {isApplied && <Tag color="blue" icon={<CheckCircleOutlined />}>Applied</Tag>}
                     {isSkipped && <Tag color="default" icon={<StopOutlined />}>Skipped</Tag>}
                     {action.target_columns.length > 0 && (
                         <Text type="secondary" style={{ fontSize: 12 }}>
-                            → {action.target_columns.join(', ')}
+                            â†’ {action.target_columns.join(', ')}
                         </Text>
                     )}
                 </Space>
             }
-            bordered={false}
+            variant="borderless"
         >
             {/* Evidence Chain */}
             <div style={{ marginBottom: 12 }}>
@@ -138,11 +138,11 @@ const ActionCard: React.FC<ActionCardProps> = ({ action, onApply, onSkip, loadin
                 marginBottom: 12,
             }}>
                 <Text style={{ fontSize: 13 }}>
-                    📊 <Text strong>{action.impact.description}</Text>
+                    ðŸ“Š <Text strong>{action.impact.description}</Text>
                 </Text>
                 {action.impact.rows_affected > 0 && (
                     <Text type="secondary" style={{ marginLeft: 12, fontSize: 12 }}>
-                        ({action.impact.rows_before.toLocaleString()} → {action.impact.rows_after.toLocaleString()} rows)
+                        ({action.impact.rows_before.toLocaleString()} â†’ {action.impact.rows_after.toLocaleString()} rows)
                     </Text>
                 )}
             </div>
@@ -239,3 +239,4 @@ const ActionCard: React.FC<ActionCardProps> = ({ action, onApply, onSkip, loadin
 };
 
 export default ActionCard;
+

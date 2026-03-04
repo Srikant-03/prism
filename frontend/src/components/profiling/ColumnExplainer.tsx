@@ -1,5 +1,5 @@
-/**
- * ColumnExplainer — One-click deep-dive narrative for any column.
+﻿/**
+ * ColumnExplainer â€” One-click deep-dive narrative for any column.
  * Generates a 3-5 paragraph analysis using AI.
  */
 
@@ -93,3 +93,4 @@ const ColumnExplainer: React.FC<Props> = ({ column, fileId, trigger }) => {
 };
 
 export default ColumnExplainer;
+

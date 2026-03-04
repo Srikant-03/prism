@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+﻿import React, { useMemo } from 'react';
 import { Card } from 'antd';
 import ReactECharts from 'echarts-for-react';
 import type { FeatureImportance } from '../../types/insight';
@@ -74,7 +74,7 @@ const FeatureRanking: React.FC<FeatureRankingProps> = ({ data }) => {
     }, [chartData]);
 
     return (
-        <Card className="glass-panel" title="Feature Significance Ranking" bordered={false} style={{ height: '100%' }}>
+        <Card className="glass-panel" title="Feature Significance Ranking" variant="borderless" style={{ height: '100%' }}>
             <div style={{ height: '400px', width: '100%' }}>
                 <ReactECharts
                     option={option}
@@ -86,3 +86,4 @@ const FeatureRanking: React.FC<FeatureRankingProps> = ({ data }) => {
 };
 
 export default FeatureRanking;
+

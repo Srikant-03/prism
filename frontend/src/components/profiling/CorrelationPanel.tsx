@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+﻿import React, { useMemo } from 'react';
 import { Card, Table, Typography, Alert, Space, Row, Col } from 'antd';
 import ReactECharts from 'echarts-for-react';
 import type { CorrelationAnalysis } from '../../types/profiling';
@@ -146,7 +146,7 @@ const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data }) => {
 
             <Row gutter={[16, 16]}>
                 <Col span={24} lg={12}>
-                    <Card title="Correlation Matrix" bordered={false} className="glass-panel">
+                    <Card title="Correlation Matrix" variant="borderless" className="glass-panel">
                         {Object.keys(data.correlation_matrix).length > 0 ? (
                             <ReactECharts option={heatmapOption} style={{ height: 400 }} theme="dark" />
                         ) : (
@@ -155,7 +155,7 @@ const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data }) => {
                     </Card>
                 </Col>
                 <Col span={24} lg={12}>
-                    <Card title="Association Network (Score > 0.4)" bordered={false} className="glass-panel">
+                    <Card title="Association Network (Score > 0.4)" variant="borderless" className="glass-panel">
                         {data.strongest_pairs.some(p => Math.abs(p.score) > 0.4) ? (
                             <ReactECharts option={networkOption} style={{ height: 400 }} theme="dark" />
                         ) : (
@@ -165,7 +165,7 @@ const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data }) => {
                 </Col>
             </Row>
 
-            <Card title="Strongest Associations" bordered={false} className="glass-panel">
+            <Card title="Strongest Associations" variant="borderless" className="glass-panel">
                 <Table
                     dataSource={data.strongest_pairs.slice(0, 10)}
                     columns={columns}
@@ -179,3 +179,4 @@ const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data }) => {
 };
 
 export default CorrelationPanel;
+

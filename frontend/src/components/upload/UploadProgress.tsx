@@ -1,5 +1,5 @@
-/**
- * UploadProgress — Animated progress bar with ETA, memory usage, and stage label.
+﻿/**
+ * UploadProgress â€” Animated progress bar with ETA, memory usage, and stage label.
  */
 
 import React from 'react';
@@ -71,7 +71,7 @@ const UploadProgress: React.FC<UploadProgressProps> = ({
     const isError = stage === 'error';
 
     return (
-        <Card className="upload-progress-card" bordered={false}>
+        <Card className="upload-progress-card" variant="borderless">
             <div className="progress-header">
                 <Space>
                     <span className="stage-icon" style={{ color: stageConfig.color }}>
@@ -110,7 +110,7 @@ const UploadProgress: React.FC<UploadProgressProps> = ({
                         {statusMessage}
                     </Text>
                 )}
-                <Space className="progress-stats" split={<span className="stat-divider">•</span>}>
+                <Space className="progress-stats" split={<span className="stat-divider">â€¢</span>}>
                     {bytesRead != null && totalBytes != null && totalBytes > 0 && (
                         <Text type="secondary" className="stat-item">
                             {formatBytes(bytesRead)} / {formatBytes(totalBytes)}
@@ -128,3 +128,4 @@ const UploadProgress: React.FC<UploadProgressProps> = ({
 };
 
 export default UploadProgress;
+

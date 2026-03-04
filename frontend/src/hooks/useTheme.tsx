@@ -1,5 +1,5 @@
-/**
- * ThemeContext — Provides dark/light mode toggle with localStorage persistence.
+﻿/**
+ * ThemeContext â€” Provides dark/light mode toggle with localStorage persistence.
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
@@ -50,3 +50,4 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
 export const useTheme = () => useContext(ThemeContext);
 export default ThemeContext;
+

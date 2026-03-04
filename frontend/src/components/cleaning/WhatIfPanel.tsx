@@ -1,5 +1,5 @@
-/**
- * WhatIfPanel — Sandbox mode for testing preprocessing decisions.
+﻿/**
+ * WhatIfPanel â€” Sandbox mode for testing preprocessing decisions.
  * Simulates steps on a sample before committing to full dataset.
  */
 
@@ -291,3 +291,4 @@ const WhatIfPanel: React.FC<Props> = ({ columns, fileId }) => {
 };
 
 export default WhatIfPanel;
+

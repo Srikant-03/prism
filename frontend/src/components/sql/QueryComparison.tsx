@@ -1,5 +1,5 @@
-/**
- * QueryComparison — Run two queries side-by-side and compare results.
+﻿/**
+ * QueryComparison â€” Run two queries side-by-side and compare results.
  */
 
 import React, { useState, useCallback } from 'react';
@@ -64,7 +64,7 @@ const QueryComparison: React.FC<Props> = ({ initialSQL }) => {
                     : result ? <CloseCircleOutlined style={{ color: '#ff4d4f' }} /> : null}
                 {label}
                 {result?.success && (
-                    <Tag style={{ fontSize: 10 }}>{result.row_count} rows · {
+                    <Tag style={{ fontSize: 10 }}>{result.row_count} rows Â· {
                         (result.execution_time_s || 0) < 1
                             ? `${((result.execution_time_s || 0) * 1000).toFixed(0)}ms`
                             : `${(result.execution_time_s || 0).toFixed(2)}s`
@@ -140,3 +140,4 @@ const QueryComparison: React.FC<Props> = ({ initialSQL }) => {
 };
 
 export default QueryComparison;
+

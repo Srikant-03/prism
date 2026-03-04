@@ -1,5 +1,5 @@
-/**
- * QueryLibrary — Save, load, tag, and share queries.
+﻿/**
+ * QueryLibrary â€” Save, load, tag, and share queries.
  * Parameterized queries turn any query into a reusable template.
  */
 
@@ -181,7 +181,7 @@ const QueryLibrary: React.FC<Props> = ({ currentSQL, onLoadQuery, onExecuteQuery
                                     <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
                                         {q.tags.map(t => <Tag key={t} style={{ fontSize: 10 }}>{t}</Tag>)}
                                         <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>
-                                            Used {q.runCount}× · {new Date(q.lastUsed).toLocaleDateString()}
+                                            Used {q.runCount}Ã— Â· {new Date(q.lastUsed).toLocaleDateString()}
                                         </span>
                                     </div>
                                 </div>
@@ -257,7 +257,7 @@ const QueryLibrary: React.FC<Props> = ({ currentSQL, onLoadQuery, onExecuteQuery
                     <TextArea value={form.sql} rows={4} style={{ fontFamily: 'monospace', fontSize: 12 }}
                         onChange={e => setForm(f => ({ ...f, sql: e.target.value }))} />
                     <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
-                        💡 Use {"{{param_name}}"} in SQL to create parameterized queries
+                        ðŸ’¡ Use {"{{param_name}}"} in SQL to create parameterized queries
                     </div>
                 </Space>
             </Modal>
@@ -266,3 +266,4 @@ const QueryLibrary: React.FC<Props> = ({ currentSQL, onLoadQuery, onExecuteQuery
 };
 
 export default QueryLibrary;
+

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+﻿import React, { useMemo } from 'react';
 import { Card, Typography, Row, Col, Statistic, Progress } from 'antd';
 import ReactECharts from 'echarts-for-react';
 import { AimOutlined, TrophyOutlined } from '@ant-design/icons';
@@ -73,7 +73,7 @@ const TargetAnalysisPanel: React.FC<TargetAnalysisPanelProps> = ({ data }) => {
     }, [data.top_predictors]);
 
     return (
-        <Card bordered={false} className="glass-panel target-analysis-panel">
+        <Card variant="borderless" className="glass-panel target-analysis-panel">
             <Row gutter={[24, 24]}>
                 <Col span={24} md={8}>
                     <Statistic
@@ -121,3 +121,4 @@ const TargetAnalysisPanel: React.FC<TargetAnalysisPanelProps> = ({ data }) => {
 };
 
 export default TargetAnalysisPanel;
+

@@ -1,5 +1,5 @@
-/**
- * CellRepairPanel — Intelligent cell-level repair suggestions.
+﻿/**
+ * CellRepairPanel â€” Intelligent cell-level repair suggestions.
  */
 
 import React, { useState, useCallback } from 'react';
@@ -54,7 +54,7 @@ const CellRepairPanel: React.FC<Props> = ({
         return (
             <Empty
                 image={<ToolOutlined style={{ fontSize: 48, color: '#52c41a' }} />}
-                description="No repair suggestions — your data looks good!"
+                description="No repair suggestions â€” your data looks good!"
             />
         );
     }
@@ -100,7 +100,7 @@ const CellRepairPanel: React.FC<Props> = ({
             ),
         },
         {
-            title: '→ Suggested',
+            title: 'â†’ Suggested',
             dataIndex: 'suggested_value',
             width: 120,
             render: (v: any) => (
@@ -203,3 +203,4 @@ const CellRepairPanel: React.FC<Props> = ({
 };
 
 export default CellRepairPanel;
+

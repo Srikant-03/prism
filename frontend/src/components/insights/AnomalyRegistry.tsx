@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Card, Table, Tag, Typography } from 'antd';
 import type { AnomalyWarning } from '../../types/insight';
 
@@ -65,7 +65,7 @@ const AnomalyRegistry: React.FC<AnomalyRegistryProps> = ({ data }) => {
     ];
 
     return (
-        <Card className="glass-panel" title={`Anomaly & Warning Registry (${data.length} found)`} bordered={false} style={{ height: '100%' }}>
+        <Card className="glass-panel" title={`Anomaly & Warning Registry (${data.length} found)`} variant="borderless" style={{ height: '100%' }}>
             <Table
                 dataSource={data}
                 columns={columns}
@@ -80,3 +80,4 @@ const AnomalyRegistry: React.FC<AnomalyRegistryProps> = ({ data }) => {
 };
 
 export default AnomalyRegistry;
+

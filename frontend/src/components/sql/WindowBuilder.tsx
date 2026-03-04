@@ -1,5 +1,5 @@
-/**
- * WindowBuilder — Window function builder (ROW_NUMBER, RANK, LAG, etc.)
+﻿/**
+ * WindowBuilder â€” Window function builder (ROW_NUMBER, RANK, LAG, etc.)
  */
 
 import React from 'react';
@@ -17,7 +17,7 @@ interface Props {
 const FRAME_OPTIONS = [
     { value: '', label: 'Default' },
     { value: 'ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW', label: 'Running Total' },
-    { value: 'ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING', label: 'Moving Avg (±2)' },
+    { value: 'ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING', label: 'Moving Avg (Â±2)' },
     { value: 'ROWS BETWEEN 6 PRECEDING AND CURRENT ROW', label: 'Last 7 Rows' },
     { value: 'ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING', label: 'Entire Partition' },
     { value: 'RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW', label: 'Range Running' },
@@ -117,7 +117,7 @@ const WindowBuilder: React.FC<Props> = ({ columns, windowColumns, onChange }) =>
                                     value={win.offset || 1}
                                     onChange={v => updateWindow(i, { offset: v || 1 })}
                                     style={{ width: 60 }}
-                                    addonBefore="±"
+                                    addonBefore="Â±"
                                 />
                             )}
                             <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, alignSelf: 'center' }}>AS</span>
@@ -185,3 +185,4 @@ const WindowBuilder: React.FC<Props> = ({ columns, windowColumns, onChange }) =>
 };
 
 export default WindowBuilder;
+

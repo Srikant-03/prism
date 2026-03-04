@@ -1,5 +1,5 @@
-/**
- * QueryHistory — Timestamped history of all queries with one-click re-run.
+﻿/**
+ * QueryHistory â€” Timestamped history of all queries with one-click re-run.
  */
 
 import React, { useState, useMemo } from 'react';
@@ -121,3 +121,4 @@ const QueryHistory: React.FC<Props> = ({ history, onRerun, onLoad, onClear }) =>
 };
 
 export default QueryHistory;
+

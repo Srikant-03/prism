@@ -1,5 +1,5 @@
-/**
- * ChatSidebar — Persistent AI conversation panel.
+﻿/**
+ * ChatSidebar â€” Persistent AI conversation panel.
  * Multi-turn chat with full dataset context awareness.
  * Responses include clickable actions and proactive insights.
  */
@@ -40,7 +40,7 @@ const ChatSidebar: React.FC<Props> = ({ open, onClose, onAction }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([
         {
             id: '0', role: 'ai', content:
-                "👋 Hi! I'm your data assistant. I can see your dataset's schema, profiling results, and any preprocessing steps you've made.\n\nTry asking me things like:\n- \"What columns have the most nulls?\"\n- \"Is this data good enough for ML?\"\n- \"What's suspicious about this dataset?\"\n- \"Show me the top customers by revenue\"",
+                "ðŸ‘‹ Hi! I'm your data assistant. I can see your dataset's schema, profiling results, and any preprocessing steps you've made.\n\nTry asking me things like:\n- \"What columns have the most nulls?\"\n- \"Is this data good enough for ML?\"\n- \"What's suspicious about this dataset?\"\n- \"Show me the top customers by revenue\"",
             timestamp: Date.now(),
         },
     ]);
@@ -92,7 +92,7 @@ const ChatSidebar: React.FC<Props> = ({ open, onClose, onAction }) => {
             setMessages(prev => [...prev, {
                 id: (Date.now() + 1).toString(),
                 role: 'ai',
-                content: `⚠️ Error: ${e.message || 'Failed to reach the AI service.'}`,
+                content: `âš ï¸ Error: ${e.message || 'Failed to reach the AI service.'}`,
                 timestamp: Date.now(),
             }]);
         } finally {
@@ -248,7 +248,7 @@ const ChatSidebar: React.FC<Props> = ({ open, onClose, onAction }) => {
                     />
                 </div>
                 <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 4 }}>
-                    Shift+Enter for new line • AI has context of your schema, profiling, and cleaning decisions
+                    Shift+Enter for new line â€¢ AI has context of your schema, profiling, and cleaning decisions
                 </div>
             </div>
         </Drawer>
@@ -256,3 +256,4 @@ const ChatSidebar: React.FC<Props> = ({ open, onClose, onAction }) => {
 };
 
 export default ChatSidebar;
+

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Row, Col, Typography } from 'antd';
 import type { DatasetInsights } from '../../types/insight';
 import QualityReportCard from './QualityReportCard';
@@ -52,3 +52,4 @@ const InsightDashboard: React.FC<InsightDashboardProps> = ({ insights, fileId })
 };
 
 export default InsightDashboard;
+

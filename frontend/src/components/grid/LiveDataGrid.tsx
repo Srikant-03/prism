@@ -1,5 +1,5 @@
-/**
- * LiveDataGrid — Excel-like interactive data grid using AG Grid.
+﻿/**
+ * LiveDataGrid â€” Excel-like interactive data grid using AG Grid.
  * Full-featured: sort, filter, pin, resize, reorder, context menus,
  * conditional formatting, cell quality indicators, inline editing.
  */
@@ -321,8 +321,8 @@ const LiveDataGrid: React.FC<Props> = ({
             {miniStats && (
                 <div className="glass-panel" style={{ padding: 12 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <strong>{miniStats.col} — Quick Stats</strong>
-                        <Button size="small" onClick={() => setMiniStats(null)}>✕</Button>
+                        <strong>{miniStats.col} â€” Quick Stats</strong>
+                        <Button size="small" onClick={() => setMiniStats(null)}>âœ•</Button>
                     </div>
                     <Space wrap>
                         {Object.entries(miniStats.stats).map(([k, v]) => (
@@ -419,7 +419,7 @@ const LiveDataGrid: React.FC<Props> = ({
                             { value: 'gt', label: 'Greater than (>)' },
                             { value: 'lt', label: 'Less than (<)' },
                             { value: 'eq', label: 'Equals (=)' },
-                            { value: 'neq', label: 'Not equals (≠)' },
+                            { value: 'neq', label: 'Not equals (â‰ )' },
                             { value: 'contains', label: 'Contains' },
                             { value: 'between', label: 'Between' },
                         ]}
@@ -453,3 +453,4 @@ const LiveDataGrid: React.FC<Props> = ({
 };
 
 export default LiveDataGrid;
+

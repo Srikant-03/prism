@@ -1,5 +1,5 @@
-/**
- * DataPreview — Rich data table with column types, null counts, and summary stats.
+﻿/**
+ * DataPreview â€” Rich data table with column types, null counts, and summary stats.
  */
 
 import React from 'react';
@@ -103,7 +103,7 @@ const DataPreview: React.FC<DataPreviewProps> = ({ result }) => {
     return (
         <div className="data-preview">
             {/* Metadata Summary */}
-            <Card bordered={false} className="metadata-card">
+            <Card variant="borderless" className="metadata-card">
                 <Row gutter={[24, 16]}>
                     <Col xs={12} sm={6}>
                         <Statistic
@@ -179,7 +179,7 @@ const DataPreview: React.FC<DataPreviewProps> = ({ result }) => {
             </Card>
 
             {/* AI Justification */}
-            <Card bordered={false} className="justification-card">
+            <Card variant="borderless" className="justification-card">
                 <Space>
                     <InfoCircleOutlined style={{ color: '#1677ff' }} />
                     <Text type="secondary" className="justification-text">
@@ -197,7 +197,7 @@ const DataPreview: React.FC<DataPreviewProps> = ({ result }) => {
                         <Text type="secondary">(first {preview_data.length} rows)</Text>
                     </Space>
                 }
-                bordered={false}
+                variant="borderless"
                 className="preview-table-card"
             >
                 <Table
@@ -214,3 +214,4 @@ const DataPreview: React.FC<DataPreviewProps> = ({ result }) => {
 };
 
 export default DataPreview;
+

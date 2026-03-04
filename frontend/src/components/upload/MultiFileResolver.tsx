@@ -1,5 +1,5 @@
-/**
- * MultiFileResolver — Schema comparison UI with merge/separate decision.
+﻿/**
+ * MultiFileResolver â€” Schema comparison UI with merge/separate decision.
  */
 
 import React from 'react';
@@ -38,7 +38,7 @@ const relationshipConfig = {
     mixed: {
         color: '#faad14',
         icon: <QuestionCircleOutlined />,
-        label: 'Mixed — Your Decision Needed',
+        label: 'Mixed â€” Your Decision Needed',
         bgColor: 'rgba(250, 173, 20, 0.08)',
     },
 };
@@ -86,7 +86,7 @@ const MultiFileResolver: React.FC<MultiFileResolverProps> = ({
 
     return (
         <div className="multi-file-resolver">
-            <Card bordered={false} className="resolver-header-card" style={{ background: config.bgColor }}>
+            <Card variant="borderless" className="resolver-header-card" style={{ background: config.bgColor }}>
                 <Space align="start">
                     <span style={{ fontSize: 28, color: config.color }}>{config.icon}</span>
                     <div>
@@ -108,7 +108,7 @@ const MultiFileResolver: React.FC<MultiFileResolverProps> = ({
                 />
             </Card>
 
-            <Card title="File Schemas" bordered={false} className="schema-table-card">
+            <Card title="File Schemas" variant="borderless" className="schema-table-card">
                 <Table
                     dataSource={comparison.files.map((f, i) => ({ ...f, key: i }))}
                     columns={fileColumns}
@@ -173,3 +173,4 @@ const MultiFileResolver: React.FC<MultiFileResolverProps> = ({
 };
 
 export default MultiFileResolver;
+

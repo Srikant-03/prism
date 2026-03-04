@@ -1,5 +1,5 @@
-/**
- * AnomalyWatchlist — Persistent panel for curating and investigating suspicious records.
+﻿/**
+ * AnomalyWatchlist â€” Persistent panel for curating and investigating suspicious records.
  * Tracks anomalies across profiling/cleaning with investigation workflow.
  */
 
@@ -196,7 +196,7 @@ const AnomalyWatchlist: React.FC<Props> = ({
             <div className="glass-panel" style={{ padding: 32, textAlign: 'center' }}>
                 <Empty
                     image={<CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a' }} />}
-                    description="No anomalies detected — your data looks clean!"
+                    description="No anomalies detected â€” your data looks clean!"
                 />
             </div>
         );
@@ -238,9 +238,9 @@ const AnomalyWatchlist: React.FC<Props> = ({
                     <Select size="small" value={severityFilter} onChange={setSeverityFilter}
                         placeholder="Severity" allowClear style={{ width: 100 }}
                         options={[
-                            { value: 'critical', label: '🔴 Critical' },
-                            { value: 'warning', label: '🟡 Warning' },
-                            { value: 'info', label: '🔵 Info' },
+                            { value: 'critical', label: 'ðŸ”´ Critical' },
+                            { value: 'warning', label: 'ðŸŸ¡ Warning' },
+                            { value: 'info', label: 'ðŸ”µ Info' },
                         ]}
                     />
                     <Select size="small" value={statusFilter} onChange={setStatusFilter}
@@ -295,7 +295,7 @@ const AnomalyWatchlist: React.FC<Props> = ({
 
             {/* Note modal */}
             <Modal
-                title={`Note — Row ${noteModal.item?.rowIndex}, ${noteModal.item?.column}`}
+                title={`Note â€” Row ${noteModal.item?.rowIndex}, ${noteModal.item?.column}`}
                 open={noteModal.visible}
                 onOk={handleSaveNote}
                 onCancel={() => setNoteModal({ visible: false })}
@@ -313,3 +313,4 @@ const AnomalyWatchlist: React.FC<Props> = ({
 };
 
 export default AnomalyWatchlist;
+

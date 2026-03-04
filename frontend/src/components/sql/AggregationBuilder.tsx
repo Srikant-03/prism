@@ -1,5 +1,5 @@
-/**
- * AggregationBuilder — GROUP BY + aggregate measures builder.
+﻿/**
+ * AggregationBuilder â€” GROUP BY + aggregate measures builder.
  */
 
 import React from 'react';
@@ -115,3 +115,4 @@ const AggregationBuilder: React.FC<Props> = ({
 };
 
 export default AggregationBuilder;
+

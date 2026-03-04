@@ -1,5 +1,5 @@
-/**
- * SchemaOverride — Panel showing type inferences with confidence and override controls.
+﻿/**
+ * SchemaOverride â€” Panel showing type inferences with confidence and override controls.
  * Lets users see and correct type decisions with downstream impact preview.
  */
 
@@ -28,12 +28,12 @@ interface Props {
 }
 
 const TYPE_OPTIONS = [
-    { value: 'int64', label: '🔢 Integer' },
-    { value: 'float64', label: '🔢 Float' },
-    { value: 'string', label: '🔤 String' },
-    { value: 'datetime', label: '📅 DateTime' },
-    { value: 'boolean', label: '✅ Boolean' },
-    { value: 'category', label: '🏷️ Category' },
+    { value: 'int64', label: 'ðŸ”¢ Integer' },
+    { value: 'float64', label: 'ðŸ”¢ Float' },
+    { value: 'string', label: 'ðŸ”¤ String' },
+    { value: 'datetime', label: 'ðŸ“… DateTime' },
+    { value: 'boolean', label: 'âœ… Boolean' },
+    { value: 'category', label: 'ðŸ·ï¸ Category' },
 ];
 
 const SchemaOverride: React.FC<Props> = ({
@@ -71,7 +71,7 @@ const SchemaOverride: React.FC<Props> = ({
             render: (v: string, record: TypeInference) => (
                 <Space>
                     {record.conflict && (
-                        <Tooltip title="Type conflict — multiple valid types detected">
+                        <Tooltip title="Type conflict â€” multiple valid types detected">
                             <ExclamationCircleOutlined style={{ color: '#faad14' }} />
                         </Tooltip>
                     )}
@@ -151,7 +151,7 @@ const SchemaOverride: React.FC<Props> = ({
                 <Alert
                     type="warning"
                     showIcon
-                    message={`${conflicts.length} column(s) have ambiguous types — please review`}
+                    message={`${conflicts.length} column(s) have ambiguous types â€” please review`}
                     description={conflicts.map(c => c.column).join(', ')}
                 />
             )}
@@ -229,3 +229,4 @@ const SchemaOverride: React.FC<Props> = ({
 };
 
 export default SchemaOverride;
+

@@ -1,5 +1,5 @@
-/**
- * JoinBuilder — Visual join designer for multi-table queries.
+﻿/**
+ * JoinBuilder â€” Visual join designer for multi-table queries.
  */
 
 import React from 'react';
@@ -186,3 +186,4 @@ const JoinBuilder: React.FC<Props> = ({ tables, columnsCache, joins, onChange, c
 };
 
 export default JoinBuilder;
+

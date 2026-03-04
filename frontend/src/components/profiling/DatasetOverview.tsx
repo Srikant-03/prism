@@ -1,5 +1,5 @@
-/**
- * DatasetOverview — Top-level dataset stats, domain inference, key detection.
+﻿/**
+ * DatasetOverview â€” Top-level dataset stats, domain inference, key detection.
  */
 
 import React from 'react';
@@ -45,22 +45,22 @@ const DatasetOverview: React.FC<DatasetOverviewProps> = ({ profile }) => {
             {/* Row 1: Core Stats */}
             <Row gutter={[16, 16]}>
                 <Col xs={12} sm={6}>
-                    <Card bordered={false} className="stat-card">
+                    <Card variant="borderless" className="stat-card">
                         <Statistic title="Total Rows" value={profile.total_rows.toLocaleString()} prefix={<DatabaseOutlined />} valueStyle={{ color: '#6366f1' }} />
                     </Card>
                 </Col>
                 <Col xs={12} sm={6}>
-                    <Card bordered={false} className="stat-card">
+                    <Card variant="borderless" className="stat-card">
                         <Statistic title="Total Columns" value={profile.total_columns} prefix={<ColumnWidthOutlined />} valueStyle={{ color: '#8b5cf6' }} />
                     </Card>
                 </Col>
                 <Col xs={12} sm={6}>
-                    <Card bordered={false} className="stat-card">
+                    <Card variant="borderless" className="stat-card">
                         <Statistic title="In-Memory" value={profile.memory_size_readable} prefix={<CloudOutlined />} valueStyle={{ color: '#06b6d4', fontSize: 20 }} />
                     </Card>
                 </Col>
                 <Col xs={12} sm={6}>
-                    <Card bordered={false} className="stat-card">
+                    <Card variant="borderless" className="stat-card">
                         <Statistic title="On-Disk" value={profile.disk_size_readable} prefix={<HddOutlined />} valueStyle={{ color: '#10b981', fontSize: 20 }} />
                     </Card>
                 </Col>
@@ -69,7 +69,7 @@ const DatasetOverview: React.FC<DatasetOverviewProps> = ({ profile }) => {
             {/* Row 2: Domain & Scores */}
             <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
                 <Col xs={24} md={12}>
-                    <Card bordered={false} className="domain-card">
+                    <Card variant="borderless" className="domain-card">
                         <Space direction="vertical" style={{ width: '100%' }}>
                             <Space>
                                 <GlobalOutlined style={{ fontSize: 20, color: '#6366f1' }} />
@@ -83,7 +83,7 @@ const DatasetOverview: React.FC<DatasetOverviewProps> = ({ profile }) => {
                     </Card>
                 </Col>
                 <Col xs={12} md={6}>
-                    <Card bordered={false} className="score-card">
+                    <Card variant="borderless" className="score-card">
                         <Space direction="vertical" align="center" style={{ width: '100%' }}>
                             <Text type="secondary">Completeness</Text>
                             <Progress type="circle" percent={Math.round(profile.structural_completeness)} size={80}
@@ -92,7 +92,7 @@ const DatasetOverview: React.FC<DatasetOverviewProps> = ({ profile }) => {
                     </Card>
                 </Col>
                 <Col xs={12} md={6}>
-                    <Card bordered={false} className="score-card">
+                    <Card variant="borderless" className="score-card">
                         <Space direction="vertical" align="center" style={{ width: '100%' }}>
                             <Text type="secondary">Schema Consistency</Text>
                             <Progress type="circle" percent={Math.round(profile.schema_consistency)} size={80}
@@ -106,10 +106,10 @@ const DatasetOverview: React.FC<DatasetOverviewProps> = ({ profile }) => {
             <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
                 {profile.temporal_coverage && (
                     <Col xs={24} md={8}>
-                        <Card bordered={false} className="info-card" title={<Space><ClockCircleOutlined /> Temporal Coverage</Space>} size="small">
+                        <Card variant="borderless" className="info-card" title={<Space><ClockCircleOutlined /> Temporal Coverage</Space>} size="small">
                             <Descriptions column={1} size="small">
                                 <Descriptions.Item label="Column"><Tag>{profile.temporal_coverage.column}</Tag></Descriptions.Item>
-                                <Descriptions.Item label="Range">{profile.temporal_coverage.earliest?.slice(0, 10)} → {profile.temporal_coverage.latest?.slice(0, 10)}</Descriptions.Item>
+                                <Descriptions.Item label="Range">{profile.temporal_coverage.earliest?.slice(0, 10)} â†’ {profile.temporal_coverage.latest?.slice(0, 10)}</Descriptions.Item>
                                 <Descriptions.Item label="Span">{profile.temporal_coverage.span_days.toLocaleString()} days</Descriptions.Item>
                             </Descriptions>
                         </Card>
@@ -133,7 +133,7 @@ const DatasetOverview: React.FC<DatasetOverviewProps> = ({ profile }) => {
                             <Panel header={<Space><IdcardOutlined /> ID Columns ({profile.id_columns.length})</Space>} key="id">
                                 <Space wrap>{profile.id_columns.map(c => <Tag key={c} color="warning">{c}</Tag>)}</Space>
                                 <Text type="secondary" style={{ display: 'block', marginTop: 8, fontSize: 12 }}>
-                                    These columns have high uniqueness and no analytical value — consider excluding from analysis.
+                                    These columns have high uniqueness and no analytical value â€” consider excluding from analysis.
                                 </Text>
                             </Panel>
                         )}
@@ -152,3 +152,4 @@ const DatasetOverview: React.FC<DatasetOverviewProps> = ({ profile }) => {
 };
 
 export default DatasetOverview;
+

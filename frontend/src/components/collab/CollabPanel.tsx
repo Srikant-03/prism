@@ -1,5 +1,5 @@
-/**
- * CollabPanel — Collaborative annotations with real-time comments and emoji reactions.
+﻿/**
+ * CollabPanel â€” Collaborative annotations with real-time comments and emoji reactions.
  * Uses polling-based approach (upgradeable to WebSocket in production).
  */
 
@@ -32,7 +32,7 @@ interface Props {
     currentUser?: string;
 }
 
-const REACTIONS = ['👍', '👎', '❓', '💡', '🔥', '✅', '⚠️', '🎯'];
+const REACTIONS = ['ðŸ‘', 'ðŸ‘Ž', 'â“', 'ðŸ’¡', 'ðŸ”¥', 'âœ…', 'âš ï¸', 'ðŸŽ¯'];
 
 const CollabPanel: React.FC<Props> = ({
     open, onClose, annotations, onAddAnnotation, onAddReaction,
@@ -90,7 +90,7 @@ const CollabPanel: React.FC<Props> = ({
                     <Tag key={f} color={filter === f ? 'blue' : undefined}
                         style={{ cursor: 'pointer', fontSize: 11 }}
                         onClick={() => setFilter(f)}>
-                        {f === 'all' ? 'All' : f === 'pinned' ? '📌 Pinned' : '👤 Mine'}
+                        {f === 'all' ? 'All' : f === 'pinned' ? 'ðŸ“Œ Pinned' : 'ðŸ‘¤ Mine'}
                     </Tag>
                 ))}
             </div>
@@ -102,7 +102,7 @@ const CollabPanel: React.FC<Props> = ({
             }}>
                 {filtered.length === 0 ? (
                     <Empty
-                        description="No annotations yet — be the first!"
+                        description="No annotations yet â€” be the first!"
                         image={Empty.PRESENTED_IMAGE_SIMPLE}
                     />
                 ) : (
@@ -140,10 +140,10 @@ const CollabPanel: React.FC<Props> = ({
 
                             {note.target && (
                                 <Tag style={{ fontSize: 9, marginBottom: 4 }}>
-                                    {note.target.type === 'column' ? `📊 ${note.target.column}` :
-                                        note.target.type === 'row' ? `🔢 Row ${note.target.rowIndex}` :
-                                            note.target.type === 'cell' ? `📋 ${note.target.column}[${note.target.rowIndex}]` :
-                                                '💬 General'}
+                                    {note.target.type === 'column' ? `ðŸ“Š ${note.target.column}` :
+                                        note.target.type === 'row' ? `ðŸ”¢ Row ${note.target.rowIndex}` :
+                                            note.target.type === 'cell' ? `ðŸ“‹ ${note.target.column}[${note.target.rowIndex}]` :
+                                                'ðŸ’¬ General'}
                                 </Tag>
                             )}
 
@@ -221,3 +221,4 @@ const CollabPanel: React.FC<Props> = ({
 };
 
 export default CollabPanel;
+

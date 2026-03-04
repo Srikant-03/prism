@@ -1,5 +1,5 @@
-/**
- * CleaningDashboard — Main container for the Data Cleaning Pipeline.
+﻿/**
+ * CleaningDashboard â€” Main container for the Data Cleaning Pipeline.
  * Shows summary, filter tabs, and a list of ActionCards.
  */
 
@@ -60,7 +60,7 @@ const CleaningDashboard: React.FC<CleaningDashboardProps> = ({ fileId }) => {
         );
     }
 
-    // Idle state — no file
+    // Idle state â€” no file
     if (!fileId || state.status === 'idle') {
         return (
             <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center' }}>
@@ -141,12 +141,12 @@ const CleaningDashboard: React.FC<CleaningDashboardProps> = ({ fileId }) => {
                     <Col flex="auto">
                         <Space direction="vertical" size={4}>
                             <Title level={4} style={{ margin: 0 }}>
-                                🧹 Intelligent Cleaning Engine
+                                ðŸ§¹ Intelligent Cleaning Engine
                             </Title>
                             <Text type="secondary">
                                 {plan.total_actions} recommendations generated
                                 {plan.estimated_rows_affected > 0 &&
-                                    ` · ~${plan.estimated_rows_affected.toLocaleString()} rows affected (${plan.estimated_rows_affected_pct}%)`
+                                    ` Â· ~${plan.estimated_rows_affected.toLocaleString()} rows affected (${plan.estimated_rows_affected_pct}%)`
                                 }
                             </Text>
                         </Space>
@@ -200,7 +200,7 @@ const CleaningDashboard: React.FC<CleaningDashboardProps> = ({ fileId }) => {
                         key: 'definitive',
                         label: (
                             <Space>
-                                <Tag color="success" style={{ margin: 0 }}>✓</Tag>
+                                <Tag color="success" style={{ margin: 0 }}>âœ“</Tag>
                                 Definitive
                             </Space>
                         ),
@@ -209,7 +209,7 @@ const CleaningDashboard: React.FC<CleaningDashboardProps> = ({ fileId }) => {
                         key: 'judgment',
                         label: (
                             <Space>
-                                <Tag color="warning" style={{ margin: 0 }}>⚡</Tag>
+                                <Tag color="warning" style={{ margin: 0 }}>âš¡</Tag>
                                 Judgment Calls
                             </Space>
                         ),
@@ -330,7 +330,7 @@ const CleaningDashboard: React.FC<CleaningDashboardProps> = ({ fileId }) => {
                 <Empty
                     description={
                         activeTab === 'all'
-                            ? 'No cleaning actions needed — your data looks great!'
+                            ? 'No cleaning actions needed â€” your data looks great!'
                             : `No ${activeTab.replace('_', ' ')} actions found.`
                     }
                     style={{ padding: '3rem 0' }}
@@ -341,3 +341,4 @@ const CleaningDashboard: React.FC<CleaningDashboardProps> = ({ fileId }) => {
 };
 
 export default CleaningDashboard;
+

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+﻿import React, { useMemo } from 'react';
 import { Card, Statistic, Row, Col, Typography } from 'antd';
 import ReactECharts from 'echarts-for-react';
 import type { DataQualityScore } from '../../types/insight';
@@ -77,7 +77,7 @@ const QualityReportCard: React.FC<QualityReportCardProps> = ({ data }) => {
     }, [data]);
 
     return (
-        <Card className="glass-panel" title="Data Quality Report Card" bordered={false} style={{ height: '100%' }}>
+        <Card className="glass-panel" title="Data Quality Report Card" variant="borderless" style={{ height: '100%' }}>
 
             <Row gutter={[24, 24]} justify="space-around" align="middle" style={{ marginBottom: '20px' }}>
                 <Col>
@@ -120,3 +120,4 @@ const QualityReportCard: React.FC<QualityReportCardProps> = ({ data }) => {
 };
 
 export default QualityReportCard;
+

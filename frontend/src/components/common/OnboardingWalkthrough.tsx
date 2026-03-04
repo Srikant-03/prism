@@ -1,5 +1,5 @@
-/**
- * OnboardingWalkthrough.tsx — Step-by-step interactive guide for first-time users.
+﻿/**
+ * OnboardingWalkthrough.tsx â€” Step-by-step interactive guide for first-time users.
  */
 
 import React, { useState } from 'react';
@@ -101,3 +101,4 @@ const OnboardingWalkthrough: React.FC = () => {
 };
 
 export default OnboardingWalkthrough;
+

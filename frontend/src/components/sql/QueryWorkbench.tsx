@@ -1,5 +1,5 @@
-/**
- * QueryWorkbench — Main SQL workbench with all panels.
+﻿/**
+ * QueryWorkbench â€” Main SQL workbench with all panels.
  * Left: Table Explorer | Center: Visual Builder / Raw SQL / NL Query / Templates
  * Bottom: Results + AutoViz + Library + History + Compare + Explain
  */
@@ -439,3 +439,4 @@ const QueryWorkbench: React.FC = () => {
 };
 
 export default QueryWorkbench;
+

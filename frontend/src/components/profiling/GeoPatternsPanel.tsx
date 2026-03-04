@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+﻿import React, { useMemo } from 'react';
 import { Card, Typography, Row, Col, Space, Empty } from 'antd';
 import ReactECharts from 'echarts-for-react';
 import type { GeoAnalysis } from '../../types/profiling';
@@ -47,7 +47,7 @@ const GeoPatternsPanel: React.FC<GeoPatternsPanelProps> = ({ data }) => {
 
     return (
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
-            <Card bordered={false} className="glass-panel">
+            <Card variant="borderless" className="glass-panel">
                 <Title level={4} style={{ color: '#fff' }}>Geospatial Distribution</Title>
                 <Paragraph style={{ color: 'rgba(255,255,255,0.7)' }}>
                     Detected Geo Columns: <Text code style={{ background: 'transparent', color: '#b37feb' }}>{data.geo_columns.join(', ')}</Text>
@@ -99,3 +99,4 @@ const GeoPatternsPanel: React.FC<GeoPatternsPanelProps> = ({ data }) => {
 };
 
 export default GeoPatternsPanel;
+

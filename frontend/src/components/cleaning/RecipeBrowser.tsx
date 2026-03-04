@@ -1,5 +1,5 @@
-/**
- * RecipeBrowser — Browse and apply reusable data processing recipes.
+﻿/**
+ * RecipeBrowser â€” Browse and apply reusable data processing recipes.
  */
 
 import React, { useState, useCallback } from 'react';
@@ -219,7 +219,7 @@ const RecipeBrowser: React.FC<Props> = ({ onApply }) => {
                             current={-1}
                             items={selectedRecipe.steps.map((step) => ({
                                 title: step.description,
-                                description: `${step.action}${step.column ? ` → ${step.column}` : ''}`,
+                                description: `${step.action}${step.column ? ` â†’ ${step.column}` : ''}`,
                             }))}
                         />
                         <div style={{ marginTop: 12, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -258,3 +258,4 @@ const RecipeBrowser: React.FC<Props> = ({ onApply }) => {
 };
 
 export default RecipeBrowser;
+

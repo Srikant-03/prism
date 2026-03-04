@@ -1,5 +1,5 @@
-/**
- * StoryBuilder — Create data presentations with auto-generated narrative slides.
+﻿/**
+ * StoryBuilder â€” Create data presentations with auto-generated narrative slides.
  */
 
 import React, { useState, useCallback } from 'react';
@@ -28,12 +28,12 @@ interface Props {
 }
 
 const SLIDE_TYPES = [
-    { value: 'title', label: '📌 Title Slide', icon: '📌' },
-    { value: 'insight', label: '💡 Insight', icon: '💡' },
-    { value: 'chart', label: '📊 Chart', icon: '📊' },
-    { value: 'text', label: '📝 Text', icon: '📝' },
-    { value: 'kpi', label: '🎯 KPI Card', icon: '🎯' },
-    { value: 'comparison', label: '⚖️ Comparison', icon: '⚖️' },
+    { value: 'title', label: 'ðŸ“Œ Title Slide', icon: 'ðŸ“Œ' },
+    { value: 'insight', label: 'ðŸ’¡ Insight', icon: 'ðŸ’¡' },
+    { value: 'chart', label: 'ðŸ“Š Chart', icon: 'ðŸ“Š' },
+    { value: 'text', label: 'ðŸ“ Text', icon: 'ðŸ“' },
+    { value: 'kpi', label: 'ðŸŽ¯ KPI Card', icon: 'ðŸŽ¯' },
+    { value: 'comparison', label: 'âš–ï¸ Comparison', icon: 'âš–ï¸' },
 ];
 
 const StoryBuilder: React.FC<Props> = ({ fileId }) => {
@@ -155,7 +155,7 @@ const StoryBuilder: React.FC<Props> = ({ fileId }) => {
                     borderLeft: `3px solid ${slide.type === 'title' ? '#6366f1' : slide.type === 'insight' ? '#fbbf24' : '#3b82f6'}`,
                 }}>
                     <Tag style={{ fontSize: 14, margin: 0 }}>
-                        {SLIDE_TYPES.find(t => t.value === slide.type)?.icon || '📄'}
+                        {SLIDE_TYPES.find(t => t.value === slide.type)?.icon || 'ðŸ“„'}
                     </Tag>
                     <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 600, fontSize: 13 }}>{slide.title}</div>
@@ -190,7 +190,7 @@ const StoryBuilder: React.FC<Props> = ({ fileId }) => {
 
             {/* Edit Modal */}
             <Modal
-                title={`Edit Slide — ${editModal.slide?.type}`}
+                title={`Edit Slide â€” ${editModal.slide?.type}`}
                 open={editModal.visible}
                 onCancel={() => setEditModal({ visible: false })}
                 onOk={() => {
@@ -253,12 +253,12 @@ const StoryBuilder: React.FC<Props> = ({ fileId }) => {
                     <Space>
                         <Button disabled={currentSlide === 0}
                             onClick={() => setCurrentSlide(p => p - 1)}>
-                            ← Previous
+                            â† Previous
                         </Button>
                         <span>{currentSlide + 1} / {slides.length}</span>
                         <Button disabled={currentSlide >= slides.length - 1}
                             onClick={() => setCurrentSlide(p => p + 1)}>
-                            Next →
+                            Next â†’
                         </Button>
                     </Space>
                 }
@@ -285,3 +285,4 @@ const StoryBuilder: React.FC<Props> = ({ fileId }) => {
 };
 
 export default StoryBuilder;
+

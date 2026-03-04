@@ -1,5 +1,5 @@
-/**
- * App — Main application component.
+﻿/**
+ * App â€” Main application component.
  * Orchestrates the upload flow and conditionally renders appropriate UI.
  */
 
@@ -298,3 +298,4 @@ const AppWithTheme: React.FC = () => (
 );
 
 export default AppWithTheme;
+

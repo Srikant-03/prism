@@ -1,5 +1,5 @@
-/**
- * ProfileDashboard — Main profiling dashboard container.
+﻿/**
+ * ProfileDashboard â€” Main profiling dashboard container.
  * Shows DatasetOverview + searchable/filterable column list with expandable details.
  */
 
@@ -202,7 +202,7 @@ const ProfileDashboard: React.FC<ProfileDashboardProps> = ({ profile, fileId }) 
                         label: (
                             <Space>
                                 <ExperimentOutlined />
-                                🧹 Data Cleaning
+                                ðŸ§¹ Data Cleaning
                             </Space>
                         ),
                         children: <CleaningDashboard fileId={fileId} />,
@@ -214,3 +214,4 @@ const ProfileDashboard: React.FC<ProfileDashboardProps> = ({ profile, fileId }) 
 };
 
 export default ProfileDashboard;
+

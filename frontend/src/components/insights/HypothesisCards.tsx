@@ -1,5 +1,5 @@
-/**
- * HypothesisCards — Auto-generated data-driven hypothesis cards.
+﻿/**
+ * HypothesisCards â€” Auto-generated data-driven hypothesis cards.
  */
 
 import React, { useState } from 'react';
@@ -45,7 +45,7 @@ const HypothesisCards: React.FC<Props> = ({ hypotheses, onStatusChange, onAction
         return (
             <Empty
                 image={<BulbOutlined style={{ fontSize: 48, color: '#6366f1' }} />}
-                description="No hypotheses generated yet — run profiling first"
+                description="No hypotheses generated yet â€” run profiling first"
             />
         );
     }
@@ -105,10 +105,10 @@ const HypothesisCards: React.FC<Props> = ({ hypotheses, onStatusChange, onAction
                         {h.observation}
                     </div>
                     <div style={{ fontSize: 12, opacity: 0.6, marginBottom: 6 }}>
-                        📊 {h.evidence}
+                        ðŸ“Š {h.evidence}
                     </div>
                     <div style={{ fontSize: 13, fontStyle: 'italic', marginBottom: 10 }}>
-                        ❓ {h.question}
+                        â“ {h.question}
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -142,3 +142,4 @@ const HypothesisCards: React.FC<Props> = ({ hypotheses, onStatusChange, onAction
 };
 
 export default HypothesisCards;
+

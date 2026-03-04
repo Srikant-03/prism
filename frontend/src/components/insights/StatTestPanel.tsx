@@ -1,5 +1,5 @@
-/**
- * StatTestPanel — Built-in statistical testing suite with auto-suggestions.
+﻿/**
+ * StatTestPanel â€” Built-in statistical testing suite with auto-suggestions.
  */
 
 import React, { useState, useCallback } from 'react';
@@ -198,3 +198,4 @@ const StatTestPanel: React.FC<Props> = ({ columns, fileId }) => {
 };
 
 export default StatTestPanel;
+

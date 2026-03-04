@@ -1,5 +1,5 @@
-/**
- * AutoVizPanel — Auto-detects result structure and renders the best chart.
+﻿/**
+ * AutoVizPanel â€” Auto-detects result structure and renders the best chart.
  * Analyzes columns/types/cardinality to pick from 12+ chart types.
  * Fully interactive with customization controls.
  */
@@ -19,7 +19,7 @@ import {
 } from 'recharts';
 import type { QueryResult } from '../../types/sql';
 
-// ── Chart type detection ─────────────────────────────────────────────
+// â”€â”€ Chart type detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type ChartType =
     | 'kpi' | 'bar' | 'horizontal_bar' | 'line' | 'multi_line'
@@ -88,7 +88,7 @@ function detectChartType(result: QueryResult): ChartRecommendation[] {
     const colCount = result.columns.length;
     const recommendations: ChartRecommendation[] = [];
 
-    // 1. Single numeric result → KPI card
+    // 1. Single numeric result â†’ KPI card
     if (rowCount === 1 && colCount <= 3 && numeric.length >= 1) {
         recommendations.push({
             type: 'kpi', label: 'KPI Card', icon: <EyeOutlined />,
@@ -97,7 +97,7 @@ function detectChartType(result: QueryResult): ChartRecommendation[] {
         });
     }
 
-    // 2. One datetime + one measure → line chart
+    // 2. One datetime + one measure â†’ line chart
     if (datetime.length >= 1 && numeric.length === 1) {
         recommendations.push({
             type: 'line', label: 'Line Chart', icon: <LineChartOutlined />,
@@ -106,7 +106,7 @@ function detectChartType(result: QueryResult): ChartRecommendation[] {
         });
     }
 
-    // 3. One datetime + multiple measures → multi-line
+    // 3. One datetime + multiple measures â†’ multi-line
     if (datetime.length >= 1 && numeric.length > 1) {
         recommendations.push({
             type: 'multi_line', label: 'Multi-Line Chart', icon: <LineChartOutlined />,
@@ -120,7 +120,7 @@ function detectChartType(result: QueryResult): ChartRecommendation[] {
         });
     }
 
-    // 4. One categorical + one numeric → bar chart
+    // 4. One categorical + one numeric â†’ bar chart
     if (categorical.length >= 1 && numeric.length >= 1 && datetime.length === 0) {
         const catCardinality = new Set(result.rows.map(r => r[categorical[0]])).size;
         if (catCardinality > 15) {
@@ -147,7 +147,7 @@ function detectChartType(result: QueryResult): ChartRecommendation[] {
         }
     }
 
-    // 5. Two categoricals + one numeric → grouped bar
+    // 5. Two categoricals + one numeric â†’ grouped bar
     if (categorical.length >= 2 && numeric.length >= 1) {
         recommendations.push({
             type: 'grouped_bar', label: 'Grouped Bar', icon: <BarChartOutlined />,
@@ -156,7 +156,7 @@ function detectChartType(result: QueryResult): ChartRecommendation[] {
         });
     }
 
-    // 6. Two numeric columns → scatter plot
+    // 6. Two numeric columns â†’ scatter plot
     if (numeric.length >= 2 && categorical.length === 0 && datetime.length === 0) {
         recommendations.push({
             type: 'scatter', label: 'Scatter Plot', icon: <DotChartOutlined />,
@@ -181,7 +181,7 @@ function detectChartType(result: QueryResult): ChartRecommendation[] {
         }
     }
 
-    // 8. Many columns → heatmap table
+    // 8. Many columns â†’ heatmap table
     if (colCount > 5 && rowCount > 5) {
         recommendations.push({
             type: 'heatmap_table', label: 'Heatmap Table', icon: <HeatMapOutlined />,
@@ -202,7 +202,7 @@ function detectChartType(result: QueryResult): ChartRecommendation[] {
     return recommendations;
 }
 
-// ── Component ────────────────────────────────────────────────────────
+// â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface Props {
     result: QueryResult | null;
@@ -620,11 +620,11 @@ const AutoVizPanel: React.FC<Props> = ({ result }) => {
                     <Select size="small" value={colorScheme} onChange={setColorScheme}
                         style={{ width: 120 }}
                         options={[
-                            { value: 0, label: '🎨 Default' },
-                            { value: 1, label: '🔵 Blue' },
-                            { value: 2, label: '🟢 Green' },
-                            { value: 3, label: '🟡 Amber' },
-                            { value: 4, label: '🔴 Red' },
+                            { value: 0, label: 'ðŸŽ¨ Default' },
+                            { value: 1, label: 'ðŸ”µ Blue' },
+                            { value: 2, label: 'ðŸŸ¢ Green' },
+                            { value: 3, label: 'ðŸŸ¡ Amber' },
+                            { value: 4, label: 'ðŸ”´ Red' },
                         ]}
                     />
                 </div>
@@ -687,3 +687,4 @@ const AutoVizPanel: React.FC<Props> = ({ result }) => {
 };
 
 export default AutoVizPanel;
+

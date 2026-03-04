@@ -1,5 +1,5 @@
-/**
- * ColumnTagger — Smart semantic tagger for columns.
+﻿/**
+ * ColumnTagger â€” Smart semantic tagger for columns.
  * Auto-detects column roles (ID, target, feature, date, PII) and lets users override.
  */
 
@@ -28,15 +28,15 @@ interface Props {
 }
 
 const tagStyles: Record<ColumnTag, { color: string; label: string; icon: string }> = {
-    id: { color: '#8b5cf6', label: 'ID', icon: '🔑' },
-    target: { color: '#ef4444', label: 'Target', icon: '🎯' },
-    feature: { color: '#3b82f6', label: 'Feature', icon: '⚙️' },
-    datetime: { color: '#10b981', label: 'DateTime', icon: '📅' },
-    pii: { color: '#f59e0b', label: 'PII', icon: '🔒' },
-    text: { color: '#6366f1', label: 'Text', icon: '📝' },
-    numeric: { color: '#06b6d4', label: 'Numeric', icon: '🔢' },
-    categorical: { color: '#ec4899', label: 'Categorical', icon: '🏷️' },
-    ignore: { color: '#6b7280', label: 'Ignore', icon: '⏭️' },
+    id: { color: '#8b5cf6', label: 'ID', icon: 'ðŸ”‘' },
+    target: { color: '#ef4444', label: 'Target', icon: 'ðŸŽ¯' },
+    feature: { color: '#3b82f6', label: 'Feature', icon: 'âš™ï¸' },
+    datetime: { color: '#10b981', label: 'DateTime', icon: 'ðŸ“…' },
+    pii: { color: '#f59e0b', label: 'PII', icon: 'ðŸ”’' },
+    text: { color: '#6366f1', label: 'Text', icon: 'ðŸ“' },
+    numeric: { color: '#06b6d4', label: 'Numeric', icon: 'ðŸ”¢' },
+    categorical: { color: '#ec4899', label: 'Categorical', icon: 'ðŸ·ï¸' },
+    ignore: { color: '#6b7280', label: 'Ignore', icon: 'â­ï¸' },
 };
 
 const ColumnTagger: React.FC<Props> = ({ columns, onTagChange, onAutoTag }) => {
@@ -126,7 +126,7 @@ const ColumnTagger: React.FC<Props> = ({ columns, onTagChange, onAutoTag }) => {
                     <strong>Smart Column Tags</strong>
                     <Tag color="blue">{columns.length} columns</Tag>
                     {targetCol && (
-                        <Tag color="red">🎯 Target: {targetCol.name}</Tag>
+                        <Tag color="red">ðŸŽ¯ Target: {targetCol.name}</Tag>
                     )}
                     {piiCount > 0 && (
                         <Tag color="orange" icon={<EyeInvisibleOutlined />}>
@@ -146,7 +146,7 @@ const ColumnTagger: React.FC<Props> = ({ columns, onTagChange, onAutoTag }) => {
                 <Alert
                     type="warning"
                     showIcon
-                    message={`${piiCount} column(s) flagged as PII — these will be excluded from ML training and masked in exports`}
+                    message={`${piiCount} column(s) flagged as PII â€” these will be excluded from ML training and masked in exports`}
                     style={{ fontSize: 12 }}
                 />
             )}
@@ -167,3 +167,4 @@ const ColumnTagger: React.FC<Props> = ({ columns, onTagChange, onAutoTag }) => {
 };
 
 export default ColumnTagger;
+

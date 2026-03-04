@@ -1,5 +1,5 @@
-/**
- * ReportPanel — Full Pillar 4: Report generation, Code export, Data export.
+﻿/**
+ * ReportPanel â€” Full Pillar 4: Report generation, Code export, Data export.
  * Three sections with download controls for all formats.
  */
 
@@ -155,7 +155,7 @@ const ReportPanel: React.FC<Props> = ({ fileId }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {error && <Alert type="error" message={error} closable onClose={() => setError(null)} />}
 
-            {/* ── 4.1: Full Analysis Report ── */}
+            {/* â”€â”€ 4.1: Full Analysis Report â”€â”€ */}
             <div className="glass-panel" style={{ padding: 16 }}>
                 <div style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -270,7 +270,7 @@ const ReportPanel: React.FC<Props> = ({ fileId }) => {
                 )}
             </div>
 
-            {/* ── 4.2: Code Export ── */}
+            {/* â”€â”€ 4.2: Code Export â”€â”€ */}
             <div className="glass-panel" style={{ padding: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                     <CodeOutlined style={{ color: '#34d399', fontSize: 18 }} />
@@ -285,24 +285,24 @@ const ReportPanel: React.FC<Props> = ({ fileId }) => {
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <Button icon={<CodeOutlined />} onClick={() => downloadCode('python')}
                         loading={downloading === 'code_python'}>
-                        🐍 Python Script
+                        ðŸ Python Script
                     </Button>
                     <Button icon={<BookOutlined />} onClick={() => downloadCode('notebook')}
                         loading={downloading === 'code_notebook'}>
-                        📓 Jupyter Notebook
+                        ðŸ““ Jupyter Notebook
                     </Button>
                     <Button icon={<DatabaseOutlined />} onClick={() => downloadCode('json_pipeline')}
                         loading={downloading === 'code_json_pipeline'}>
-                        📋 JSON Pipeline
+                        ðŸ“‹ JSON Pipeline
                     </Button>
                     <Button icon={<CodeOutlined />} onClick={() => downloadCode('sql')}
                         loading={downloading === 'code_sql'}>
-                        🗄️ SQL Queries
+                        ðŸ—„ï¸ SQL Queries
                     </Button>
                 </div>
             </div>
 
-            {/* ── 4.3: Data Export ── */}
+            {/* â”€â”€ 4.3: Data Export â”€â”€ */}
             <div className="glass-panel" style={{ padding: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                     <DatabaseOutlined style={{ color: '#f59e0b', fontSize: 18 }} />
@@ -334,3 +334,4 @@ const ReportPanel: React.FC<Props> = ({ fileId }) => {
 };
 
 export default ReportPanel;
+

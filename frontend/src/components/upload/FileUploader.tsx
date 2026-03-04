@@ -1,5 +1,5 @@
-/**
- * FileUploader — Drag & drop file upload with animated visual feedback.
+﻿/**
+ * FileUploader â€” Drag & drop file upload with animated visual feedback.
  * Supports multi-file upload, shows accepted format badges.
  */
 
@@ -70,7 +70,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onUpload, disabled = false 
                     Drop your data files here
                 </Title>
                 <Text className="upload-subtitle">
-                    or click to browse — supports any data format
+                    or click to browse â€” supports any data format
                 </Text>
                 <div className="format-badges">
                     <Space wrap size={[6, 6]} style={{ justifyContent: 'center', marginTop: 16 }}>
@@ -92,3 +92,4 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onUpload, disabled = false 
 };
 
 export default FileUploader;
+

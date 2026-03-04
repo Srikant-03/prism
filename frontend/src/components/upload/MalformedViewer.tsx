@@ -1,5 +1,5 @@
-/**
- * MalformedViewer — Side-by-side raw vs parsed data viewer.
+﻿/**
+ * MalformedViewer â€” Side-by-side raw vs parsed data viewer.
  * Highlights affected cells/rows and provides accept/reject actions.
  */
 
@@ -56,7 +56,7 @@ const MalformedViewer: React.FC<MalformedViewerProps> = ({
             dataIndex: 'row_number',
             key: 'row_number',
             width: 70,
-            render: (val: number) => (val > 0 ? `#${val}` : '—'),
+            render: (val: number) => (val > 0 ? `#${val}` : 'â€”'),
         },
         {
             title: 'Severity',
@@ -91,7 +91,7 @@ const MalformedViewer: React.FC<MalformedViewerProps> = ({
                         {text}
                     </Text>
                 ) : (
-                    '—'
+                    'â€”'
                 ),
         },
     ];
@@ -154,7 +154,7 @@ const MalformedViewer: React.FC<MalformedViewerProps> = ({
                                 <Panel
                                     header={
                                         <Text type="secondary">
-                                            Row #{issue.row_number} — Raw Content
+                                            Row #{issue.row_number} â€” Raw Content
                                         </Text>
                                     }
                                     key={`raw-${idx}`}
@@ -197,3 +197,4 @@ const MalformedViewer: React.FC<MalformedViewerProps> = ({
 };
 
 export default MalformedViewer;
+
