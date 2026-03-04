@@ -3,9 +3,9 @@
  */
 
 import React, { useState } from 'react';
-import { Checkbox, Input, Button, Space, Tag, Select, Tooltip, Popover } from 'antd';
+import { Checkbox, Input, Button, Space, Tag, Tooltip, Popover } from 'antd';
 import {
-    PlusOutlined, EditOutlined, FunctionOutlined,
+    EditOutlined, FunctionOutlined,
     DeleteOutlined, HolderOutlined,
 } from '@ant-design/icons';
 import type { ColumnSpec, ColumnInfo } from '../../types/sql';
@@ -24,7 +24,7 @@ const expressionTemplates = [
     { label: 'Conditional', items: ["CASE WHEN col > 0 THEN 'Positive' ELSE 'Negative' END", "COALESCE(col, 0)", "NULLIF(col, 0)"] },
 ];
 
-const ColumnSelector: React.FC<Props> = ({ columns, selectedColumns, onChange, tableName }) => {
+const ColumnSelector: React.FC<Props> = ({ columns, selectedColumns, onChange }) => {
     const [showExprModal, setShowExprModal] = useState(false);
     const [editExpr, setEditExpr] = useState('');
     const [editAlias, setEditAlias] = useState('');

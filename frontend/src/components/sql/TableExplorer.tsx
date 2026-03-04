@@ -2,7 +2,7 @@
  * TableExplorer — Tree view of all available tables with expandable column lists.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Tree, Tag, Input, Badge, Tooltip } from 'antd';
 import {
     TableOutlined, NumberOutlined, FontSizeOutlined,
