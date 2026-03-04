@@ -70,7 +70,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onUpload, disabled = false 
                     Drop your data files here
                 </Title>
                 <Text className="upload-subtitle">
-                    or click to browse â€” supports any data format
+                    or click to browse - supports any data format
                 </Text>
                 <div className="format-badges">
                     <Space wrap size={[6, 6]} style={{ justifyContent: 'center', marginTop: 16 }}>

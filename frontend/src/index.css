@@ -191,6 +191,8 @@ body,
 
 /* Hide Tour dashed borders when tour is active */
 .ant-tour-mask,
+.ant-tour-target-placeholder,
+.ant-tour-placeholder,
 .ant-tour-placeholder-animated {
   display: none !important;
 }
@@ -273,12 +275,8 @@ body,
   transition: var(--transition-base);
 }
 
-.file-uploader.drag-over .upload-dragger {
-  border-color: var(--primary) !important;
-  background: rgba(99, 102, 241, 0.08) !important;
-}
-
-.upload-dragger {
+/* Target the inner Dragger area properly and remove borders from wrapper */
+.upload-dragger .ant-upload-drag {
   background: var(--bg-card) !important;
   border: 2px dashed var(--border-subtle) !important;
   border-radius: var(--radius-xl) !important;
@@ -287,10 +285,17 @@ body,
   backdrop-filter: blur(12px);
 }
 
-.upload-dragger:hover {
+.upload-dragger .ant-upload-drag:hover,
+.file-uploader.drag-over .upload-dragger .ant-upload-drag {
   border-color: var(--primary) !important;
   background: rgba(99, 102, 241, 0.04) !important;
   box-shadow: var(--shadow-glow) !important;
+}
+
+/* Ensure the antd wrapper has no background/padding overrides */
+.ant-upload-wrapper.upload-dragger {
+  background: transparent !important;
+  border: none !important;
 }
 
 .upload-icon-wrapper {
