@@ -144,7 +144,7 @@ const DatasetOverview: React.FC<DatasetOverviewProps> = ({ profile }) => {
             {/* Profiling Time */}
             <div style={{ textAlign: 'right', marginTop: 8 }}>
                 <Text type="secondary" style={{ fontSize: 11 }}>
-                    <FieldTimeOutlined /> Profiled in {profile.profiling_time_seconds.toFixed(2)}s
+                    <FieldTimeOutlined /> Profiled in {profile.profiling_time_seconds?.toFixed(2) || '0.00'}s
                 </Text>
             </div>
         </div>
