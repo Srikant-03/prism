@@ -371,14 +371,26 @@ class ImbalanceHandler:
 
             X = df[numeric_cols].fillna(0)
             y = df[target]
-            sm = SMOTE(random_state=42)
+            
+            # Determine dynamic k_neighbors based on minority class size
+            vc = y.value_counts()
+            min_count = int(vc.min())
+            k_neighbors = min(5, min_count - 1)
+            
+            if k_neighbors < 1:
+                return ImbalanceHandler.apply_random_oversample(df, target)
+                
+            sm = SMOTE(k_neighbors=k_neighbors, random_state=42)
             X_res, y_res = sm.fit_resample(X, y)
             result = pd.DataFrame(X_res, columns=numeric_cols)
             result[target] = y_res
-            # Re-add non-numeric columns (NaN for synthetic rows)
+            # Re-add non-numeric columns
+            # Original rows are guaranteed to be at the beginning of X_res
+            orig_len = len(df)
             for col in df.columns:
                 if col not in result.columns:
                     result[col] = np.nan
+                    result.loc[:orig_len - 1, col] = df[col].values
             return result
         except ImportError:
             return ImbalanceHandler.apply_random_oversample(df, target)

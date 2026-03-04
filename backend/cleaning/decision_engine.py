@@ -816,7 +816,7 @@ class DecisionEngine:
             imputer = KNNImputer(n_neighbors=5)
             df[numeric_cols] = imputer.fit_transform(df[numeric_cols])
         except ImportError:
-            logger.warning("sklearn not installed — KNN imputation falling back to column median for %s", cols)
+            print(f"sklearn not installed — KNN imputation falling back to column median for {cols}")
             for col in cols:
                 if col in df.columns and pd.api.types.is_numeric_dtype(df[col]):
                     df[col] = df[col].fillna(df[col].median())
