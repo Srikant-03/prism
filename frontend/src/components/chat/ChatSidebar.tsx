@@ -124,7 +124,7 @@ const ChatSidebar: React.FC<Props> = ({ open, onClose, onAction }) => {
             placement="right"
             open={open}
             onClose={onClose}
-            width={expanded ? 600 : 400}
+            size={expanded ? "large" : "default"}
             styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', height: '100%' } }}
             extra={
                 <Space>

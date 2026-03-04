@@ -6,8 +6,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Progress, Tag, Space, Tooltip, Button, Drawer } from 'antd';
 import {
-    TrophyOutlined, ArrowUpOutlined, CheckCircleOutlined,
-    CloseOutlined, ExpandOutlined,
+    TrophyOutlined, ArrowUpOutlined
 } from '@ant-design/icons';
 
 interface QualityDimension {
@@ -108,7 +107,7 @@ const QualityScoreWidget: React.FC<Props> = ({ dimensions, nextAction, scoreHist
                     </Space>
                 }
                 placement="left"
-                width={340}
+                size="default"
                 open={expanded}
                 onClose={() => setExpanded(false)}
                 styles={{ body: { padding: 16 } }}

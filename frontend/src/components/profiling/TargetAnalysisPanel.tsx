@@ -80,13 +80,13 @@ const TargetAnalysisPanel: React.FC<TargetAnalysisPanelProps> = ({ data }) => {
                         title={<span style={{ color: 'rgba(255,255,255,0.7)' }}>Detected Target Variable</span>}
                         value={data.target_column || "None"}
                         prefix={<AimOutlined style={{ color: '#fa541c' }} />}
-                        valueStyle={{ color: '#fa541c', fontWeight: 'bold' }}
+                        styles={{ content: { color: '#fa541c', fontWeight: 'bold' } }}
                     />
                     <Statistic
                         title={<span style={{ color: 'rgba(255,255,255,0.7)', marginTop: '20px', display: 'block' }}>Problem Type</span>}
                         value={data.problem_type ? data.problem_type.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()) : "Unknown"}
                         prefix={<TrophyOutlined style={{ color: '#faad14' }} />}
-                        valueStyle={{ color: '#faad14' }}
+                        styles={{ content: { color: '#faad14' } }}
                     />
 
                     <div style={{ marginTop: '24px' }}>

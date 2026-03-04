@@ -16,7 +16,7 @@ import CleaningDashboard from '../cleaning/CleaningDashboard';
 import type { DatasetProfile } from '../../types/profiling';
 
 const { Text } = Typography;
-const { Panel } = Collapse;
+// Removed Collapse.Panel destructuring
 
 interface ProfileDashboardProps {
     profile: DatasetProfile;
@@ -150,33 +150,29 @@ const ProfileDashboard: React.FC<ProfileDashboardProps> = ({ profile, fileId }) 
                                         onChange={keys => setActiveColumns(keys as string[])}
                                         ghost
                                         className="column-collapse"
-                                    >
-                                        {filteredColumns.map(col => (
-                                            <Panel
-                                                key={col.name}
-                                                header={
-                                                    <div className="col-panel-header">
-                                                        <Space>
-                                                            <Text strong>{col.name}</Text>
-                                                            <Tag style={{ fontSize: 10 }}>{col.semantic_type.replace(/_/g, ' ')}</Tag>
-                                                        </Space>
-                                                        <Space>
-                                                            <Badge
-                                                                count={`${col.quality_score.toFixed(0)}`}
-                                                                showZero
-                                                                style={{ backgroundColor: getQualityColor(col.quality_score), fontSize: 10 }}
-                                                            />
-                                                            <Text type="secondary" style={{ fontSize: 11 }}>
-                                                                {col.null_percentage > 0 ? `${col.null_percentage.toFixed(1)}% null` : '0% null'}
-                                                            </Text>
-                                                        </Space>
-                                                    </div>
-                                                }
-                                            >
-                                                <ColumnDetail column={col} />
-                                            </Panel>
-                                        ))}
-                                    </Collapse>
+                                        items={filteredColumns.map(col => ({
+                                            key: col.name,
+                                            label: (
+                                                <div className="col-panel-header">
+                                                    <Space>
+                                                        <Text strong>{col.name}</Text>
+                                                        <Tag style={{ fontSize: 10 }}>{col.semantic_type.replace(/_/g, ' ')}</Tag>
+                                                    </Space>
+                                                    <Space>
+                                                        <Badge
+                                                            count={`${col.quality_score.toFixed(0)}`}
+                                                            showZero
+                                                            style={{ backgroundColor: getQualityColor(col.quality_score), fontSize: 10 }}
+                                                        />
+                                                        <Text type="secondary" style={{ fontSize: 11 }}>
+                                                            {col.null_percentage > 0 ? `${col.null_percentage.toFixed(1)}% null` : '0% null'}
+                                                        </Text>
+                                                    </Space>
+                                                </div>
+                                            ),
+                                            children: <ColumnDetail column={col} />
+                                        }))}
+                                    />
                                 ) : (
                                     <Empty description="No columns match your filters" style={{ marginTop: 40 }} />
                                 )}

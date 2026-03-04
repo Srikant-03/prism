@@ -6,15 +6,17 @@
 
 import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { AllCommunityModule, ModuleRegistry, type ColDef, type GridReadyEvent, type CellContextMenuEvent, type ColumnHeaderClickedEvent } from 'ag-grid-community';
-import { Input, Button, Space, Tag, Badge, Tooltip, Dropdown, Modal, Select, InputNumber, ColorPicker, Switch } from 'antd';
+import { AllCommunityModule, ModuleRegistry, type ColDef, type GridReadyEvent, type GetContextMenuItemsParams, type MenuItemDef } from 'ag-grid-community';
+import { Input, Button, Space, Tag, Badge, Tooltip, Modal, Select, InputNumber } from 'antd';
 import {
-    SearchOutlined, FilterOutlined, ClearOutlined, ColumnWidthOutlined,
-    DownloadOutlined, EyeInvisibleOutlined, BarChartOutlined,
-    PushpinOutlined, EditOutlined,
+    SearchOutlined, FilterOutlined, ClearOutlined, EyeInvisibleOutlined,
+    DownloadOutlined, BarChartOutlined
 } from '@ant-design/icons';
 
-ModuleRegistry.registerModules([AllCommunityModule]);
+import { ClientSideRowModelModule } from 'ag-grid-community';
+import { ClipboardModule, RowGroupingModule, ContextMenuModule, ExcelExportModule } from 'ag-grid-enterprise';
+
+ModuleRegistry.registerModules([AllCommunityModule, ClientSideRowModelModule, ClipboardModule, RowGroupingModule, ContextMenuModule, ExcelExportModule]);
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
 
@@ -140,12 +142,14 @@ const LiveDataGrid: React.FC<Props> = ({
 
     const handleFilterChanged = useCallback(() => {
         if (!gridRef.current?.api) return;
-        const model = gridRef.current.api.getFilterModel();
+        const api = gridRef.current.api as any;
+        const model = api.getFilterModel();
         setActiveFilters(Object.keys(model).length);
     }, []);
 
     const clearAllFilters = useCallback(() => {
-        gridRef.current?.api?.setFilterModel(null);
+        const api = gridRef.current?.api as any;
+        api?.setFilterModel(null);
         setSearchText('');
         setActiveFilters(0);
     }, []);
@@ -164,7 +168,8 @@ const LiveDataGrid: React.FC<Props> = ({
 
     const exportCurrentView = useCallback((format: 'csv' | 'excel') => {
         if (format === 'csv') {
-            gridRef.current?.api?.exportDataAsCsv({ fileName: 'grid_export.csv' });
+            const api = gridRef.current?.api as any;
+            api?.exportDataAsCsv({ fileName: 'grid_export.csv' });
         }
     }, []);
 
@@ -199,27 +204,30 @@ const LiveDataGrid: React.FC<Props> = ({
     }, [newRule]);
 
     // Context menu
-    const getContextMenuItems = useCallback((params: any) => {
-        const cellActions = [
+    const getContextMenuItems = useCallback((params: GetContextMenuItemsParams): (string | MenuItemDef)[] => {
+        const cellActions: (string | MenuItemDef)[] = [
             { name: 'Copy Cell', action: () => navigator.clipboard.writeText(String(params.value ?? '')) },
             { name: 'Copy Row', action: () => navigator.clipboard.writeText(JSON.stringify(params.node?.data || {})) },
             'separator',
             {
                 name: 'Filter by this Value', action: () => {
-                    const filter = params.api.getFilterInstance(params.column.getColId());
-                    if (filter) { filter.setModel({ values: [String(params.value)] }); params.api.onFilterChanged(); }
+                    if (params.column) {
+                        const api = params.api as any;
+                        const filter = api.getFilterInstance(params.column.getColId() as string);
+                        if (filter) { filter.setModel({ values: [String(params.value)] }); params.api.onFilterChanged(); }
+                    }
                 }
             },
             { name: 'Highlight All Matching', action: () => setSearchText(String(params.value ?? '')) },
             'separator',
             {
                 name: `Add Note to Row ${params.node?.rowIndex}`, action: () => {
-                    setNoteText(rowNotes[params.node?.rowIndex] || '');
+                    setNoteText(rowNotes[params.node?.rowIndex || 0] || '');
                     setNoteModal({ visible: true, rowIndex: params.node?.rowIndex || 0 });
                 }
             },
         ];
-        return cellActions;
+        return cellActions as any;
     }, [rowNotes]);
 
     const defaultColDef: ColDef = useMemo(() => ({
@@ -369,12 +377,12 @@ const LiveDataGrid: React.FC<Props> = ({
                     onCellValueChanged={handleCellEdit}
                     rowSelection="multiple"
                     onColumnHeaderClicked={(e: any) => fetchColumnStats(e.column.getColId())}
-                    getContextMenuItems={getContextMenuItems}
+                    getContextMenuItems={getContextMenuItems as any}
                     enableCellTextSelection={true}
                     animateRows={true}
                     suppressMenuHide={true}
                     tooltipShowDelay={300}
-                    theme="legacy"
+                    className="ag-theme-alpine-dark custom-ag-grid"
                 />
             </div>
 

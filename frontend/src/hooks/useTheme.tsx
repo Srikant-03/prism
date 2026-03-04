@@ -1,5 +1,5 @@
-﻿/**
- * ThemeContext â€” Provides dark/light mode toggle with localStorage persistence.
+/**
+ * ThemeContext — Provides dark/light mode toggle with localStorage persistence.
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';

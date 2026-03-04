@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { Card, Button, Upload, Space, Tag, Table, Progress, Alert, Divider, Row, Col, Statistic, Empty } from 'antd';
+import { Card, Button, Upload, Space, Tag, Table, Row, Col, Statistic } from 'antd';
 import {
     DiffOutlined, UploadOutlined, SwapOutlined,
     PlusCircleOutlined, MinusCircleOutlined, WarningOutlined,
@@ -190,22 +190,22 @@ const DatasetDiff: React.FC<Props> = ({ fileIdA }) => {
                     <div className="glass-panel" style={{ padding: 12 }}>
                         <Row gutter={16}>
                             <Col span={6}>
-                                <Statistic title="Rows in A" value={result.row_diff.total_a} valueStyle={{ fontSize: 16 }} />
+                                <Statistic title="Rows in A" value={result.row_diff.total_a} styles={{ content: { fontSize: 16 } }} />
                             </Col>
                             <Col span={6}>
-                                <Statistic title="Rows in B" value={result.row_diff.total_b} valueStyle={{ fontSize: 16 }} />
+                                <Statistic title="Rows in B" value={result.row_diff.total_b} styles={{ content: { fontSize: 16 } }} />
                             </Col>
                             <Col span={4}>
                                 <Statistic title="Added" value={result.row_diff.added_rows}
-                                    valueStyle={{ color: '#52c41a', fontSize: 16 }} prefix="+" />
+                                    styles={{ content: { color: '#52c41a', fontSize: 16 } }} prefix="+" />
                             </Col>
                             <Col span={4}>
                                 <Statistic title="Removed" value={result.row_diff.removed_rows}
-                                    valueStyle={{ color: '#ef4444', fontSize: 16 }} prefix="âˆ’" />
+                                    styles={{ content: { color: '#ef4444', fontSize: 16 } }} prefix="−" />
                             </Col>
                             <Col span={4}>
                                 <Statistic title="Modified" value={result.row_diff.modified_rows}
-                                    valueStyle={{ color: '#f59e0b', fontSize: 16 }} />
+                                    styles={{ content: { color: '#f59e0b', fontSize: 16 } }} />
                             </Col>
                         </Row>
                     </div>

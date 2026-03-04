@@ -3,7 +3,7 @@
  */
 
 import React, { useState } from 'react';
-import { Card, Tag, Button, Space, Progress, Empty, Tooltip, Badge } from 'antd';
+import { Tag, Progress, Space, Button, Tooltip, Empty } from 'antd';
 import {
     BulbOutlined, CheckCircleOutlined, CloseCircleOutlined,
     QuestionCircleOutlined, SearchOutlined,

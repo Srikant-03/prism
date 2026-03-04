@@ -7,7 +7,7 @@ import React, { useState, useCallback } from 'react';
 import { Table, Tag, Select, Button, Space, Progress, Tooltip, Modal, Alert } from 'antd';
 import {
     LockOutlined, UnlockOutlined, SwapOutlined,
-    CheckCircleOutlined, ExclamationCircleOutlined,
+    ExclamationCircleOutlined,
 } from '@ant-design/icons';
 
 interface TypeInference {

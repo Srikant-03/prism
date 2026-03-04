@@ -1,5 +1,5 @@
-﻿/**
- * App â€” Main application component.
+/**
+ * App — Main application component.
  * Orchestrates the upload flow and conditionally renders appropriate UI.
  */
 

@@ -78,7 +78,7 @@ const CollabPanel: React.FC<Props> = ({
             placement="right"
             open={open}
             onClose={onClose}
-            width={380}
+            size="default"
             styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', height: '100%' } }}
         >
             {/* Filter bar */}

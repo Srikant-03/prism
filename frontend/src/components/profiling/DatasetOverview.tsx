@@ -46,22 +46,22 @@ const DatasetOverview: React.FC<DatasetOverviewProps> = ({ profile }) => {
             <Row gutter={[16, 16]}>
                 <Col xs={12} sm={6}>
                     <Card variant="borderless" className="stat-card">
-                        <Statistic title="Total Rows" value={profile.total_rows.toLocaleString()} prefix={<DatabaseOutlined />} valueStyle={{ color: '#6366f1' }} />
+                        <Statistic title="Total Rows" value={profile.total_rows?.toLocaleString() ?? 0} prefix={<DatabaseOutlined />} styles={{ content: { color: '#6366f1' } }} />
                     </Card>
                 </Col>
                 <Col xs={12} sm={6}>
                     <Card variant="borderless" className="stat-card">
-                        <Statistic title="Total Columns" value={profile.total_columns} prefix={<ColumnWidthOutlined />} valueStyle={{ color: '#8b5cf6' }} />
+                        <Statistic title="Total Columns" value={profile.total_columns ?? 0} prefix={<ColumnWidthOutlined />} styles={{ content: { color: '#8b5cf6' } }} />
                     </Card>
                 </Col>
                 <Col xs={12} sm={6}>
                     <Card variant="borderless" className="stat-card">
-                        <Statistic title="In-Memory" value={profile.memory_size_readable} prefix={<CloudOutlined />} valueStyle={{ color: '#06b6d4', fontSize: 20 }} />
+                        <Statistic title="In-Memory" value={(profile.memory_size_bytes ? profile.memory_size_bytes / 1024 / 1024 : 0).toFixed(2)} suffix="MB" prefix={<CloudOutlined />} styles={{ content: { color: '#06b6d4', fontSize: 20 } }} />
                     </Card>
                 </Col>
                 <Col xs={12} sm={6}>
                     <Card variant="borderless" className="stat-card">
-                        <Statistic title="On-Disk" value={profile.disk_size_readable} prefix={<HddOutlined />} valueStyle={{ color: '#10b981', fontSize: 20 }} />
+                        <Statistic title="On-Disk" value={(profile.disk_size_bytes ? profile.disk_size_bytes / 1024 / 1024 : 0).toFixed(2)} suffix="MB" prefix={<HddOutlined />} styles={{ content: { color: '#10b981', fontSize: 20 } }} />
                     </Card>
                 </Col>
             </Row>

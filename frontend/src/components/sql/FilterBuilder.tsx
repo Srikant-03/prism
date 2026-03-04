@@ -3,8 +3,8 @@
  * Supports dynamic operators by type, AND/OR grouping, value autocomplete.
  */
 
-import React, { useState, useEffect } from 'react';
-import { Select, Input, InputNumber, Button, Space, Tag, DatePicker, Switch } from 'antd';
+import React, { useState } from 'react';
+import { Space, Select, Input, Button, InputNumber, Tag } from 'antd';
 import { PlusOutlined, DeleteOutlined, GroupOutlined } from '@ant-design/icons';
 import type { FilterCondition, ColumnInfo } from '../../types/sql';
 import { OPERATORS_BY_TYPE } from '../../types/sql';
@@ -59,9 +59,6 @@ const FilterBuilder: React.FC<Props> = ({
 
     const needsNoValue = (op: string) =>
         ['IS NULL', 'IS NOT NULL', 'IS TRUE', 'IS FALSE', 'THIS WEEK', 'THIS MONTH', 'THIS YEAR'].includes(op);
-
-    const needsMultiValue = (op: string) =>
-        ['IN', 'NOT IN', 'BETWEEN'].includes(op);
 
     const renderValueInput = (cond: FilterCondition, index: number) => {
         if (!cond.column || needsNoValue(cond.op || '')) return null;

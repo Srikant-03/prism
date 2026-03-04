@@ -25,7 +25,6 @@ import {
 import type { MalformedReport } from '../../types/ingestion';
 
 const { Text } = Typography;
-const { Panel } = Collapse;
 
 interface MalformedViewerProps {
     report: MalformedReport;
@@ -126,45 +125,44 @@ const MalformedViewer: React.FC<MalformedViewerProps> = ({
                 activeKey={activeKey}
                 onChange={(keys) => setActiveKey(keys as string[])}
                 className="malformed-collapse"
-            >
-                <Panel
-                    header={
-                        <Space>
-                            <InfoCircleOutlined />
-                            <Text strong>Issue Details ({report.total_issues} issues)</Text>
-                        </Space>
-                    }
-                    key="details"
-                >
-                    <Table
-                        dataSource={report.issues.map((issue, idx) => ({ ...issue, key: idx }))}
-                        columns={columns}
-                        size="small"
-                        pagination={{ pageSize: 10, showSizeChanger: true }}
-                        scroll={{ x: 800 }}
-                        className="malformed-table"
-                    />
+                items={[
+                    {
+                        key: "details",
+                        label: (
+                            <Space>
+                                <InfoCircleOutlined />
+                                <Text strong>Issue Details ({report.total_issues} issues)</Text>
+                            </Space>
+                        ),
+                        children: (
+                            <>
+                                <Table
+                                    dataSource={report.issues.map((issue, idx) => ({ ...issue, key: idx }))}
+                                    columns={columns}
+                                    size="small"
+                                    pagination={{ pageSize: 10, showSizeChanger: true }}
+                                    scroll={{ x: 800 }}
+                                    className="malformed-table"
+                                />
 
-                    {/* Expandable raw content view */}
-                    <Collapse ghost className="raw-content-collapse">
-                        {report.issues
-                            .filter((i) => i.raw_content)
-                            .slice(0, 20)
-                            .map((issue, idx) => (
-                                <Panel
-                                    header={
-                                        <Text type="secondary">
-                                            Row #{issue.row_number} â€” Raw Content
-                                        </Text>
-                                    }
-                                    key={`raw-${idx}`}
-                                >
-                                    <pre className="raw-content-pre">{issue.raw_content}</pre>
-                                </Panel>
-                            ))}
-                    </Collapse>
-                </Panel>
-            </Collapse>
+                                {/* Expandable raw content view */}
+                                <Collapse
+                                    ghost
+                                    className="raw-content-collapse"
+                                    items={report.issues
+                                        .filter((i) => i.raw_content)
+                                        .slice(0, 20)
+                                        .map((issue, idx) => ({
+                                            key: `raw-${idx}`,
+                                            label: <Text type="secondary">Row #{issue.row_number} â€” Raw Content</Text>,
+                                            children: <pre className="raw-content-pre">{issue.raw_content}</pre>
+                                        }))}
+                                />
+                            </>
+                        )
+                    }
+                ]}
+            />
 
             <div className="malformed-actions">
                 <Space>

@@ -7,8 +7,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Table, Tag, Button, Space, Select, Input, Badge, Tooltip, Modal, Empty, Alert } from 'antd';
 import {
     WarningOutlined, EyeOutlined, CheckCircleOutlined,
-    CloseCircleOutlined, SearchOutlined, DownloadOutlined,
-    EditOutlined, ExclamationCircleOutlined, FilterOutlined,
+    EditOutlined, ExclamationCircleOutlined, SearchOutlined, DownloadOutlined
 } from '@ant-design/icons';
 
 interface WatchlistItem {

@@ -156,18 +156,18 @@ const CleaningDashboard: React.FC<CleaningDashboardProps> = ({ fileId }) => {
                             <Statistic
                                 title="Safe"
                                 value={pendingDefinitive}
-                                valueStyle={{ color: '#52c41a', fontSize: 20 }}
+                                styles={{ content: { color: '#52c41a', fontSize: 20 } }}
                                 prefix={<ThunderboltOutlined />}
                             />
                             <Statistic
                                 title="Review"
                                 value={pendingJudgment}
-                                valueStyle={{ color: '#faad14', fontSize: 20 }}
+                                styles={{ content: { color: '#faad14', fontSize: 20 } }}
                             />
                             <Statistic
                                 title="Applied"
                                 value={applied}
-                                valueStyle={{ color: '#1890ff', fontSize: 20 }}
+                                styles={{ content: { color: '#1890ff', fontSize: 20 } }}
                             />
                         </Space>
                     </Col>

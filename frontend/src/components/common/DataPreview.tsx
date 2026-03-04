@@ -110,7 +110,7 @@ const DataPreview: React.FC<DataPreviewProps> = ({ result }) => {
                             title="Rows"
                             value={metadata.row_count}
                             prefix={<TableOutlined />}
-                            valueStyle={{ color: '#1677ff' }}
+                            styles={{ content: { color: '#1677ff' } }}
                         />
                     </Col>
                     <Col xs={12} sm={6}>
@@ -118,7 +118,7 @@ const DataPreview: React.FC<DataPreviewProps> = ({ result }) => {
                             title="Columns"
                             value={metadata.col_count}
                             prefix={<ColumnWidthOutlined />}
-                            valueStyle={{ color: '#722ed1' }}
+                            styles={{ content: { color: '#722ed1' } }}
                         />
                     </Col>
                     <Col xs={12} sm={6}>
@@ -126,7 +126,7 @@ const DataPreview: React.FC<DataPreviewProps> = ({ result }) => {
                             title="File Size"
                             value={formatBytes(metadata.file_size_bytes)}
                             prefix={<FileTextOutlined />}
-                            valueStyle={{ color: '#13c2c2', fontSize: 20 }}
+                            styles={{ content: { color: '#13c2c2', fontSize: 20 } }}
                         />
                     </Col>
                     <Col xs={12} sm={6}>
@@ -134,7 +134,7 @@ const DataPreview: React.FC<DataPreviewProps> = ({ result }) => {
                             title="Parse Time"
                             value={`${metadata.ingestion_time_seconds.toFixed(2)}s`}
                             prefix={<FieldTimeOutlined />}
-                            valueStyle={{ color: '#52c41a', fontSize: 20 }}
+                            styles={{ content: { color: '#52c41a', fontSize: 20 } }}
                         />
                     </Col>
                 </Row>

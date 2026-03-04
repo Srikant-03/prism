@@ -2,11 +2,11 @@
  * CellRepairPanel â€” Intelligent cell-level repair suggestions.
  */
 
-import React, { useState, useCallback } from 'react';
-import { Table, Tag, Button, Space, Tooltip, Slider, Alert, Empty } from 'antd';
+import React, { useState } from 'react';
+import { Table, Tag, Button, Space, Tooltip, Slider, Empty } from 'antd';
 import {
-    ToolOutlined, CheckCircleOutlined, EditOutlined,
-    CloseCircleOutlined, FilterOutlined, ThunderboltOutlined,
+    ToolOutlined, CheckCircleOutlined,
+    CloseCircleOutlined, ThunderboltOutlined,
 } from '@ant-design/icons';
 
 interface RepairSuggestion {

@@ -4,10 +4,11 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { Card, Button, Space, Tag, Progress, Statistic, Row, Col, Alert, Empty, Tooltip, Switch, Select, Divider } from 'antd';
+import { Card, Select, Row, Col, Statistic, Tag, Button, Space, Empty, Divider } from 'antd';
 import {
-    ExperimentOutlined, CheckCircleOutlined, CloseCircleOutlined,
-    ThunderboltOutlined, ArrowRightOutlined, BarChartOutlined,
+    ExperimentOutlined,
+    CheckCircleOutlined, CloseCircleOutlined,
+    ThunderboltOutlined, ArrowRightOutlined,
     PlusOutlined, DeleteOutlined,
 } from '@ant-design/icons';
 
@@ -230,7 +231,7 @@ const WhatIfPanel: React.FC<Props> = ({ columns, fileId }) => {
                                     title="Before"
                                     value={results.readiness_before}
                                     suffix="/100"
-                                    valueStyle={{ color: readinessColor(results.readiness_before) }}
+                                    styles={{ content: { color: readinessColor(results.readiness_before) } }}
                                 />
                             </Card>
                         </Col>
@@ -243,7 +244,7 @@ const WhatIfPanel: React.FC<Props> = ({ columns, fileId }) => {
                                     title="After"
                                     value={results.readiness_after}
                                     suffix="/100"
-                                    valueStyle={{ color: readinessColor(results.readiness_after) }}
+                                    styles={{ content: { color: readinessColor(results.readiness_after) } }}
                                 />
                             </Card>
                         </Col>

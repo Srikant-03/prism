@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { Card, Select, Button, Space, Tag, Divider, Alert, Spin, Empty, Row, Col, Statistic } from 'antd';
+import { Select, Button, Space, Tag, Alert, Empty, Row, Col, Statistic } from 'antd';
 import {
     ExperimentOutlined, CheckCircleOutlined, CloseCircleOutlined,
     BulbOutlined, PlayCircleOutlined,
@@ -18,13 +18,6 @@ interface TestResult {
     significant: boolean;
     interpretation: string;
     degrees_of_freedom?: number;
-}
-
-interface TestSuggestion {
-    test: string;
-    label: string;
-    columns: string[];
-    reason: string;
 }
 
 interface Props {
@@ -50,7 +43,6 @@ const StatTestPanel: React.FC<Props> = ({ columns, fileId }) => {
     const [column2, setColumn2] = useState<string | null>(null);
     const [results, setResults] = useState<TestResult[]>([]);
     const [loading, setLoading] = useState(false);
-    const [suggestions, setSuggestions] = useState<TestSuggestion[]>([]);
 
     const runTest = useCallback(async () => {
         if (!selectedTest || !column1) return;
@@ -76,7 +68,6 @@ const StatTestPanel: React.FC<Props> = ({ columns, fileId }) => {
     }, [selectedTest, column1, column2, fileId]);
 
     const testConfig = AVAILABLE_TESTS.find(t => t.value === selectedTest);
-    const numericCols = columns.filter(c => ['int64', 'float64', 'number'].includes(c.dtype));
     const catCols = columns.filter(c => ['object', 'string', 'category'].includes(c.dtype));
 
     return (
@@ -151,7 +142,7 @@ const StatTestPanel: React.FC<Props> = ({ columns, fileId }) => {
                                 title="Test Statistic"
                                 value={result.statistic}
                                 precision={4}
-                                valueStyle={{ fontSize: 16 }}
+                                styles={{ content: { fontSize: 16 } }}
                             />
                         </Col>
                         <Col span={8}>
@@ -159,9 +150,11 @@ const StatTestPanel: React.FC<Props> = ({ columns, fileId }) => {
                                 title="P-Value"
                                 value={result.p_value}
                                 precision={6}
-                                valueStyle={{
-                                    fontSize: 16,
-                                    color: result.p_value < 0.05 ? '#f59e0b' : '#52c41a',
+                                styles={{
+                                    content: {
+                                        fontSize: 16,
+                                        color: result.p_value < 0.05 ? '#f59e0b' : '#52c41a',
+                                    }
                                 }}
                             />
                         </Col>
@@ -170,7 +163,7 @@ const StatTestPanel: React.FC<Props> = ({ columns, fileId }) => {
                                 <Statistic
                                     title="Degrees of Freedom"
                                     value={result.degrees_of_freedom}
-                                    valueStyle={{ fontSize: 16 }}
+                                    styles={{ content: { fontSize: 16 } }}
                                 />
                             </Col>
                         )}
@@ -180,7 +173,7 @@ const StatTestPanel: React.FC<Props> = ({ columns, fileId }) => {
                         type="info"
                         showIcon
                         icon={<BulbOutlined />}
-                        message="Interpretation"
+                        title="Interpretation"
                         description={result.interpretation}
                         style={{ background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.1)' }}
                     />

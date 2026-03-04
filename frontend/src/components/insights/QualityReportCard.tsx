@@ -107,12 +107,12 @@ const QualityReportCard: React.FC<QualityReportCardProps> = ({ data }) => {
             </div>
 
             <Row gutter={16} style={{ marginTop: '20px' }}>
-                <Col span={12}><Statistic title="Completeness" value={data.completeness} suffix="/ 100" valueStyle={{ fontSize: '1.2rem' }} /></Col>
-                <Col span={12}><Statistic title="Uniqueness" value={data.uniqueness} suffix="/ 100" valueStyle={{ fontSize: '1.2rem' }} /></Col>
-                <Col span={12}><Statistic title="Validity" value={data.validity} suffix="/ 100" valueStyle={{ fontSize: '1.2rem' }} /></Col>
-                <Col span={12}><Statistic title="Consistency" value={data.consistency} suffix="/ 100" valueStyle={{ fontSize: '1.2rem' }} /></Col>
+                <Col span={12}><Statistic title="Completeness" value={data.completeness} suffix="/ 100" styles={{ content: { fontSize: '1.2rem' } }} /></Col>
+                <Col span={12}><Statistic title="Uniqueness" value={data.uniqueness} suffix="/ 100" styles={{ content: { fontSize: '1.2rem' } }} /></Col>
+                <Col span={12}><Statistic title="Validity" value={data.validity} suffix="/ 100" styles={{ content: { fontSize: '1.2rem' } }} /></Col>
+                <Col span={12}><Statistic title="Consistency" value={data.consistency} suffix="/ 100" styles={{ content: { fontSize: '1.2rem' } }} /></Col>
                 {data.timeliness !== null && data.timeliness !== undefined && (
-                    <Col span={24}><Statistic title="Timeliness" value={data.timeliness} suffix="/ 100" valueStyle={{ fontSize: '1.2rem' }} /></Col>
+                    <Col span={24}><Statistic title="Timeliness" value={data.timeliness} suffix="/ 100" styles={{ content: { fontSize: '1.2rem' } }} /></Col>
                 )}
             </Row>
         </Card>
