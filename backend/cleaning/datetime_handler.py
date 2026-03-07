@@ -44,39 +44,61 @@ class DatetimeHandler:
         dt_cols = self._find_datetime_columns()
         report["datetime_columns"] = dt_cols
 
+        if not dt_cols:
+            return actions, report
+
+        # Score dt_cols by completeness to prioritize
+        col_scores = []
         for col in dt_cols:
             series = self._to_datetime(col)
-            if series is None:
-                continue
-
-            # 1. Component extraction
+            if series is not None:
+                completeness = series.notna().mean()
+                variance = series.nunique()
+                col_scores.append((col, series, completeness, variance))
+                
+        # Sort by completeness desc, variance desc
+        col_scores.sort(key=lambda x: (x[2], x[3]), reverse=True)
+        
+        # 1-3. Individual Features: Limit to top 2 datetime columns
+        top_dt_cols = [x for x in col_scores[:2]]
+        for col, series, _, _ in top_dt_cols:
             components, features_count = self._analyze_components(col, series)
             if features_count > 0:
                 actions.append(self._build_extract_action(col, components, features_count))
 
-            # 2. Derived flags
             flags = self._analyze_flags(col, series)
             if flags:
                 actions.append(self._build_flags_action(col, flags))
 
-            # 3. Elapsed time features
             actions.append(self._build_elapsed_action(col, series))
 
-        # 4. Pairwise time deltas
+        # 4. Pairwise time deltas: Adjacent pairs sorted by min date to avoid O(N^2) explosion
         if len(dt_cols) >= 2:
-            delta_actions = self._analyze_pairwise_deltas(dt_cols)
+            delta_actions = self._analyze_pairwise_deltas([c[0] for c in col_scores])
             actions.extend(delta_actions)
             report["pairwise_deltas"] = [
                 {"col_a": a.metadata.get("col_a"), "col_b": a.metadata.get("col_b")}
                 for a in delta_actions
             ]
 
-        # 5. Time series detection
-        for col in dt_cols:
+        # 5. Time series detection: Output ONLY the best candidate
+        best_ts_info = None
+        best_ts_score = -1
+        best_ts_col = None
+        
+        for col, series, _, _ in col_scores:
             ts_info = self._detect_time_series(col)
             if ts_info:
                 report["time_series_candidates"].append(ts_info)
-                actions.append(self._build_timeseries_action(col, ts_info))
+                # Score = sorted ratio + regularity bonus
+                score = ts_info["sort_ratio"] + (0.5 if ts_info["is_regular"] else 0)
+                if score > best_ts_score:
+                    best_ts_score = score
+                    best_ts_info = ts_info
+                    best_ts_col = col
+
+        if best_ts_col and best_ts_info:
+            actions.append(self._build_timeseries_action(best_ts_col, best_ts_info))
 
         return actions, report
 
@@ -174,65 +196,81 @@ class DatetimeHandler:
     # ── Pairwise deltas ───────────────────────────────────────────────
     def _analyze_pairwise_deltas(self, dt_cols: list[str]) -> list[CleaningAction]:
         actions: list[CleaningAction] = []
+        
+        # Get min date for each to sort sequentially
+        min_dates = []
+        for col in dt_cols:
+            series = self._to_datetime(col)
+            if series is not None:
+                min_dates.append((col, series.min()))
+                
+        # Sort by earliest date to compute logical sequential deltas
+        min_dates.sort(key=lambda x: str(x[1]))
+        ordered_cols = [x[0] for x in min_dates]
 
-        for i in range(len(dt_cols)):
-            for j in range(i + 1, len(dt_cols)):
-                col_a, col_b = dt_cols[i], dt_cols[j]
-                sa = self._to_datetime(col_a)
-                sb = self._to_datetime(col_b)
-                if sa is None or sb is None:
-                    continue
+        # Only compute deltas between adjacent columns (O(N) instead of O(N^2))
+        for i in range(len(ordered_cols) - 1):
+            col_a, col_b = ordered_cols[i], ordered_cols[i + 1]
+            sa = self._to_datetime(col_a)
+            sb = self._to_datetime(col_b)
+            if sa is None or sb is None:
+                continue
 
-                # Check if delta is meaningful (not all same)
-                delta = (sb - sa).dt.total_seconds()
-                if delta.dropna().nunique() < 2:
-                    continue
+            sa_val = sa.dt.tz_localize(None) if getattr(sa.dt, 'tz', None) is not None else sa
+            sb_val = sb.dt.tz_localize(None) if getattr(sb.dt, 'tz', None) is not None else sb
+            
+            try:
+                delta = (sb_val - sa_val).dt.total_seconds()
+            except Exception:
+                continue
+            if delta.dropna().nunique() < 2:
+                continue
 
-                mean_delta = delta.mean()
-                unit = "seconds"
-                if abs(mean_delta) > 86400:
-                    mean_delta /= 86400
-                    unit = "days"
-                elif abs(mean_delta) > 3600:
-                    mean_delta /= 3600
-                    unit = "hours"
-                elif abs(mean_delta) > 60:
-                    mean_delta /= 60
-                    unit = "minutes"
+            mean_delta = delta.mean()
+            unit = "seconds"
+            if abs(mean_delta) > 86400:
+                mean_delta /= 86400
+                unit = "days"
+            elif abs(mean_delta) > 3600:
+                mean_delta /= 3600
+                unit = "hours"
+            elif abs(mean_delta) > 60:
+                mean_delta /= 60
+                unit = "minutes"
 
-                delta_name = f"{col_b}_minus_{col_a}"
+            delta_name = f"{col_b}_minus_{col_a}"
 
-                actions.append(CleaningAction(
-                    category=ActionCategory.DATETIME_ENGINEERING,
-                    action_type=ActionType.COMPUTE_TIME_DELTAS,
-                    confidence=ActionConfidence.JUDGMENT_CALL,
-                    evidence=(
-                        f"Two datetime columns '{col_a}' and '{col_b}' found. "
-                        f"Mean difference: {mean_delta:.1f} {unit}."
-                    ),
-                    recommendation=f"Compute time delta '{delta_name}' in {unit}.",
-                    reasoning=(
-                        "Pairwise time deltas between datetime columns often capture "
-                        "important business durations (e.g., processing time, age, wait time)."
-                    ),
-                    target_columns=[col_a, col_b],
-                    impact=ImpactEstimate(
-                        rows_before=self.n_rows, rows_after=self.n_rows,
-                        columns_before=self.n_cols, columns_after=self.n_cols + 1,
-                        columns_affected=1,
-                        description=f"Adds column '{delta_name}' ({unit}).",
-                    ),
-                    options=[
-                        UserOption(key="days", label="Delta in Days", is_default=(unit == "days")),
-                        UserOption(key="hours", label="Delta in Hours", is_default=(unit == "hours")),
-                        UserOption(key="minutes", label="Delta in Minutes", is_default=(unit == "minutes")),
-                        UserOption(key="seconds", label="Delta in Seconds", is_default=(unit == "seconds")),
-                        UserOption(key="skip", label="Skip"),
-                    ],
-                    metadata={"col_a": col_a, "col_b": col_b, "unit": unit},
-                ))
+            actions.append(CleaningAction(
+                category=ActionCategory.DATETIME_ENGINEERING,
+                action_type=ActionType.COMPUTE_TIME_DELTAS,
+                confidence=ActionConfidence.JUDGMENT_CALL,
+                evidence=(
+                    f"Two sequential datetime columns '{col_a}' and '{col_b}' found. "
+                    f"Mean difference: {mean_delta:.1f} {unit}."
+                ),
+                recommendation=f"Compute time delta '{delta_name}' in {unit}.",
+                reasoning=(
+                    "Pairwise time deltas between sequential events capture "
+                    "important business durations (e.g., processing time, age, wait time)."
+                ),
+                target_columns=[col_a, col_b],
+                impact=ImpactEstimate(
+                    rows_before=self.n_rows, rows_after=self.n_rows,
+                    columns_before=self.n_cols, columns_after=self.n_cols + 1,
+                    columns_affected=1,
+                    description=f"Adds column '{delta_name}' ({unit}).",
+                ),
+                options=[
+                    UserOption(key="days", label="Delta in Days", is_default=(unit == "days")),
+                    UserOption(key="hours", label="Delta in Hours", is_default=(unit == "hours")),
+                    UserOption(key="minutes", label="Delta in Minutes", is_default=(unit == "minutes")),
+                    UserOption(key="seconds", label="Delta in Seconds", is_default=(unit == "seconds")),
+                    UserOption(key="skip", label="Skip"),
+                ],
+                metadata={"col_a": col_a, "col_b": col_b, "unit": unit},
+            ))
 
-        return actions
+        return actions[:3]  # Hard cap at top 3 deltas
 
     # ── Time series detection ─────────────────────────────────────────
     def _detect_time_series(self, col: str) -> Optional[dict]:
@@ -481,7 +519,11 @@ class DatetimeHandler:
         """Compute time delta between two datetime columns."""
         sa = pd.to_datetime(df[col_a], errors="coerce")
         sb = pd.to_datetime(df[col_b], errors="coerce")
-        delta = (sb - sa).dt.total_seconds()
+        
+        sa_val = sa.dt.tz_localize(None) if getattr(sa.dt, 'tz', None) is not None else sa
+        sb_val = sb.dt.tz_localize(None) if getattr(sb.dt, 'tz', None) is not None else sb
+        
+        delta = (sb_val - sa_val).dt.total_seconds()
 
         divisor = {"days": 86400, "hours": 3600, "minutes": 60, "seconds": 1}.get(unit, 86400)
         col_name = f"{col_b}_minus_{col_a}_{unit}"

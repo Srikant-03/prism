@@ -161,19 +161,20 @@ class OutlierHandler:
         lower_extreme = q1 - 3.0 * iqr
         upper_extreme = q3 + 3.0 * iqr
 
-        for idx in series.index:
-            val = float(series[idx])
+        for i in range(len(series)):
+            val = float(series.iloc[i])
+            idx_label = series.index[i]
             if val < lower_extreme or val > upper_extreme:
                 multiple = abs(val - stats["median"]) / iqr if iqr > 0 else 0
                 outliers.append(OutlierDetail(
-                    column=col, row_index=int(idx), value=val,
+                    column=col, row_index=int(idx_label), value=val,
                     detection_methods=[OutlierMethod.IQR_EXTREME],
                     iqr_multiple=round(multiple, 2),
                 ))
             elif val < lower_mild or val > upper_mild:
                 multiple = abs(val - stats["median"]) / iqr if iqr > 0 else 0
                 outliers.append(OutlierDetail(
-                    column=col, row_index=int(idx), value=val,
+                    column=col, row_index=int(idx_label), value=val,
                     detection_methods=[OutlierMethod.IQR_MILD],
                     iqr_multiple=round(multiple, 2),
                 ))
@@ -190,11 +191,13 @@ class OutlierHandler:
         z_scores = (series - mean) / std
         mask = z_scores.abs() > 3.0
 
-        for idx in series[mask].index:
-            val = float(series[idx])
-            zs = float(z_scores[idx])
+        outlier_positions = np.where(mask)[0]
+        for i in outlier_positions:
+            val = float(series.iloc[i])
+            zs = float(z_scores.iloc[i])
+            idx_label = series.index[i]
             outliers.append(OutlierDetail(
-                column=col, row_index=int(idx), value=val,
+                column=col, row_index=int(idx_label), value=val,
                 detection_methods=[OutlierMethod.ZSCORE],
                 z_score=round(zs, 2),
             ))
@@ -212,11 +215,13 @@ class OutlierHandler:
         modified_z = 0.6745 * (series - median) / mad
         mask = modified_z.abs() > 3.5
 
-        for idx in series[mask].index:
-            val = float(series[idx])
-            mz = float(modified_z[idx])
+        outlier_positions = np.where(mask)[0]
+        for i in outlier_positions:
+            val = float(series.iloc[i])
+            mz = float(modified_z.iloc[i])
+            idx_label = series.index[i]
             outliers.append(OutlierDetail(
-                column=col, row_index=int(idx), value=val,
+                column=col, row_index=int(idx_label), value=val,
                 detection_methods=[OutlierMethod.MODIFIED_ZSCORE],
                 modified_z_score=round(mz, 2),
             ))
@@ -238,13 +243,14 @@ class OutlierHandler:
             upper = rolling_median + 2.5 * rolling_std
             lower = rolling_median - 2.5 * rolling_std
 
-            for idx in series.index:
-                val = float(series[idx])
-                u = upper.get(idx)
-                l = lower.get(idx)
-                if u is not None and l is not None and (val > u or val < l):
+            for i in range(len(series)):
+                val = float(series.iloc[i])
+                idx_label = series.index[i]
+                u = upper.iloc[i]
+                l = lower.iloc[i]
+                if pd.notna(u) and pd.notna(l) and (val > u or val < l):
                     outliers.append(OutlierDetail(
-                        column=col, row_index=int(idx), value=val,
+                        column=col, row_index=int(idx_label), value=val,
                         detection_methods=[OutlierMethod.TIMESERIES_ENVELOPE],
                     ))
         except Exception:
@@ -287,10 +293,12 @@ class OutlierHandler:
                     "violation_count": int(violating.sum()),
                 })
 
-                for idx in series[violating].head(50).index:
-                    val = float(series[idx])
+                outlier_positions = np.where(violating)[0][:50]
+                for i in outlier_positions:
+                    val = float(series.iloc[i])
+                    idx_label = series.index[i]
                     outliers.append(OutlierDetail(
-                        column=col, row_index=int(idx), value=val,
+                        column=col, row_index=int(idx_label), value=val,
                         detection_methods=[OutlierMethod.BUSINESS_RULE],
                         error_reasoning=f"Violates {rule['label']} domain: {', '.join(reason_parts)}",
                     ))
