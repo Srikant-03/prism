@@ -22,13 +22,12 @@ async def explain_column(request: ExplainRequest):
     try:
         import numpy as np
         import pandas as pd
-        from api.upload import _storage
+        from ingestion.orchestrator import get_stored_dataframe
 
-        info = _storage.get(request.file_id)
-        if info is None or "df" not in info:
+        df = get_stored_dataframe(request.file_id)
+        if df is None:
             raise HTTPException(status_code=404, detail="Dataset not found")
 
-        df = info["df"]
         col = request.column
         if col not in df.columns:
             raise HTTPException(status_code=400, detail=f"Column '{col}' not found")

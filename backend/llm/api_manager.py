@@ -133,7 +133,7 @@ def with_llm_failover(max_retries: int = None, tier_rpm: int = 15):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs) -> Any:
             if not HAS_GENAI:
-                return func(*args, **kwargs)
+                return await func(*args, **kwargs)
                 
             retries = 0
             while retries <= max_retries:
@@ -144,7 +144,7 @@ def with_llm_failover(max_retries: int = None, tier_rpm: int = 15):
                     genai.configure(api_key=current_key)
                     
                 try:
-                    return func(*args, **kwargs)
+                    return await func(*args, **kwargs)
                     
                 except Exception as e:
                     # Check if it's a quota or rate limit error

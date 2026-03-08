@@ -161,9 +161,8 @@ async def override_schema(file_id: str, request: SchemaOverrideRequest):
 
     # Update the stored DataFrame
     try:
-        from api.upload import _storage
-        if file_id in _storage:
-            _storage[file_id]["df"] = df
+        from ingestion.orchestrator import update_stored_dataframe
+        update_stored_dataframe(file_id, df)
     except Exception:
         pass
 

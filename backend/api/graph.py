@@ -14,12 +14,12 @@ router = APIRouter(prefix="/api/graph", tags=["graph"])
 async def get_graph(file_id: str, threshold: float = 0.3):
     """Retrieve the relationship graph for a dataset."""
     try:
-        from api.upload import _storage
-        info = _storage.get(file_id)
-        if info is None or "df" not in info:
+        from ingestion.orchestrator import get_stored_dataframe
+
+        df = get_stored_dataframe(file_id)
+        if df is None:
             raise HTTPException(status_code=404, detail="Dataset not found")
 
-        df = info["df"]
         graph_data = build_relationship_graph(df, threshold)
         return graph_data
     except HTTPException:

@@ -24,14 +24,13 @@ async def run_stat_test(request: TestRequest):
     """Run a statistical test on the dataset."""
     try:
         import numpy as np
-        from api.upload import _storage
+        from ingestion.orchestrator import get_stored_dataframe
         from insights.stat_tests import run_test
 
-        info = _storage.get(request.file_id)
-        if info is None or "df" not in info:
+        df = get_stored_dataframe(request.file_id)
+        if df is None:
             raise HTTPException(status_code=404, detail="Dataset not found")
 
-        df = info["df"]
         data = {}
 
         col = request.column
@@ -89,14 +88,13 @@ async def run_stat_test(request: TestRequest):
 async def suggest_tests(file_id: str):
     """Suggest appropriate tests for the current dataset."""
     try:
-        from api.upload import _storage
+        from ingestion.orchestrator import get_stored_dataframe
         from insights.stat_tests import suggest_tests
 
-        info = _storage.get(file_id)
-        if info is None or "df" not in info:
+        df = get_stored_dataframe(file_id)
+        if df is None:
             raise HTTPException(status_code=404, detail="Dataset not found")
 
-        df = info["df"]
         columns = [
             {"name": col, "dtype": str(df[col].dtype)}
             for col in df.columns

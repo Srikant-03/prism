@@ -113,8 +113,7 @@ async def apply_recipe(request: ApplyRecipeRequest):
         from cleaning.cleaning_models import (
             CleaningAction, ActionType, ActionCategory, ActionConfidence,
         )
-        from ingestion.orchestrator import get_stored_dataframe
-        from api.upload import _storage
+        from ingestion.orchestrator import get_stored_dataframe, update_stored_dataframe
 
         df = get_stored_dataframe(request.file_id)
         if df is None:
@@ -186,8 +185,7 @@ async def apply_recipe(request: ApplyRecipeRequest):
             })
 
         # Persist the transformed DataFrame back to the storage
-        if request.file_id in _storage:
-            _storage[request.file_id]["df"] = engine.df
+        update_stored_dataframe(request.file_id, engine.df)
 
         return {
             "status": "completed",

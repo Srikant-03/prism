@@ -25,12 +25,12 @@ class TagRequest(BaseModel):
 async def detect_tags(file_id: str):
     """Auto-detect semantic tags for all columns."""
     try:
-        from api.upload import _storage
-        info = _storage.get(file_id)
-        if info is None or "df" not in info:
+        from ingestion.orchestrator import get_stored_dataframe
+
+        df = get_stored_dataframe(file_id)
+        if df is None:
             raise HTTPException(status_code=404, detail="Dataset not found")
 
-        df = info["df"]
         tags = []
         for col in df.columns:
             dtype = str(df[col].dtype)
@@ -83,12 +83,13 @@ async def detect_tags(file_id: str):
 async def save_tag(file_id: str, request: TagRequest):
     """Save a custom tag for a column (persists across detect calls)."""
     try:
-        from api.upload import _storage
-        info = _storage.get(file_id)
-        if info is None or "df" not in info:
+        from ingestion.orchestrator import get_stored_dataframe
+
+        df = get_stored_dataframe(file_id)
+        if df is None:
             raise HTTPException(status_code=404, detail="Dataset not found")
 
-        df = info["df"]
+
         if request.column not in df.columns:
             raise HTTPException(status_code=400, detail=f"Column '{request.column}' not found in dataset")
 

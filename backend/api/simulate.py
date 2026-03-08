@@ -29,10 +29,10 @@ async def simulate_chain(request: SimRequest):
     try:
         import pandas as pd
         import numpy as np
-        from api.upload import _storage
+        from ingestion.orchestrator import get_stored_dataframe
 
         # Get the dataframe
-        df = _storage.get(request.file_id, {}).get("df")
+        df = get_stored_dataframe(request.file_id)
         if df is None:
             raise HTTPException(status_code=404, detail="Dataset not found")
 
@@ -78,16 +78,16 @@ async def simulate_chain(request: SimRequest):
 async def commit_steps(request: SimRequest):
     """Apply steps to the full dataset (commit simulation)."""
     try:
-        from api.upload import _storage
+        from ingestion.orchestrator import get_stored_dataframe, update_stored_dataframe
 
-        info = _storage.get(request.file_id)
-        if info is None or "df" not in info:
+        df = get_stored_dataframe(request.file_id)
+        if df is None:
             raise HTTPException(status_code=404, detail="Dataset not found")
 
-        df = info["df"].copy()
+        df = df.copy()
         for step in request.steps:
             df = _apply_step(df, step)
-        info["df"] = df
+        update_stored_dataframe(request.file_id, df)
         return {"committed": True, "new_row_count": len(df)}
     except HTTPException:
         raise
