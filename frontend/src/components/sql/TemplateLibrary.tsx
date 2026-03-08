@@ -1,5 +1,5 @@
-﻿/**
- * TemplateLibrary â€” Schema-aware, auto-generated query template browser.
+/**
+ * TemplateLibrary — Schema-aware, auto-generated query template browser.
  * Organized by category with parameterized SQL and one-click run.
  */
 

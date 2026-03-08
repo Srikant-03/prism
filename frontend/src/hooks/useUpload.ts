@@ -14,6 +14,7 @@ import {
     selectSheets,
     confirmMalformed,
     resolveMultiFile,
+    fetchProfile,
 } from '../api/ingestion';
 
 const initialState: UploadState = {
@@ -107,6 +108,19 @@ export function useUpload() {
             if (result.malformed_report?.has_issues) {
                 status = 'awaiting_malformed_review';
             }
+
+            // Auto-fetch profile (with insights) if proceeding to complete
+            if (status === 'complete') {
+                try {
+                    const profileData = await fetchProfile(fileId) as any;
+                    if (profileData?.profile) {
+                        (result as any).profile = profileData.profile;
+                    }
+                } catch (e) {
+                    console.warn('Auto-profile fetch after sheet selection failed:', e);
+                }
+            }
+
             setState((s) => ({ ...s, status, result }));
         } catch (err: unknown) {
             const error = err as { response?: { data?: { detail?: string } } };
@@ -122,8 +136,28 @@ export function useUpload() {
         async (fileId: string, accept: boolean, drop: boolean = false) => {
             setState((s) => ({ ...s, status: 'processing' }));
             try {
-                await confirmMalformed(fileId, accept, drop);
-                setState((s) => ({ ...s, status: 'complete' }));
+                const confirmResult = await confirmMalformed(fileId, accept, drop) as any;
+
+                // The backend now returns profile data directly after confirm-malformed
+                let profileData = confirmResult?.profile || null;
+
+                // Fallback: fetch profile if not included in confirm response
+                if (!profileData) {
+                    try {
+                        const fetched = await fetchProfile(fileId) as any;
+                        profileData = fetched?.profile || null;
+                    } catch (e) {
+                        console.warn('Fallback profile fetch failed:', e);
+                    }
+                }
+
+                setState((s) => ({
+                    ...s,
+                    status: 'complete',
+                    result: s.result
+                        ? { ...s.result, profile: profileData, ...(confirmResult || {}) }
+                        : s.result,
+                }));
             } catch (err: unknown) {
                 const error = err as { response?: { data?: { detail?: string } } };
                 setState((s) => ({

@@ -1,5 +1,5 @@
-﻿/**
- * ColumnSelector â€” Checkbox column picker with aliasing and expression builder.
+/**
+ * ColumnSelector — Checkbox column picker with aliasing and expression builder.
  */
 
 import React, { useState } from 'react';
@@ -100,7 +100,7 @@ const ColumnSelector: React.FC<Props> = ({ columns, selectedColumns, onChange })
                                 style={{ cursor: 'pointer', fontSize: 10 }}
                                 onClick={() => setEditExpr(item)}
                             >
-                                {item.length > 20 ? item.slice(0, 20) + 'â€¦' : item}
+                                {item.length > 20 ? item.slice(0, 20) + '…' : item}
                             </Tag>
                         ))
                     )}

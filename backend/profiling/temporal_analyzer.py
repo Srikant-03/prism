@@ -12,8 +12,12 @@ class TemporalAnalyzer:
     """
 
     def analyze(self, df: pd.DataFrame, dataset_profile: DatasetProfile) -> TemporalAnalysis:
-        # Find datetime columns
-        dt_cols = [c.name for c in dataset_profile.columns if c.semantic_type == 'datetime' and c.name in df.columns]
+        time_keywords = ['year', 'date', 'month', 'timestamp', 'period']
+        dt_cols = [
+            c.name for c in dataset_profile.columns 
+            if (c.semantic_type == 'datetime' or any(k in c.name.lower() for k in time_keywords))
+            and c.name in df.columns
+        ]
         
         if not dt_cols or len(df) < 50:
             return TemporalAnalysis(has_temporal_patterns=False)
@@ -31,7 +35,13 @@ class TemporalAnalyzer:
             return TemporalAnalysis(has_temporal_patterns=False)
 
         df_t = df.copy()
-        df_t[primary_dt] = pd.to_datetime(df_t[primary_dt], errors='coerce')
+        s_str = df_t[primary_dt].astype(str).str.strip()
+        # Check if it's just a 4-digit year format (e.g. 2015)
+        if s_str.str.match(r'^(19|20)\d{2}$').mean() > 0.8:
+            df_t[primary_dt] = pd.to_datetime(s_str, format='%Y', errors='coerce')
+        else:
+            df_t[primary_dt] = pd.to_datetime(df_t[primary_dt], errors='coerce')
+            
         df_t = df_t.dropna(subset=[primary_dt]).sort_values(by=primary_dt)
 
         # Check if we have consistent frequency (approx)
@@ -86,6 +96,11 @@ class TemporalAnalyzer:
                 else:
                     s_res = s.values
                     period = max(7, len(s) // 20)
+
+                # Cap resampled data to 500 points to prevent STL hanging
+                if hasattr(s_res, '__len__') and len(s_res) > 500:
+                    step = len(s_res) // 500
+                    s_res = s_res[::step]
 
                 # Need at least 2 periods for STL
                 if len(s_res) >= 2 * period:

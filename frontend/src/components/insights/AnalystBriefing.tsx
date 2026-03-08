@@ -98,6 +98,28 @@ const AnalystBriefingPanel: React.FC<AnalystBriefingProps> = ({ data, fileId }) 
                         </li>
                     ))}
                 </ul>
+
+                {data.column_deep_dives && data.column_deep_dives.length > 0 && (
+                    <>
+                        <Divider style={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+                        <Title level={5}>Column Deep-Dive (Layman Explanations)</Title>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+                            {data.column_deep_dives.map((col, idx) => (
+                                <Card key={idx} size="small" variant="borderless" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                                    <Text strong style={{ color: '#177ddc', fontSize: '16px' }}>{col.column_name}</Text>
+                                    <Paragraph style={{ marginTop: '8px', marginBottom: '8px' }}>
+                                        <Text type="secondary">Mathematical Summary: </Text><br />
+                                        <Text style={{ fontFamily: 'monospace', fontSize: '12px', color: '#8c8c8c' }}>{col.mathematical_summary}</Text>
+                                    </Paragraph>
+                                    <Paragraph style={{ margin: 0 }}>
+                                        <Text type="secondary">Layman Explanation: </Text><br />
+                                        <Text style={{ fontSize: '14px', lineHeight: '1.5' }}>{col.layman_explanation}</Text>
+                                    </Paragraph>
+                                </Card>
+                            ))}
+                        </div>
+                    </>
+                )}
             </div>
         </Card>
     );

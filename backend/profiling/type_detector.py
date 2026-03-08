@@ -162,7 +162,7 @@ class SemanticTypeDetector:
 
         # ── Geo Coordinates ──
         geo_match = sample.str.match(GEO_RE.pattern, na=False).sum()
-        geo_hints = any(h in col_lower for h in ["lat", "lon", "lng", "coord", "geo", "latitude", "longitude"])
+        geo_hints = bool(re.search(r'\b(lat|lon|lng|coord|geo|latitude|longitude)\b', col_lower))
         if geo_match / sample_size > 0.5 and geo_hints:
             return SemanticType.GEO_COORDINATE, 0.85
         if geo_match / sample_size > 0.8:
@@ -227,7 +227,7 @@ class SemanticTypeDetector:
         """Classify a numeric column as continuous, discrete, geo, percentage, etc."""
 
         # ── Geo coordinate check ──
-        geo_hints = any(h in col_lower for h in ["lat", "lon", "lng", "latitude", "longitude"])
+        geo_hints = bool(re.search(r'\b(lat|lon|lng|latitude|longitude)\b', col_lower))
         if geo_hints:
             vals = non_null.astype(float)
             if (vals.abs() <= 180).all():

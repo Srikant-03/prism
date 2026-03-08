@@ -1,12 +1,12 @@
-﻿/**
- * LiveDataGrid â€” Excel-like interactive data grid using AG Grid.
+/**
+ * LiveDataGrid — Excel-like interactive data grid using AG Grid.
  * Full-featured: sort, filter, pin, resize, reorder, context menus,
  * conditional formatting, cell quality indicators, inline editing.
  */
 
 import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { AllCommunityModule, ModuleRegistry, type ColDef, type GridReadyEvent, type GetContextMenuItemsParams, type MenuItemDef } from 'ag-grid-community';
+import { AllCommunityModule, ModuleRegistry, type ColDef, type GridReadyEvent } from 'ag-grid-community';
 import { Input, Button, Space, Tag, Badge, Tooltip, Modal, Select, InputNumber } from 'antd';
 import {
     SearchOutlined, FilterOutlined, ClearOutlined, EyeInvisibleOutlined,
@@ -14,9 +14,8 @@ import {
 } from '@ant-design/icons';
 
 import { ClientSideRowModelModule } from 'ag-grid-community';
-import { ClipboardModule, RowGroupingModule, ContextMenuModule, ExcelExportModule } from 'ag-grid-enterprise';
 
-ModuleRegistry.registerModules([AllCommunityModule, ClientSideRowModelModule, ClipboardModule, RowGroupingModule, ContextMenuModule, ExcelExportModule]);
+ModuleRegistry.registerModules([AllCommunityModule, ClientSideRowModelModule]);
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
 
@@ -56,7 +55,7 @@ const LiveDataGrid: React.FC<Props> = ({
     const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
     const [pageSize, setPageSize] = useState(100);
     const [jumpRow, setJumpRow] = useState<number | null>(null);
-    const [rowNotes, setRowNotes] = useState<Record<number, string>>({});
+    const [_rowNotes, setRowNotes] = useState<Record<number, string>>({});
     const [noteModal, setNoteModal] = useState<{ visible: boolean; rowIndex: number }>({ visible: false, rowIndex: 0 });
     const [noteText, setNoteText] = useState('');
     const [condRules, setCondRules] = useState<ConditionalRule[]>([]);
@@ -203,32 +202,7 @@ const LiveDataGrid: React.FC<Props> = ({
         setNewRule({});
     }, [newRule]);
 
-    // Context menu
-    const getContextMenuItems = useCallback((params: GetContextMenuItemsParams): (string | MenuItemDef)[] => {
-        const cellActions: (string | MenuItemDef)[] = [
-            { name: 'Copy Cell', action: () => navigator.clipboard.writeText(String(params.value ?? '')) },
-            { name: 'Copy Row', action: () => navigator.clipboard.writeText(JSON.stringify(params.node?.data || {})) },
-            'separator',
-            {
-                name: 'Filter by this Value', action: () => {
-                    if (params.column) {
-                        const api = params.api as any;
-                        const filter = api.getFilterInstance(params.column.getColId() as string);
-                        if (filter) { filter.setModel({ values: [String(params.value)] }); params.api.onFilterChanged(); }
-                    }
-                }
-            },
-            { name: 'Highlight All Matching', action: () => setSearchText(String(params.value ?? '')) },
-            'separator',
-            {
-                name: `Add Note to Row ${params.node?.rowIndex}`, action: () => {
-                    setNoteText(rowNotes[params.node?.rowIndex || 0] || '');
-                    setNoteModal({ visible: true, rowIndex: params.node?.rowIndex || 0 });
-                }
-            },
-        ];
-        return cellActions as any;
-    }, [rowNotes]);
+
 
     const defaultColDef: ColDef = useMemo(() => ({
         sortable: true,
@@ -329,8 +303,8 @@ const LiveDataGrid: React.FC<Props> = ({
             {miniStats && (
                 <div className="glass-panel" style={{ padding: 12 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <strong>{miniStats.col} â€” Quick Stats</strong>
-                        <Button size="small" onClick={() => setMiniStats(null)}>âœ•</Button>
+                        <strong>{miniStats.col} — Quick Stats</strong>
+                        <Button size="small" onClick={() => setMiniStats(null)}>✕</Button>
                     </div>
                     <Space wrap>
                         {Object.entries(miniStats.stats).map(([k, v]) => (
@@ -375,13 +349,14 @@ const LiveDataGrid: React.FC<Props> = ({
                     onGridReady={onGridReady}
                     onFilterChanged={handleFilterChanged}
                     onCellValueChanged={handleCellEdit}
-                    rowSelection="multiple"
+                    rowSelection={{ mode: "multiRow" }}
                     onColumnHeaderClicked={(e: any) => fetchColumnStats(e.column.getColId())}
-                    getContextMenuItems={getContextMenuItems as any}
+
                     enableCellTextSelection={true}
                     animateRows={true}
                     suppressMenuHide={true}
                     tooltipShowDelay={300}
+                    theme="legacy"
                     className="ag-theme-alpine-dark custom-ag-grid"
                 />
             </div>
@@ -410,7 +385,7 @@ const LiveDataGrid: React.FC<Props> = ({
                 onCancel={() => setShowRuleModal(false)}
                 width={500}
             >
-                <Space direction="vertical" style={{ width: '100%' }}>
+                <Space orientation="vertical" style={{ width: '100%' }}>
                     <Select
                         placeholder="Column"
                         style={{ width: '100%' }}
@@ -427,7 +402,7 @@ const LiveDataGrid: React.FC<Props> = ({
                             { value: 'gt', label: 'Greater than (>)' },
                             { value: 'lt', label: 'Less than (<)' },
                             { value: 'eq', label: 'Equals (=)' },
-                            { value: 'neq', label: 'Not equals (â‰ )' },
+                            { value: 'neq', label: 'Not equals (≠)' },
                             { value: 'contains', label: 'Contains' },
                             { value: 'between', label: 'Between' },
                         ]}

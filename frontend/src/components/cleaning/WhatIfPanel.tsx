@@ -1,5 +1,5 @@
-﻿/**
- * WhatIfPanel â€” Sandbox mode for testing preprocessing decisions.
+/**
+ * WhatIfPanel — Sandbox mode for testing preprocessing decisions.
  * Simulates steps on a sample before committing to full dataset.
  */
 

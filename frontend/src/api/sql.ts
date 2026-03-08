@@ -4,22 +4,32 @@
 
 import type { QuerySpec, QueryResult, TableInfo, ColumnInfo } from '../types/sql';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+import { API_BASE, API_KEY } from './ingestion';
+
+const fetchAuth = (url: RequestInfo | URL, init?: RequestInit) => {
+    return fetch(url, {
+        ...init,
+        headers: {
+            ...init?.headers,
+            'X-API-Key': API_KEY,
+        },
+    });
+};
 
 export async function fetchTables(): Promise<TableInfo[]> {
-    const res = await fetch(`${API_BASE}/api/sql/tables`);
+    const res = await fetchAuth(`${API_BASE}/api/sql/tables`);
     const data = await res.json();
     return data.tables || [];
 }
 
 export async function fetchColumns(table: string): Promise<ColumnInfo[]> {
-    const res = await fetch(`${API_BASE}/api/sql/columns/${encodeURIComponent(table)}`);
+    const res = await fetchAuth(`${API_BASE}/api/sql/columns/${encodeURIComponent(table)}`);
     const data = await res.json();
     return data.columns || [];
 }
 
 export async function fetchColumnValues(table: string, column: string, limit = 50): Promise<any[]> {
-    const res = await fetch(
+    const res = await fetchAuth(
         `${API_BASE}/api/sql/values/${encodeURIComponent(table)}/${encodeURIComponent(column)}?limit=${limit}`
     );
     const data = await res.json();
@@ -27,14 +37,14 @@ export async function fetchColumnValues(table: string, column: string, limit = 5
 }
 
 export async function fetchPreview(table: string, limit = 10): Promise<any> {
-    const res = await fetch(
+    const res = await fetchAuth(
         `${API_BASE}/api/sql/preview/${encodeURIComponent(table)}?limit=${limit}`
     );
     return res.json();
 }
 
 export async function executeQuery(payload: { sql?: string; query_spec?: QuerySpec }): Promise<QueryResult> {
-    const res = await fetch(`${API_BASE}/api/sql/execute`, {
+    const res = await fetchAuth(`${API_BASE}/api/sql/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -43,7 +53,7 @@ export async function executeQuery(payload: { sql?: string; query_spec?: QuerySp
 }
 
 export async function previewSQL(querySpec: QuerySpec): Promise<{ success: boolean; sql: string; errors?: string[] }> {
-    const res = await fetch(`${API_BASE}/api/sql/preview-sql`, {
+    const res = await fetchAuth(`${API_BASE}/api/sql/preview-sql`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query_spec: querySpec }),
@@ -54,7 +64,7 @@ export async function previewSQL(querySpec: QuerySpec): Promise<{ success: boole
 export async function exportResults(
     payload: { sql?: string; query_spec?: QuerySpec; format: string }
 ): Promise<Blob> {
-    const res = await fetch(`${API_BASE}/api/sql/export`, {
+    const res = await fetchAuth(`${API_BASE}/api/sql/export`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -65,7 +75,7 @@ export async function exportResults(
 // ── Natural Language Query ────────────────────────────────────────────
 
 export async function nlQuery(question: string, conversationHistory?: any[]): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/sql/nl-query`, {
+    const res = await fetchAuth(`${API_BASE}/api/sql/nl-query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, conversation_history: conversationHistory }),
@@ -76,7 +86,7 @@ export async function nlQuery(question: string, conversationHistory?: any[]): Pr
 export async function nlRefine(
     originalQuestion: string, originalSql: string, refinement: string
 ): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/sql/nl-refine`, {
+    const res = await fetchAuth(`${API_BASE}/api/sql/nl-refine`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -91,12 +101,12 @@ export async function nlRefine(
 // ── Template Library ─────────────────────────────────────────────────
 
 export async function fetchTemplates(tableName: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/sql/templates/${encodeURIComponent(tableName)}`);
+    const res = await fetchAuth(`${API_BASE}/api/sql/templates/${encodeURIComponent(tableName)}`);
     return res.json();
 }
 
 export async function executeTemplate(sql: string, params?: Record<string, any>): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/sql/template-execute`, {
+    const res = await fetchAuth(`${API_BASE}/api/sql/template-execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sql, params }),

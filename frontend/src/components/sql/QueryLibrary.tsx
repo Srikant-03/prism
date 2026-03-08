@@ -1,5 +1,5 @@
-﻿/**
- * QueryLibrary â€” Save, load, tag, and share queries.
+/**
+ * QueryLibrary — Save, load, tag, and share queries.
  * Parameterized queries turn any query into a reusable template.
  */
 
@@ -181,7 +181,7 @@ const QueryLibrary: React.FC<Props> = ({ currentSQL, onLoadQuery, onExecuteQuery
                                     <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
                                         {q.tags.map(t => <Tag key={t} style={{ fontSize: 10 }}>{t}</Tag>)}
                                         <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>
-                                            Used {q.runCount}Ã— Â· {new Date(q.lastUsed).toLocaleDateString()}
+                                            Used {q.runCount}× · {new Date(q.lastUsed).toLocaleDateString()}
                                         </span>
                                     </div>
                                 </div>
@@ -246,7 +246,7 @@ const QueryLibrary: React.FC<Props> = ({ currentSQL, onLoadQuery, onExecuteQuery
             <Modal title={editId ? "Edit Query" : "Save Query"} open={showSave}
                 onOk={handleSave} onCancel={() => setShowSave(false)}
                 okText="Save" okButtonProps={{ disabled: !form.name.trim() }}>
-                <Space direction="vertical" style={{ width: '100%' }}>
+                <Space orientation="vertical" style={{ width: '100%' }}>
                     <Input placeholder="Query name" value={form.name}
                         onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
                     <Input placeholder="Description (optional)" value={form.description}
@@ -257,7 +257,7 @@ const QueryLibrary: React.FC<Props> = ({ currentSQL, onLoadQuery, onExecuteQuery
                     <TextArea value={form.sql} rows={4} style={{ fontFamily: 'monospace', fontSize: 12 }}
                         onChange={e => setForm(f => ({ ...f, sql: e.target.value }))} />
                     <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
-                        ðŸ’¡ Use {"{{param_name}}"} in SQL to create parameterized queries
+                        💡 Use {"{{param_name}}"} in SQL to create parameterized queries
                     </div>
                 </Space>
             </Modal>

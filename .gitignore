@@ -15,4 +15,6 @@ Thumbs.db
 .vscode/
 .idea/
 backend/uploads/
+backend/temp/
 backend/data/
+*.log

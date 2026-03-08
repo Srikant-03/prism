@@ -76,9 +76,11 @@ class AnomalyDetector:
         # 5. Cross-Column Anomalies
         if profile.cross_analysis:
             cross = profile.cross_analysis
+            correlations = cross.get("correlations", {})
+            target_analysis = cross.get("target", {})
             
             # Multicollinearity
-            if cross.multicollinearity.has_multicollinearity:
+            if correlations.get("multicollinearity", {}).get("has_multicollinearity"):
                 warnings.append(AnomalyWarning(
                     severity=AnomalySeverity.HIGH,
                     category="Correlation",
@@ -87,22 +89,27 @@ class AnomalyDetector:
                 ))
             
             # Perfect Correlations (Leakage)
-            for pair in cross.strongest_pairs:
-                if abs(pair.score) >= 0.99 and pair.col1 != pair.col2:
+            for pair in correlations.get("strongest_pairs", []):
+                score = pair.get("score", 0.0)
+                col1 = pair.get("col1")
+                col2 = pair.get("col2")
+                if abs(score) >= 0.99 and col1 != col2:
                     warnings.append(AnomalyWarning(
-                        feature=pair.col1,
+                        feature=col1,
                         severity=AnomalySeverity.CRITICAL,
                         category="Data Leakage",
-                        description=f"Nearly perfect correlation (r={pair.score:.2f}) with '{pair.col2}'.",
+                        description=f"Nearly perfect correlation (r={score:.2f}) with '{col2}'.",
                         recommendation="One of these is likely a duplicate or directly derived from the other. Drop one."
                     ))
 
             # Target Imbalance
-            if cross.target_analysis and cross.target_analysis.problem_type == 'binary_classification' and cross.target_analysis.class_distribution:
-                dist = list(cross.target_analysis.class_distribution.values())
+            problem_type = target_analysis.get("problem_type")
+            class_dist = target_analysis.get("class_distribution", {})
+            if problem_type == 'binary_classification' and class_dist:
+                dist = list(class_dist.values())
                 if len(dist) == 2 and (min(dist) < 0.1):
                     warnings.append(AnomalyWarning(
-                        feature=cross.target_analysis.target_column,
+                        feature=target_analysis.get("target_column"),
                         severity=AnomalySeverity.HIGH,
                         category="Target Imbalance",
                         description=f"Highly imbalanced target distribution ({min(dist)*100:.1f}% vs {max(dist)*100:.1f}%).",

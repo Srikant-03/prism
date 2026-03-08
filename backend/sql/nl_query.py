@@ -12,6 +12,8 @@ from typing import Any, Optional
 
 try:
     import google.generativeai as genai
+    from llm.api_manager import with_llm_failover
+    from config import LLMConfig
     HAS_GENAI = True
 except ImportError:
     HAS_GENAI = False
@@ -80,31 +82,23 @@ RESPONSE FORMAT — respond with ONLY a JSON object, no markdown fencing:
 class NLQueryTranslator:
     """Translates natural language queries to SQL using Google Gemini."""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "gemini-2.0-flash"):
+    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
         self.api_key = api_key or os.getenv("GEMINI_API_KEY", "")
-        self.model_name = model
+        self.model_name = model or LLMConfig.MODEL_HEAVY
         self._model = None
 
     def _get_model(self):
         """Lazy-init the Gemini model."""
         if self._model is None:
             if not HAS_GENAI:
-                raise RuntimeError(
-                    "google-generativeai package is not installed. "
-                    "Run: pip install google-generativeai"
-                )
-            if not self.api_key:
-                raise RuntimeError(
-                    "GEMINI_API_KEY not set. Set it in environment or config."
-                )
-            genai.configure(api_key=self.api_key)
+                raise RuntimeError("google-generativeai package is not installed.")
             self._model = genai.GenerativeModel(
                 model_name=self.model_name,
                 system_instruction=SYSTEM_PROMPT,
             )
         return self._model
 
-    def translate(
+    async def translate(
         self,
         question: str,
         engine,
@@ -143,8 +137,12 @@ USER QUESTION:
 
             contents.append({"role": "user", "parts": [user_prompt]})
 
-            model = self._get_model()
-            response = model.generate_content(contents)
+            @with_llm_failover(tier_rpm=2)
+            def do_generate():
+                model = self._get_model()
+                return model.generate_content(contents)
+            
+            response = await do_generate()
 
             # Parse the JSON response
             text = response.text.strip()
@@ -194,7 +192,7 @@ USER QUESTION:
                 "error": str(e),
             }
 
-    def refine(
+    async def refine(
         self,
         original_question: str,
         original_sql: str,
@@ -220,7 +218,7 @@ USER QUESTION:
             f"Generate the updated SQL."
         )
 
-        return self.translate(
+        return await self.translate(
             refined_question,
             engine,
             conversation_history=conversation_history,

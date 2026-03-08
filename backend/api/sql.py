@@ -199,7 +199,7 @@ async def nl_query(request: NLQueryRequest):
     """Translate natural language to SQL using Gemini."""
     engine = get_engine()
     translator = get_translator()
-    result = translator.translate(
+    result = await translator.translate(
         question=request.question,
         engine=engine,
         conversation_history=request.conversation_history,
@@ -212,7 +212,7 @@ async def nl_refine(request: NLRefineRequest):
     """Refine a previously generated SQL query."""
     engine = get_engine()
     translator = get_translator()
-    result = translator.refine(
+    result = await translator.refine(
         original_question=request.original_question,
         original_sql=request.original_sql,
         refinement=request.refinement,
@@ -257,6 +257,17 @@ async def template_execute(request: TemplateExecuteRequest):
             placeholder = "{{" + key + "}}"
             sql = sql.replace(placeholder, str(value))
 
+    # Re-check for destructive keywords after parameter interpolation
+    # to prevent injection via template params (e.g. {{col}} = "x; DROP TABLE y")
+    stripped = sql.strip().upper()
+    forbidden = ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "TRUNCATE", "GRANT", "REVOKE"]
+    for word in forbidden:
+        if word in stripped.split():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Forbidden SQL keyword '{word}' detected after parameter interpolation.",
+            )
+
     result = engine.execute(sql)
     return result
 
@@ -292,7 +303,7 @@ async def drop_view(name: str):
 
 
 @router.post("/execute-cached")
-async def execute_cached(request: QueryRequest):
+async def execute_cached(request: ExecuteRequest):
     """Execute with result caching."""
     engine = get_engine()
     sql = request.sql or ""

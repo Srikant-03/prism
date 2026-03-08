@@ -27,9 +27,9 @@ REM ── Install backend deps if venv missing ──
 if not exist "backend\venv" (
     echo  [SETUP] Creating Python virtual environment...
     python -m venv backend\venv
-    echo  [SETUP] Installing backend dependencies...
-    backend\venv\Scripts\pip install -r backend\requirements.txt --quiet
 )
+echo  [SETUP] Checking backend dependencies...
+backend\venv\Scripts\python -m pip install -r backend\requirements.txt --quiet
 
 REM ── Install frontend deps if node_modules missing ──
 if not exist "frontend\node_modules" (

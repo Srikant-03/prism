@@ -1,5 +1,5 @@
-﻿/**
- * SheetSelector â€” Excel sheet picker with previews and metadata.
+/**
+ * SheetSelector — Excel sheet picker with previews and metadata.
  */
 
 import React, { useState } from 'react';
@@ -70,7 +70,7 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({ sheets, onSelect, loading
                                     <Text strong>{sheet.name}</Text>
                                 </Space>
                                 {sheet.has_merged_cells && (
-                                    <Tooltip title="Contains merged cells â€” will be unmerged automatically">
+                                    <Tooltip title="Contains merged cells — will be unmerged automatically">
                                         <Tag icon={<MergeCellsOutlined />} color="warning">
                                             Merged
                                         </Tag>
@@ -80,7 +80,7 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({ sheets, onSelect, loading
 
                             <div className="sheet-card-stats">
                                 <Tag icon={<TableOutlined />} color="processing">
-                                    {sheet.row_count.toLocaleString()} rows Ã— {sheet.col_count} cols
+                                    {sheet.row_count.toLocaleString()} rows × {sheet.col_count} cols
                                 </Tag>
                             </div>
 
@@ -92,10 +92,10 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({ sheets, onSelect, loading
                                                 <tr key={ri}>
                                                     {row.slice(0, 5).map((cell, ci) => (
                                                         <td key={ci} className={ri === 0 ? 'header-cell' : ''}>
-                                                            {cell != null ? String(cell).substring(0, 20) : 'â€”'}
+                                                            {cell != null ? String(cell).substring(0, 20) : '—'}
                                                         </td>
                                                     ))}
-                                                    {row.length > 5 && <td className="more-cell">â€¦</td>}
+                                                    {row.length > 5 && <td className="more-cell">…</td>}
                                                 </tr>
                                             ))}
                                         </tbody>

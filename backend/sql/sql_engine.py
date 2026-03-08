@@ -24,6 +24,7 @@ class SQLEngine:
     def __init__(self):
         self.conn = duckdb.connect(database=":memory:")
         self._tables: dict[str, dict[str, Any]] = {}  # name -> metadata
+        self._query_cache: dict[str, dict] = {}       # SQL hash -> query result
 
     # ── Table registration ────────────────────────────────────────────
 
@@ -248,15 +249,14 @@ class SQLEngine:
 
     def drop_view(self, name: str) -> dict:
         """Drop a view."""
+        safe_name = self._safe_table_name(name)
         try:
-            self.conn.execute(f'DROP VIEW IF EXISTS "{name}"')
+            self.conn.execute(f'DROP VIEW IF EXISTS "{safe_name}"')
             return {"success": True}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
     # ── Query Cache ───────────────────────────────────────────────────
-
-    _query_cache: dict[str, dict] = {}
 
     def execute_cached(self, sql: str) -> dict:
         """Execute with result caching (hash-keyed)."""

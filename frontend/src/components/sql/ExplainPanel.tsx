@@ -1,5 +1,5 @@
-﻿/**
- * ExplainPanel â€” Visual query execution plan tree.
+/**
+ * ExplainPanel — Visual query execution plan tree.
  * Shows EXPLAIN ANALYZE output as an indented tree with timing info.
  */
 
@@ -154,7 +154,7 @@ const ExplainPanel: React.FC<Props> = ({ onCreateView }) => {
                             }}>
                                 {node.depth > 0 && (
                                     <span style={{ color: 'rgba(255,255,255,0.15)' }}>
-                                        {'â””'.repeat(1)}
+                                        {'└'.repeat(1)}
                                     </span>
                                 )}
                                 <span style={{ color: getNodeColor(node.text) }}>

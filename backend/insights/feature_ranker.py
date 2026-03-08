@@ -15,15 +15,17 @@ class FeatureRanker:
 
         target_col = None
         target_correlations = {}
-        if profile.cross_analysis and profile.cross_analysis.target_analysis:
-            target_col = profile.cross_analysis.target_analysis.target_column
-            for predictor in profile.cross_analysis.target_analysis.top_predictors:
-                target_correlations[predictor.feature] = predictor.importance_score
+        if profile.cross_analysis and profile.cross_analysis.get("target"):
+            target = profile.cross_analysis["target"]
+            target_col = target.get("target_column")
+            for predictor in target.get("top_predictors", []):
+                # predictor is a dict since it was model_dumped
+                target_correlations[predictor.get("feature")] = predictor.get("importance_score")
 
         # Collect Mutual Information scores (avg across all pairs for a given feature)
         mi_scores: Dict[str, float] = {}
-        if profile.cross_analysis:
-            c_matrix = profile.cross_analysis.correlation_matrix
+        if profile.cross_analysis and profile.cross_analysis.get("correlations"):
+            c_matrix = profile.cross_analysis["correlations"].get("correlation_matrix", {})
             for col_name, row in c_matrix.items():
                 if isinstance(row, dict):
                     # Average absolute correlation/MI with other valid features

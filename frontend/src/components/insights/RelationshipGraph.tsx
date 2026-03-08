@@ -1,5 +1,5 @@
-﻿/**
- * RelationshipGraph â€” Visualizes column relationships using a force-directed graph.
+/**
+ * RelationshipGraph — Visualizes column relationships using a force-directed graph.
  */
 
 import React, { useMemo } from 'react';
@@ -43,7 +43,7 @@ const RelationshipGraph: React.FC<Props> = ({ data, loading, onThresholdChange, 
                     if (params.dataType === 'node') {
                         return `Column: <b>${params.name}</b><br/>Type: ${params.data.category}<br/>Rows: ${params.data.value}`;
                     } else {
-                        return `Relationship: <b>${params.data.source}</b> â†” <b>${params.data.target}</b><br/>Strength: ${params.data.value}`;
+                        return `Relationship: <b>${params.data.source}</b> ↔ <b>${params.data.target}</b><br/>Strength: ${params.data.value}`;
                     }
                 }
             },

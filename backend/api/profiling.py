@@ -5,17 +5,25 @@ Auto-triggered after ingestion, also available on-demand.
 
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, HTTPException, Response
 
 from profiling.engine import DataProfiler
 from profiling.profiling_models import ProfilingResult
 from ingestion.orchestrator import get_stored_data, get_stored_dataframe
 from insights.export_service import ExportService
+from api.models import SchemaOverrideRequest
 
 router = APIRouter(prefix="/api", tags=["profiling"])
 
 # In-memory store for profiling results
 _profile_store: dict[str, ProfilingResult] = {}
+
+
+def get_stored_profile(file_id: str) -> ProfilingResult | None:
+    """Public accessor for profiling results. Avoids exposing _profile_store directly."""
+    return _profile_store.get(file_id)
 
 
 @router.get("/profile/{file_id}")
@@ -40,8 +48,8 @@ async def get_profile(file_id: str):
         if hasattr(meta, "file_size_bytes"):
             disk_size = meta.file_size_bytes
 
-    # Run profiling
-    result = DataProfiler.profile(df, file_id, disk_size)
+    # Run profiling in thread pool to avoid blocking the event loop
+    result = await asyncio.to_thread(DataProfiler.profile, df, file_id, disk_size)
     _profile_store[file_id] = result
 
     return result.model_dump()
@@ -95,7 +103,7 @@ async def get_dataset_overview(file_id: str):
     }
 
 
-def auto_profile(file_id: str) -> ProfilingResult | None:
+async def auto_profile(file_id: str) -> ProfilingResult | None:
     """
     Auto-trigger profiling after ingestion.
     Called by the ingestion orchestrator.
@@ -112,9 +120,24 @@ def auto_profile(file_id: str) -> ProfilingResult | None:
         if hasattr(meta, "file_size_bytes"):
             disk_size = meta.file_size_bytes
 
-    result = DataProfiler.profile(df, file_id, disk_size)
+    result = await asyncio.to_thread(DataProfiler.profile, df, file_id, disk_size)
     _profile_store[file_id] = result
     return result
+
+@router.post("/schema-override/{file_id}")
+async def override_schema(file_id: str, request: SchemaOverrideRequest):
+    """Override the inferred data type for a specific column."""
+    if file_id not in _profile_store:
+        raise HTTPException(status_code=404, detail="Profile not found.")
+    
+    result = _profile_store[file_id]
+    ds = result.profile
+    
+    # Store override metadata (in a real app this would trigger a re-profile or update the DF)
+    ds.metadata["schema_overrides"] = ds.metadata.get("schema_overrides", {})
+    ds.metadata["schema_overrides"][request.column] = request.new_type
+    
+    return {"status": "success", "message": f"Overrode {request.column} to {request.new_type}"}
 
 # ──────────────────────────────────────────
 # Insights Exports

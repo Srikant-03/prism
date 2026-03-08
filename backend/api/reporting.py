@@ -44,28 +44,28 @@ class DataExportRequest(BaseModel):
 
 def _gather_report_data(file_id: str) -> dict:
     """Gather profiling, cleaning, and insights data for a file."""
-    from api.profiling import _profile_store
+    from api.profiling import get_stored_profile
     from api.cleaning import _cleaning_store
 
     profile_data = None
-    if file_id in _profile_store:
+    stored_profile = get_stored_profile(file_id)
+    if stored_profile is not None:
         try:
-            profile_data = _profile_store[file_id].profile.model_dump()
+            profile_data = stored_profile.profile.model_dump()
         except Exception:
-            profile_data = _profile_store[file_id].profile.__dict__
+            profile_data = stored_profile.profile.__dict__
 
     insights_data = None
-    if file_id in _profile_store:
-        result = _profile_store[file_id]
+    if stored_profile is not None:
         try:
-            if hasattr(result, "insights") and result.insights:
-                insights_data = result.insights.model_dump()
-            elif hasattr(result, "quality_score"):
+            if hasattr(stored_profile, "insights") and stored_profile.insights:
+                insights_data = stored_profile.insights.model_dump()
+            elif hasattr(stored_profile, "quality_score"):
                 insights_data = {
-                    "quality_score": result.quality_score.__dict__ if result.quality_score else None,
-                    "analyst_briefing": result.analyst_briefing.__dict__ if hasattr(result, "analyst_briefing") else None,
-                    "feature_rankings": [r.__dict__ for r in (result.feature_rankings or [])] if hasattr(result, "feature_rankings") else [],
-                    "anomalies": [a.__dict__ for a in (result.anomalies or [])] if hasattr(result, "anomalies") else [],
+                    "quality_score": stored_profile.quality_score.__dict__ if stored_profile.quality_score else None,
+                    "analyst_briefing": stored_profile.analyst_briefing.__dict__ if hasattr(stored_profile, "analyst_briefing") else None,
+                    "feature_rankings": [r.__dict__ for r in (stored_profile.feature_rankings or [])] if hasattr(stored_profile, "feature_rankings") else [],
+                    "anomalies": [a.__dict__ for a in (stored_profile.anomalies or [])] if hasattr(stored_profile, "anomalies") else [],
                 }
         except Exception:
             pass

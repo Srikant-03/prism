@@ -10,7 +10,9 @@ from fastapi import APIRouter, HTTPException
 from cleaning.decision_engine import DecisionEngine
 from cleaning.cleaning_models import CleaningPlan, ActionResult, ActionStatus
 from ingestion.orchestrator import get_stored_dataframe, get_stored_data
-from api.profiling import _profile_store
+from api.profiling import get_stored_profile
+from cleaning.cell_repair import generate_repairs
+from api.models import CellRepairRequest
 
 router = APIRouter(prefix="/api/cleaning", tags=["cleaning"])
 
@@ -26,8 +28,9 @@ def _get_engine(file_id: str) -> DecisionEngine:
 
     # Get profile (for feature importances and semantic types)
     profile = None
-    if file_id in _profile_store:
-        profile = _profile_store[file_id].profile
+    stored_profile = get_stored_profile(file_id)
+    if stored_profile is not None:
+        profile = stored_profile.profile
 
     return DecisionEngine(df.copy(), file_id, profile)
 
@@ -135,3 +138,29 @@ async def preview_action(file_id: str, action_index: int):
         "preview": action.preview.model_dump() if action.preview else None,
         "impact": action.impact.model_dump(),
     }
+
+@router.post("/{file_id}/cell-repair")
+async def get_cell_repairs(file_id: str):
+    """Scan dataset and generate cell-level repair suggestions."""
+    df = get_stored_dataframe(file_id)
+    if df is None:
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    repairs = generate_repairs(df)
+    return {"repairs": repairs}
+
+@router.post("/{file_id}/cell-repair/apply")
+async def apply_cell_repairs(file_id: str, request: CellRepairRequest):
+    """Apply approved cell-level repairs."""
+    df = get_stored_dataframe(file_id)
+    if df is None:
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    for repair in request.repairs:
+        col = repair.get("column")
+        idx = repair.get("row_index")
+        val = repair.get("suggested_value")
+        if col in df.columns and idx in df.index:
+            df.at[idx, col] = val
+            
+    return {"status": "success", "applied_count": len(request.repairs)}

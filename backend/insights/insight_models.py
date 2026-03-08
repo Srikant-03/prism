@@ -46,6 +46,7 @@ class AnalystBriefing(BaseModel):
     quality_assessment: str = Field(..., description="Narrative summary of the DataQualityScore dimensions")
     key_findings: List[str] = Field(default_factory=list, description="Top 3-5 most interesting statistical discoveries")
     recommended_actions: List[str] = Field(default_factory=list, description="Immediate next steps (e.g., handling missing data, dropping useless columns)")
+    column_deep_dives: List[Dict[str, str]] = Field(default_factory=list, description="Detailed layman explanation for each important column")
 
 # ── Combined Insights Export ──
 

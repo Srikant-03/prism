@@ -91,8 +91,8 @@ class MalformedHandler:
                     suggested_fix="Consider whether this column is relevant for analysis.",
                 ))
 
-        # Check for encoding artifacts in string columns (common: Ã, Â, â€, Ã©)
-        encoding_artifacts = ["Ã", "Â", "â€", "Ã©", "Ã¨", "Ã¼", "\ufffd"]
+        # Check for encoding artifacts in string columns (common: Ã, Â, â€, é)
+        encoding_artifacts = ["Ã", "Â", "â€", "é", "è", "ü", "\ufffd"]
         for col in df.select_dtypes(include=["object"]).columns:
             sample = df[col].dropna().head(1000).astype(str)
             for artifact in encoding_artifacts:

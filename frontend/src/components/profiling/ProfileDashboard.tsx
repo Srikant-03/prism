@@ -1,5 +1,5 @@
-﻿/**
- * ProfileDashboard â€” Main profiling dashboard container.
+/**
+ * ProfileDashboard — Main profiling dashboard container.
  * Shows DatasetOverview + searchable/filterable column list with expandable details.
  */
 
@@ -13,6 +13,9 @@ import DatasetOverview from './DatasetOverview';
 import ColumnDetail from './ColumnDetail';
 import CrossColumnDashboard from './CrossColumnDashboard';
 import CleaningDashboard from '../cleaning/CleaningDashboard';
+import SchemaOverride from './SchemaOverride';
+import { overrideSchema } from '../../api/ingestion';
+import { notification } from 'antd';
 import type { DatasetProfile } from '../../types/profiling';
 
 const { Text } = Typography;
@@ -75,6 +78,57 @@ const ProfileDashboard: React.FC<ProfileDashboardProps> = ({ profile, fileId }) 
         });
         return counts;
     }, [profile.columns]);
+
+    // Map columns to SchemaOverride format
+    const [overrides, setOverrides] = useState<Record<string, string>>({});
+
+    const typeInferences = useMemo(() => {
+        return (profile.columns || []).map(col => ({
+            column: col.name,
+            inferred_type: overrides[col.name] || col.semantic_type,
+            confidence: col.semantic_type_confidence,
+            evidence: col.quality_justification || 'Inferred from data patterns',
+            alternatives: [],
+            locked: !!overrides[col.name],
+            conflict: false,
+        }));
+    }, [profile.columns, overrides]);
+
+    const handleOverride = async (column: string, newType: string) => {
+        if (!fileId) return;
+        try {
+            await overrideSchema(fileId, column, newType);
+            setOverrides(prev => ({ ...prev, [column]: newType }));
+            notification.success({ message: `Schema Overridden`, description: `Column ${column} type updated to ${newType}.` });
+        } catch (err: any) {
+            notification.error({ message: `Override Failed`, description: err.message });
+        }
+    };
+
+    const handleBulkOverride = async (columns: string[], newType: string) => {
+        if (!fileId) return;
+        try {
+            await Promise.all(columns.map(c => overrideSchema(fileId!, c, newType)));
+            setOverrides(prev => {
+                const next = { ...prev };
+                columns.forEach(c => next[c] = newType);
+                return next;
+            });
+            notification.success({ message: `Bulk Schema Override`, description: `Updated ${columns.length} columns to ${newType}.` });
+        } catch (err: any) {
+            notification.error({ message: `Bulk Override Failed`, description: err.message });
+        }
+    };
+
+    const handleLock = (column: string) => {
+        // Toggle lock state locally for demonstration
+        setOverrides(prev => {
+            const next = { ...prev };
+            if (next[column]) delete next[column];
+            else next[column] = next[column] || profile.columns?.find(c => c.name === column)?.semantic_type || 'unknown';
+            return next;
+        });
+    };
 
     return (
         <div className="profile-dashboard">
@@ -180,6 +234,29 @@ const ProfileDashboard: React.FC<ProfileDashboardProps> = ({ profile, fileId }) 
                         ),
                     },
                     {
+                        key: 'schema_tools',
+                        label: (
+                            <Space>
+                                <DatabaseOutlined />
+                                Schema Overrides
+                            </Space>
+                        ),
+                        children: (
+                            <div style={{ padding: 16 }}>
+                                <Typography.Title level={5}>Type Inference Settings</Typography.Title>
+                                <Typography.Paragraph type="secondary">
+                                    Review AI-inferred column types. Override types if incorrect to adjust how the system handles formatting, data cleaning, and future ML feature processing.
+                                </Typography.Paragraph>
+                                <SchemaOverride
+                                    inferences={typeInferences}
+                                    onOverride={handleOverride}
+                                    onLock={handleLock}
+                                    onBulkOverride={handleBulkOverride}
+                                />
+                            </div>
+                        ),
+                    },
+                    {
                         key: 'cross_column',
                         label: (
                             <Space>
@@ -198,7 +275,7 @@ const ProfileDashboard: React.FC<ProfileDashboardProps> = ({ profile, fileId }) 
                         label: (
                             <Space>
                                 <ExperimentOutlined />
-                                ðŸ§¹ Data Cleaning
+                                🧹 Data Cleaning
                             </Space>
                         ),
                         children: <CleaningDashboard fileId={fileId} />,

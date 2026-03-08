@@ -77,16 +77,17 @@ class TargetDetector:
         class_dist = None
 
         s = df[target_name].dropna()
+        n_unique_vals = s.nunique()
 
-        if col_type == 'boolean' or s.nunique() == 2:
+        if col_type == 'boolean' or n_unique_vals == 2:
             problem_type = "binary_classification"
             counts = s.value_counts(normalize=True)
             class_dist = {str(k): float(v) for k, v in counts.items()}
             if len(counts) == 2:
                 imbalance_ratio = float(counts.max() / counts.min())
         
-        elif col_type in ('categorical_nominal', 'categorical_ordinal') or (
-            col_type in ('numeric_discrete') and s.nunique() < 20
+        elif col_type in ('categorical_nominal', 'categorical_ordinal', 'free_text') or (
+            col_type in ('numeric_discrete', 'numeric_continuous') and n_unique_vals <= 15
         ):
             problem_type = "multiclass_classification"
             counts = s.value_counts(normalize=True)
@@ -94,7 +95,7 @@ class TargetDetector:
             if len(counts) > 1:
                 imbalance_ratio = float(counts.max() / counts.min())
                 
-        elif col_type in ('numeric_continuous', 'currency', 'percentage'):
+        else:
             problem_type = "regression"
 
         # 3. Pull Top Predictors from Correlation Matrix

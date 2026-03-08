@@ -89,7 +89,7 @@ const TemporalPatternsPanel: React.FC<TemporalPatternsPanelProps> = ({ data }) =
     }, [selectedCol, data.decompositions]);
 
     return (
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
             <Card variant="borderless" className="glass-panel">
                 <Title level={4} style={{ color: '#fff' }}>Time-Series Decomposition</Title>
                 <Paragraph style={{ color: 'rgba(255,255,255,0.7)' }}>

@@ -1,5 +1,5 @@
-﻿/**
- * CleaningDashboard â€” Main container for the Data Cleaning Pipeline.
+/**
+ * CleaningDashboard — Main container for the Data Cleaning Pipeline.
  * Shows summary, filter tabs, and a list of ActionCards.
  */
 
@@ -18,6 +18,8 @@ import {
 } from '@ant-design/icons';
 import { useCleaning } from '../../hooks/useCleaning';
 import ActionCard from './ActionCard';
+import CellRepairPanel from './CellRepairPanel';
+import { getCellRepairs, applyCellRepairs } from '../../api/cleaning';
 import type { CleaningAction } from '../../types/cleaning';
 
 const { Title, Paragraph, Text } = Typography;
@@ -44,6 +46,42 @@ const CleaningDashboard: React.FC<CleaningDashboardProps> = ({ fileId }) => {
         setApplyingIndex(null);
     };
 
+    // Cell Repairs State
+    const [repairs, setRepairs] = useState<any[]>([]);
+    const [loadingRepairs, setLoadingRepairs] = useState(false);
+
+    useEffect(() => {
+        if (fileId && activeTab === 'repairs' && repairs.length === 0) {
+            setLoadingRepairs(true);
+            getCellRepairs(fileId).then(data => {
+                setRepairs(data.repairs || []);
+            }).catch(console.error).finally(() => setLoadingRepairs(false));
+        }
+    }, [fileId, activeTab, repairs.length]);
+
+    const handleRepairAccept = async (id: string) => {
+        if (!fileId) return;
+        const target = repairs.find(r => r.id === id);
+        if (!target) return;
+
+        await applyCellRepairs(fileId, [target]);
+        setRepairs(prev => prev.map(r => r.id === id ? { ...r, status: 'accepted' } : r));
+    };
+
+    const handleRepairReject = (id: string) => {
+        setRepairs(prev => prev.map(r => r.id === id ? { ...r, status: 'rejected' } : r));
+    };
+
+    const handleBulkRepairAccept = async (minConf: number) => {
+        if (!fileId) return;
+        const targets = repairs.filter(r => r.status === 'pending' && r.confidence >= minConf);
+        if (targets.length === 0) return;
+
+        await applyCellRepairs(fileId, targets);
+        const ids = new Set(targets.map(t => t.id));
+        setRepairs(prev => prev.map(r => ids.has(r.id) ? { ...r, status: 'accepted' } : r));
+    };
+
     const handleSkip = async (actionIndex: number) => {
         await skipAction(actionIndex);
     };
@@ -60,7 +98,7 @@ const CleaningDashboard: React.FC<CleaningDashboardProps> = ({ fileId }) => {
         );
     }
 
-    // Idle state â€” no file
+    // Idle state — no file
     if (!fileId || state.status === 'idle') {
         return (
             <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center' }}>
@@ -77,7 +115,7 @@ const CleaningDashboard: React.FC<CleaningDashboardProps> = ({ fileId }) => {
         return (
             <Alert
                 type="error"
-                message="Analysis Failed"
+                title="Analysis Failed"
                 description={state.error}
                 showIcon
                 action={
@@ -139,14 +177,14 @@ const CleaningDashboard: React.FC<CleaningDashboardProps> = ({ fileId }) => {
             <div className="glass-panel" style={{ padding: '20px 24px' }}>
                 <Row gutter={[24, 16]} align="middle">
                     <Col flex="auto">
-                        <Space direction="vertical" size={4}>
+                        <Space orientation="vertical" size={4}>
                             <Title level={4} style={{ margin: 0 }}>
-                                ðŸ§¹ Intelligent Cleaning Engine
+                                🧹 Intelligent Cleaning Engine
                             </Title>
                             <Text type="secondary">
                                 {plan.total_actions} recommendations generated
                                 {plan.estimated_rows_affected > 0 &&
-                                    ` Â· ~${plan.estimated_rows_affected.toLocaleString()} rows affected (${plan.estimated_rows_affected_pct}%)`
+                                    ` · ~${plan.estimated_rows_affected.toLocaleString()} rows affected (${plan.estimated_rows_affected_pct}%)`
                                 }
                             </Text>
                         </Space>
@@ -197,10 +235,16 @@ const CleaningDashboard: React.FC<CleaningDashboardProps> = ({ fileId }) => {
                         label: <Badge count={plan.total_actions} size="small" offset={[8, 0]}>All</Badge>,
                     },
                     {
+                        key: 'repairs',
+                        label: <Badge count={repairs.filter(r => r.status === 'pending').length} size="small" offset={[8, 0]}>
+                            <Space><ToolOutlined /> Cell Repairs</Space>
+                        </Badge>,
+                    },
+                    {
                         key: 'definitive',
                         label: (
                             <Space>
-                                <Tag color="success" style={{ margin: 0 }}>âœ“</Tag>
+                                <Tag color="success" style={{ margin: 0 }}>✓</Tag>
                                 Definitive
                             </Space>
                         ),
@@ -209,7 +253,7 @@ const CleaningDashboard: React.FC<CleaningDashboardProps> = ({ fileId }) => {
                         key: 'judgment',
                         label: (
                             <Space>
-                                <Tag color="warning" style={{ margin: 0 }}>âš¡</Tag>
+                                <Tag color="warning" style={{ margin: 0 }}>⚡</Tag>
                                 Judgment Calls
                             </Space>
                         ),
@@ -313,8 +357,22 @@ const CleaningDashboard: React.FC<CleaningDashboardProps> = ({ fileId }) => {
                 ]}
             />
 
-            {/* Action Cards */}
-            {filteredActions.length > 0 ? (
+            {/* Action Cards or Cell Repairs */}
+            {activeTab === 'repairs' ? (
+                loadingRepairs ? (
+                    <div style={{ textAlign: 'center', padding: '3rem' }}>
+                        <Spin /> <Text type="secondary" style={{ marginLeft: 8 }}>Scanning dataset for cell-level repairs...</Text>
+                    </div>
+                ) : (
+                    <CellRepairPanel
+                        suggestions={repairs}
+                        onAccept={handleRepairAccept}
+                        onReject={handleRepairReject}
+                        onBulkAccept={handleBulkRepairAccept}
+                        onJumpToRow={() => { }}
+                    />
+                )
+            ) : filteredActions.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {filteredActions.map(action => (
                         <ActionCard
@@ -330,7 +388,7 @@ const CleaningDashboard: React.FC<CleaningDashboardProps> = ({ fileId }) => {
                 <Empty
                     description={
                         activeTab === 'all'
-                            ? 'No cleaning actions needed â€” your data looks great!'
+                            ? 'No cleaning actions needed — your data looks great!'
                             : `No ${activeTab.replace('_', ' ')} actions found.`
                     }
                     style={{ padding: '3rem 0' }}

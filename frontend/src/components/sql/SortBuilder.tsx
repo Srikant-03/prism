@@ -1,5 +1,5 @@
-﻿/**
- * SortBuilder â€” ORDER BY multi-column sort builder.
+/**
+ * SortBuilder — ORDER BY multi-column sort builder.
  */
 
 import React from 'react';
@@ -54,8 +54,8 @@ const SortBuilder: React.FC<Props> = ({ columns, orderBy, onChange }) => {
                         onChange={v => update(i, { direction: v })}
                         style={{ width: 80 }}
                         options={[
-                            { value: 'ASC', label: 'â†‘ ASC' },
-                            { value: 'DESC', label: 'â†“ DESC' },
+                            { value: 'ASC', label: '↑ ASC' },
+                            { value: 'DESC', label: '↓ DESC' },
                         ]}
                     />
                     <Select

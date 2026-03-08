@@ -1,5 +1,5 @@
-﻿/**
- * ColumnExplainer â€” One-click deep-dive narrative for any column.
+/**
+ * ColumnExplainer — One-click deep-dive narrative for any column.
  * Generates a 3-5 paragraph analysis using AI.
  */
 

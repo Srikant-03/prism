@@ -1,5 +1,5 @@
-﻿/**
- * FileUploader â€” Drag & drop file upload with animated visual feedback.
+/**
+ * FileUploader — Drag & drop file upload with animated visual feedback.
  * Supports multi-file upload, shows accepted format badges.
  */
 

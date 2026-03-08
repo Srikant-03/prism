@@ -12,10 +12,12 @@ import type {
 } from '../types/ingestion';
 
 export const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+export const API_KEY = import.meta.env.VITE_API_KEY || 'dev-secret-key-123';
 
 const api = axios.create({
     baseURL: API_BASE,
     timeout: 300000, // 5 min for large files
+    headers: { 'X-API-Key': API_KEY },
 });
 
 /**
@@ -102,7 +104,7 @@ export function connectProgress(
     onUpdate: (data: unknown) => void,
     onError?: (error: Event) => void,
 ): WebSocket {
-    const wsUrl = API_BASE.replace(/^http/, 'ws') + '/api/ws/progress';
+    const wsUrl = `${API_BASE.replace(/^http/, 'ws')}/api/ws/progress?api_key=${API_KEY}`;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
@@ -131,5 +133,13 @@ export function connectProgress(
  */
 export async function fetchProfile(fileId: string): Promise<unknown> {
     const response = await api.get(`/api/profile/${fileId}`);
+    return response.data;
+}
+
+/**
+ * Override the inferred semantic type for a specific column.
+ */
+export async function overrideSchema(fileId: string, column: string, newType: string): Promise<void> {
+    const response = await api.post(`/api/schema-override/${fileId}`, { column, new_type: newType });
     return response.data;
 }

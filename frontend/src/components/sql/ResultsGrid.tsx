@@ -1,5 +1,5 @@
-﻿/**
- * ResultsGrid â€” Paginated results table with sorting, formatting, and export.
+/**
+ * ResultsGrid — Paginated results table with sorting, formatting, and export.
  */
 
 import React, { useMemo, useState } from 'react';
@@ -55,7 +55,7 @@ const ResultsGrid: React.FC<Props> = ({ result, onExport, loading }) => {
                 }
                 const s = String(value);
                 if (s.length > 100) {
-                    return <span title={s}>{s.slice(0, 100)}â€¦</span>;
+                    return <span title={s}>{s.slice(0, 100)}…</span>;
                 }
                 return s;
             },

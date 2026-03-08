@@ -2,12 +2,14 @@
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 python-multipart==0.0.20
+python-dotenv
 
 # Data Processing
 pandas==2.2.3
 pyarrow==18.1.0
 openpyxl==3.1.5
 xlrd==2.0.1
+duckdb
 
 # Detection & Parsing
 charset-normalizer==3.4.1
@@ -20,24 +22,28 @@ ijson==3.3.0
 # System Monitoring
 psutil==6.1.1
 
-# Statistical Analysis
+# Statistical Analysis & ML
 scipy==1.14.1
 scikit-learn==1.6.1
 statsmodels==0.14.4
+
+# NLP & Text
+nltk
+textblob
+langdetect
+jellyfish
+
+# LLM
+google-generativeai
+
+# Reporting
+python-docx
+fpdf2
+
+# Rate Limiting
+slowapi
+
 # Testing
 pytest==8.3.4
 pytest-asyncio==0.24.0
 httpx==0.28.1
-python-docx 
-fpdf2 
-jellyfish
-scikit-learn
-nltk
-textblob
-langdetect
-scipy
-statsmodels
-duckdb
-google-generativeai
-python-dotenv
-

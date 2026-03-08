@@ -1,5 +1,5 @@
-﻿/**
- * StoryBuilder â€” Create data presentations with auto-generated narrative slides.
+/**
+ * StoryBuilder — Create data presentations with auto-generated narrative slides.
  */
 
 import React, { useState, useCallback } from 'react';
@@ -28,12 +28,12 @@ interface Props {
 }
 
 const SLIDE_TYPES = [
-    { value: 'title', label: 'ðŸ“Œ Title Slide', icon: 'ðŸ“Œ' },
-    { value: 'insight', label: 'ðŸ’¡ Insight', icon: 'ðŸ’¡' },
-    { value: 'chart', label: 'ðŸ“Š Chart', icon: 'ðŸ“Š' },
+    { value: 'title', label: '📌 Title Slide', icon: '📌' },
+    { value: 'insight', label: '💡 Insight', icon: '💡' },
+    { value: 'chart', label: '📊 Chart', icon: '📊' },
     { value: 'text', label: 'ðŸ“ Text', icon: 'ðŸ“' },
-    { value: 'kpi', label: 'ðŸŽ¯ KPI Card', icon: 'ðŸŽ¯' },
-    { value: 'comparison', label: 'âš–ï¸ Comparison', icon: 'âš–ï¸' },
+    { value: 'kpi', label: '🎯 KPI Card', icon: '🎯' },
+    { value: 'comparison', label: '⚖ï¸ Comparison', icon: '⚖ï¸' },
 ];
 
 const StoryBuilder: React.FC<Props> = ({ fileId }) => {
@@ -155,7 +155,7 @@ const StoryBuilder: React.FC<Props> = ({ fileId }) => {
                     borderLeft: `3px solid ${slide.type === 'title' ? '#6366f1' : slide.type === 'insight' ? '#fbbf24' : '#3b82f6'}`,
                 }}>
                     <Tag style={{ fontSize: 14, margin: 0 }}>
-                        {SLIDE_TYPES.find(t => t.value === slide.type)?.icon || 'ðŸ“„'}
+                        {SLIDE_TYPES.find(t => t.value === slide.type)?.icon || '📄'}
                     </Tag>
                     <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 600, fontSize: 13 }}>{slide.title}</div>
@@ -190,7 +190,7 @@ const StoryBuilder: React.FC<Props> = ({ fileId }) => {
 
             {/* Edit Modal */}
             <Modal
-                title={`Edit Slide â€” ${editModal.slide?.type}`}
+                title={`Edit Slide — ${editModal.slide?.type}`}
                 open={editModal.visible}
                 onCancel={() => setEditModal({ visible: false })}
                 onOk={() => {
@@ -200,7 +200,7 @@ const StoryBuilder: React.FC<Props> = ({ fileId }) => {
                 width={600}
             >
                 {editModal.slide && (
-                    <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space orientation="vertical" style={{ width: '100%' }}>
                         <Input
                             value={editModal.slide.title}
                             onChange={e => setEditModal(prev => ({
@@ -258,7 +258,7 @@ const StoryBuilder: React.FC<Props> = ({ fileId }) => {
                         <span>{currentSlide + 1} / {slides.length}</span>
                         <Button disabled={currentSlide >= slides.length - 1}
                             onClick={() => setCurrentSlide(p => p + 1)}>
-                            Next â†’
+                            Next →
                         </Button>
                     </Space>
                 }

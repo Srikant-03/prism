@@ -1,5 +1,5 @@
-﻿/**
- * JoinBuilder â€” Visual join designer for multi-table queries.
+/**
+ * JoinBuilder — Visual join designer for multi-table queries.
  */
 
 import React from 'react';

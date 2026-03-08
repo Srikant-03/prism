@@ -1,5 +1,5 @@
-﻿/**
- * MalformedViewer â€” Side-by-side raw vs parsed data viewer.
+/**
+ * MalformedViewer — Side-by-side raw vs parsed data viewer.
  * Highlights affected cells/rows and provides accept/reject actions.
  */
 
@@ -55,7 +55,7 @@ const MalformedViewer: React.FC<MalformedViewerProps> = ({
             dataIndex: 'row_number',
             key: 'row_number',
             width: 70,
-            render: (val: number) => (val > 0 ? `#${val}` : 'â€”'),
+            render: (val: number) => (val > 0 ? `#${val}` : '—'),
         },
         {
             title: 'Severity',
@@ -90,7 +90,7 @@ const MalformedViewer: React.FC<MalformedViewerProps> = ({
                         {text}
                     </Text>
                 ) : (
-                    'â€”'
+                    '—'
                 ),
         },
     ];
@@ -103,7 +103,7 @@ const MalformedViewer: React.FC<MalformedViewerProps> = ({
                 icon={errorCount > 0 ? <CloseCircleOutlined /> : <WarningOutlined />}
                 message="Data Quality Issues Detected"
                 description={
-                    <Space direction="vertical" size={4}>
+                    <Space orientation="vertical" size={4}>
                         <Text>{report.summary}</Text>
                         <Space>
                             <Badge count={warningCount} showZero color="#faad14">
@@ -154,7 +154,7 @@ const MalformedViewer: React.FC<MalformedViewerProps> = ({
                                         .slice(0, 20)
                                         .map((issue, idx) => ({
                                             key: `raw-${idx}`,
-                                            label: <Text type="secondary">Row #{issue.row_number} â€” Raw Content</Text>,
+                                            label: <Text type="secondary">Row #{issue.row_number} — Raw Content</Text>,
                                             children: <pre className="raw-content-pre">{issue.raw_content}</pre>
                                         }))}
                                 />

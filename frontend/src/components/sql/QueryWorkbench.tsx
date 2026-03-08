@@ -1,5 +1,5 @@
-﻿/**
- * QueryWorkbench â€” Main SQL workbench with all panels.
+/**
+ * QueryWorkbench — Main SQL workbench with all panels.
  * Left: Table Explorer | Center: Visual Builder / Raw SQL / NL Query / Templates
  * Bottom: Results + AutoViz + Library + History + Compare + Explain
  */
@@ -33,7 +33,11 @@ import ExplainPanel from './ExplainPanel';
 import type { ColumnSpec, QueryResult } from '../../types/sql';
 import * as sqlApi from '../../api/sql';
 
-const QueryWorkbench: React.FC = () => {
+interface QueryWorkbenchProps {
+    initialQuery?: string;
+}
+
+const QueryWorkbench: React.FC<QueryWorkbenchProps> = ({ initialQuery }) => {
     const {
         state, loadColumns, updateQuery,
         setFromTable, setMode, setRawSQL, generateSQL,
@@ -44,6 +48,14 @@ const QueryWorkbench: React.FC = () => {
     const [bottomTab, setBottomTab] = useState('results');
     const [queryHistory, setQueryHistory] = useState<HistoryEntry[]>([]);
     const [externalResult, setExternalResult] = useState<QueryResult | null>(null);
+
+    // When an external query is injected, populate the raw SQL editor
+    useEffect(() => {
+        if (initialQuery) {
+            setRawSQL(initialQuery);
+            setActiveTab('raw');
+        }
+    }, [initialQuery, setRawSQL]);
 
     const fromTable = typeof state.querySpec.from === 'string'
         ? state.querySpec.from
@@ -239,7 +251,7 @@ const QueryWorkbench: React.FC = () => {
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                         height: 200, color: 'rgba(255,255,255,0.3)', fontSize: 14,
                                     }}>
-                                        <Space direction="vertical" align="center">
+                                        <Space orientation="vertical" align="center">
                                             <TableOutlined style={{ fontSize: 32 }} />
                                             <span>Select a table from the left panel to start building your query.</span>
                                         </Space>

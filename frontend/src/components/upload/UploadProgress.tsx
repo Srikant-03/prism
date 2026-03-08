@@ -1,5 +1,5 @@
-﻿/**
- * UploadProgress â€” Animated progress bar with ETA, memory usage, and stage label.
+/**
+ * UploadProgress — Animated progress bar with ETA, memory usage, and stage label.
  */
 
 import React from 'react';

@@ -8,7 +8,19 @@ from __future__ import annotations
 
 import time
 import sys
+import logging
 from typing import Optional
+
+# File-based logger to avoid uvicorn swallowing output
+_log = logging.getLogger("profiling.engine")
+if not _log.handlers:
+    _fh = logging.FileHandler("profiling_debug.log", mode="a")
+    _fh.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+    _log.addHandler(_fh)
+    _sh = logging.StreamHandler(sys.stderr)
+    _sh.setFormatter(logging.Formatter("%(message)s"))
+    _log.addHandler(_sh)
+    _log.setLevel(logging.DEBUG)
 
 import pandas as pd
 import numpy as np
@@ -180,39 +192,91 @@ class DataProfiler:
         dataset.columns = column_profiles
         
         # ── Cross-Column Analysis ──
+        # Each step is wrapped individually so one failure doesn't kill the pipeline
+        correlations = None
+        target_analysis = None
+        temporal_analysis = None
+        geo_analysis = None
+
+        # 1. Correlations
         try:
-            # 1. Correlations
+            t0 = time.time()
+            print(f"[PROFILING] Starting Correlation Analysis...")
             corr_analyzer = CorrelationAnalyzer()
             correlations = corr_analyzer.analyze(df, dataset)
-            
-            # 2. Target Detection
+            print(f"[PROFILING] Correlation Analysis done in {time.time()-t0:.1f}s")
+        except Exception as e:
+            print(f"[PROFILING ERROR] Correlation Analysis failed: {e}")
+            warnings.append(f"Correlation Analysis failed: {str(e)}")
+
+        # 2. Target Detection
+        try:
+            t0 = time.time()
+            print(f"[PROFILING] Starting Target Detection...")
             target_detector = TargetDetector()
-            target_analysis = target_detector.analyze(df, dataset, correlations)
-            
-            # 3. Temporal Patterns
+            target_analysis = target_detector.analyze(df, dataset, correlations) if correlations else None
+            print(f"[PROFILING] Target Detection done in {time.time()-t0:.1f}s")
+        except Exception as e:
+            print(f"[PROFILING ERROR] Target Detection failed: {e}")
+            warnings.append(f"Target Detection failed: {str(e)}")
+
+        # 3. Temporal Patterns
+        try:
+            t0 = time.time()
+            print(f"[PROFILING] Starting Temporal Analysis...")
             temporal_analyzer = TemporalAnalyzer()
             temporal_analysis = temporal_analyzer.analyze(df, dataset)
-            
-            # 4. Geo Patterns
+            print(f"[PROFILING] Temporal Analysis done in {time.time()-t0:.1f}s")
+        except Exception as e:
+            print(f"[PROFILING ERROR] Temporal Analysis failed: {e}")
+            warnings.append(f"Temporal Analysis failed: {str(e)}")
+
+        # 4. Geo Patterns
+        try:
+            t0 = time.time()
+            print(f"[PROFILING] Starting Geo Analysis...")
             geo_analyzer = GeoAnalyzer()
             geo_analysis = geo_analyzer.analyze(df, dataset)
-            
+            print(f"[PROFILING] Geo Analysis done in {time.time()-t0:.1f}s")
+        except Exception as e:
+            print(f"[PROFILING ERROR] Geo Analysis failed: {e}")
+            warnings.append(f"Geo Analysis failed: {str(e)}")
+
+        # Build cross-column profile with available results
+        try:
+            from profiling.cross_column_models import CorrelationAnalysis, TargetAnalysis, TemporalAnalysis, GeoAnalysis
             cross_profile = CrossColumnProfile(
-                correlations=correlations,
-                target=target_analysis,
-                temporal=temporal_analysis,
-                geo=geo_analysis
+                correlations=correlations or CorrelationAnalysis(correlation_matrix={}, strongest_pairs=[], multicollinearity=None, mutual_information={}),
+                target=target_analysis or TargetAnalysis(is_target_detected=False),
+                temporal=temporal_analysis or TemporalAnalysis(has_temporal_patterns=False),
+                geo=geo_analysis or GeoAnalysis(has_geo_patterns=False)
             )
             dataset.cross_analysis = cross_profile.model_dump()
         except Exception as e:
+            print(f"[PROFILING ERROR] Cross-column profile assembly failed: {e}")
             warnings.append(f"Cross-column analysis failed: {str(e)}")
 
         # ── Insights Generation ──
         try:
+            t0 = time.time()
+            print(f"[PROFILING] Starting Quality Scoring...")
             quality = QualityScorer.calculate_scores(dataset)
+            print(f"[PROFILING] Quality Scoring done in {time.time()-t0:.1f}s")
+
+            t0 = time.time()
+            print(f"[PROFILING] Starting Anomaly Detection...")
             anomalies = AnomalyDetector.detect(dataset)
+            print(f"[PROFILING] Anomaly Detection done in {time.time()-t0:.1f}s")
+
+            t0 = time.time()
+            print(f"[PROFILING] Starting Feature Ranking...")
             rankings = FeatureRanker.rank_features(dataset)
+            print(f"[PROFILING] Feature Ranking done in {time.time()-t0:.1f}s")
+
+            t0 = time.time()
+            print(f"[PROFILING] Starting Briefing Generation...")
             briefing = BriefingGenerator.generate(dataset, quality, anomalies, rankings)
+            print(f"[PROFILING] Briefing Generation done in {time.time()-t0:.1f}s")
 
             dataset.insights = DatasetInsights(
                 quality_score=quality,
@@ -220,7 +284,11 @@ class DataProfiler:
                 feature_ranking=rankings,
                 analyst_briefing=briefing
             )
+            print(f"[PROFILING] All insights generated successfully!")
         except Exception as e:
+            import traceback
+            print(f"[INSIGHTS ERROR] Insight Generation failed: {e}")
+            traceback.print_exc()
             warnings.append(f"Insight Generation failed: {str(e)}")
 
         dataset.profiling_time_seconds = round(time.time() - start_time, 3)

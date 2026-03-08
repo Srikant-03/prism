@@ -10,36 +10,36 @@ from typing import Any, Optional
 
 import google.generativeai as genai
 from config import LLMConfig
+from llm.api_manager import with_llm_failover
 
 
 # ── Context builder ──────────────────────────────────────────────────
 
 class ChatContextBuilder:
-    """Assembles full dataset context for the AI conversation."""
+    """Assembles full dataset context for the AI conversation.
 
-    _schema: Optional[dict] = None
-    _profile_summary: Optional[dict] = None
-    _cleaning_log: list[dict] = []
-    _recent_queries: list[str] = []
+    Instance-based so state is isolated per-engine and testable.
+    """
 
-    @classmethod
-    def set_schema(cls, schema: dict):
-        cls._schema = schema
+    def __init__(self) -> None:
+        self._schema: Optional[dict] = None
+        self._profile_summary: Optional[dict] = None
+        self._cleaning_log: list[dict] = []
+        self._recent_queries: list[str] = []
 
-    @classmethod
-    def set_profile(cls, profile: dict):
-        cls._profile_summary = profile
+    def set_schema(self, schema: dict) -> None:
+        self._schema = schema
 
-    @classmethod
-    def add_cleaning_step(cls, step: dict):
-        cls._cleaning_log.append(step)
+    def set_profile(self, profile: dict) -> None:
+        self._profile_summary = profile
 
-    @classmethod
-    def add_query(cls, sql: str):
-        cls._recent_queries = ([sql] + cls._recent_queries)[:10]
+    def add_cleaning_step(self, step: dict) -> None:
+        self._cleaning_log.append(step)
 
-    @classmethod
-    def build_system_prompt(cls) -> str:
+    def add_query(self, sql: str) -> None:
+        self._recent_queries = ([sql] + self._recent_queries)[:10]
+
+    def build_system_prompt(self) -> str:
         parts = [
             "You are a data analysis assistant embedded in a Data Intelligence Platform.",
             "You have full awareness of the user's dataset and all analysis performed.",
@@ -55,17 +55,17 @@ class ChatContextBuilder:
             "",
         ]
 
-        if cls._schema:
+        if self._schema:
             parts.append("## Current Dataset Schema")
-            for table_name, cols in cls._schema.items():
+            for table_name, cols in self._schema.items():
                 parts.append(f"### Table: {table_name}")
                 for col in cols:
                     parts.append(f"  - {col['name']} ({col['type']})")
             parts.append("")
 
-        if cls._profile_summary:
+        if self._profile_summary:
             parts.append("## Profiling Summary")
-            p = cls._profile_summary
+            p = self._profile_summary
             parts.append(f"  - Rows: {p.get('row_count', '?')}, Columns: {p.get('column_count', '?')}")
             parts.append(f"  - Memory: {p.get('memory_mb', '?')} MB")
             if p.get('missing_summary'):
@@ -74,15 +74,15 @@ class ChatContextBuilder:
                 parts.append(f"  - Data quality score: {p['quality_score']}/100")
             parts.append("")
 
-        if cls._cleaning_log:
+        if self._cleaning_log:
             parts.append("## Preprocessing Steps Applied")
-            for i, step in enumerate(cls._cleaning_log[-10:], 1):
+            for i, step in enumerate(self._cleaning_log[-10:], 1):
                 parts.append(f"  {i}. {step.get('action', '?')} on {step.get('column', 'multiple columns')}")
             parts.append("")
 
-        if cls._recent_queries:
+        if self._recent_queries:
             parts.append("## Recent Queries")
-            for q in cls._recent_queries[:5]:
+            for q in self._recent_queries[:5]:
                 parts.append(f"  - {q[:200]}")
             parts.append("")
 
@@ -94,10 +94,10 @@ class ChatContextBuilder:
 class ChatEngine:
     """Multi-turn AI conversation engine using Gemini."""
 
-    def __init__(self):
+    def __init__(self, context: ChatContextBuilder | None = None):
+        self.context = context or ChatContextBuilder()
         try:
-            genai.configure(api_key=LLMConfig.GEMINI_API_KEY)
-            self.model = genai.GenerativeModel("gemini-2.0-flash")
+            self.model = genai.GenerativeModel(LLMConfig.MODEL_WORKHORSE)
         except Exception:
             self.model = None
 
@@ -113,7 +113,7 @@ class ChatEngine:
                 "actions": [],
             }
 
-        system_prompt = ChatContextBuilder.build_system_prompt()
+        system_prompt = self.context.build_system_prompt()
 
         # Build messages
         contents = [{"role": "user", "parts": [{"text": system_prompt + "\n\nNow respond to the user's messages."}]}]
@@ -127,7 +127,11 @@ class ChatEngine:
         contents.append({"role": "user", "parts": [{"text": message}]})
 
         try:
-            response = self.model.generate_content(contents)
+            @with_llm_failover(tier_rpm=10)
+            def do_generate():
+                return self.model.generate_content(contents)
+                
+            response = await do_generate()
             text = response.text
 
             # Parse action blocks from response
@@ -158,10 +162,12 @@ class ChatEngine:
             }
 
 
-# Singleton
+# ── Singleton accessor ───────────────────────────────────────────────
 _engine: Optional[ChatEngine] = None
 
+
 def get_chat_engine() -> ChatEngine:
+    """Return the singleton ChatEngine (creates one on first call)."""
     global _engine
     if _engine is None:
         _engine = ChatEngine()

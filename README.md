@@ -1,6 +1,6 @@
 <div align="center">
 
-<h1>🔷 Prism</h1>
+<h1>🔷 Prism — Data Intelligence Platform</h1>
 <p><strong>One file in. A full spectrum of intelligence out.</strong></p>
 
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
@@ -13,559 +13,157 @@
 
 ---
 
-## What is Prism?
+## 🚀 What is Prism?
 
-**Prism** is a full-stack, AI-augmented data intelligence platform. Upload any dataset — structured or messy, large or small — and Prism autonomously transforms it into a complete analytical workspace. It profiles your data, detects anomalies, cleans and transforms columns, powers a live SQL workbench, generates executive reports, and lets you converse with your data through an AI assistant.
+**Prism** is a full-stack, AI-augmented data intelligence platform designed to replace hours of manual data wrangling with a seamless, zero-config experience. 
 
-No configuration. No code required. One file in — a full spectrum of insight out.
+Upload any dataset — structured or messy, large or small — and Prism autonomously transforms it into a complete analytical workspace. Discover insights instantly, clean data visually without code, query via SQL or plain English, and generate executive reports in one click.
 
----
-
-## Table of Contents
-
-- [Architecture Overview](#architecture-overview)
-- [Feature Reference](#feature-reference)
-  - [File Ingestion](#1-file-ingestion--format-handling)
-  - [Autonomous Profiling](#2-autonomous-data-profiling)
-  - [Live Data Grid](#3-live-data-grid)
-  - [Data Cleaning Engine](#4-data-cleaning-engine)
-  - [SQL Workbench](#5-sql-workbench)
-  - [AI Chat Assistant](#6-ai-chat-assistant)
-  - [Anomaly Watchlist](#7-anomaly-watchlist)
-  - [Statistical Testing Suite](#8-statistical-testing-suite)
-  - [Hypothesis Generator](#9-hypothesis-generator)
-  - [What-If Simulator](#10-what-if-simulator)
-  - [Column Relationship Graph](#11-column-relationship-graph)
-  - [Dataset Comparison](#12-dataset-comparison-diff)
-  - [Explain This Column](#13-explain-this-column)
-  - [Data Story Builder](#14-data-story-builder)
-  - [Data Recipe System](#15-data-recipe-system)
-  - [Collaborative Annotations](#16-collaborative-annotations)
-  - [Reporting & Export](#17-reporting--export)
-  - [UI & Workspace](#18-ui--workspace)
-- [Project Structure](#project-structure)
-- [Setup & Installation](#setup--installation)
-- [Environment Variables](#environment-variables)
-- [API Reference](#api-reference)
+Whether you are a data scientist needing rapid EDA, or a business analyst requiring quick insights, **Prism bridges the gap between raw data and actionable intelligence.**
 
 ---
 
-## Architecture Overview
+## ✨ Features at a Glance
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                     PRISM PLATFORM                      │
-│                                                         │
-│   ┌─────────────┐          ┌────────────────────────┐   │
-│   │   Frontend  │  REST    │       Backend          │   │
-│   │  React/Vite │ ◄──────► │     FastAPI + Gemini   │   │
-│   │  TypeScript │  API     │     Python 3.10+       │   │
-│   └─────────────┘          └────────────────────────┘   │
-│         │                            │                  │
-│   Ant Design UI               Pandas / NumPy            │
-│   AG Grid                     SciPy / NetworkX          │
-│   ECharts / Recharts          DuckDB (SQL Engine)       │
-│   Monaco Editor               Gemini API (AI)           │
-│   IndexedDB (persist)         ReportLab / python-docx   │
-└─────────────────────────────────────────────────────────┘
-```
+Prism packs an enormous suite of features into an elegant, highly responsive modern UI. **No configuration. No code required.**
 
----
+### 📥 1. Universal File Ingestion
+- **Format Agnostic**: Natively handles `.csv`, `.xlsx`, `.xlsm`, `.parquet`, `.json` (nested & flat), `.xml`, `.tsv`, `.txt`, and `.sql` dumps.
+- **Auto-Detection**: Instantly detects encodings (UTF-8, Latin-1, Windows-1252), delimiters, and malformed rows.
+- **Massive File Support**: Uses chunked reading for files over 50MB to strictly manage memory.
+- **Zip / Gz Extraction**: Auto-decompresses compressed archives on the fly.
+- **Multi-File Stitching**: Drag in multiple matching files at once and Prism will intelligently union them.
 
-## Feature Reference
+### 🧠 2. Autonomous AI Data Profiling
+- **Immediate Insights**: Generates a rich, interactive profile of your entire dataset the moment it uploads.
+- **Metrics on Everything**: Row/column counts, missing values, duplicates, and memory usage.
+- **Column-Level Details**: Statistical summaries (Min, Max, Mean, Median, Mode, Variance, Skewness, Kurtosis), histograms, cardinality, and type distributions.
+- **Gamified Data Quality Score**: Grades your data out of 100 on Completeness, Consistency, Uniqueness, Validity, and Timeliness.
 
-### 1. File Ingestion & Format Handling
+### 🧹 3. Visual Data Cleaning Engine
+- **No-Code Pipeline**: UI-driven operations to drop columns, fill missing values, clip outliers (Z-score/IQR), normalize, scale, and standardize dates.
+- **Intelligent Cell Repair**: AI scans the data and flags specific illogical cells (typos, impossible dates), offering 1-click replacement recommendations.
+- **Schema Overrides**: Review inferred types and manually override them to dictate how they behave in downstream analysis.
+- **What-If Simulator**: Preview the exact memory, row, and distribution impact of any cleaning operation *before* you apply it.
 
-Prism handles virtually every tabular format without manual configuration.
+### 🗃️ 4. Advanced SQL Workbench
+- **In-Browser IDE**: Monaco Editor powered SQL interface with syntax highlighting and auto-completion.
+- **DuckDB Engine**: Lightning-fast, in-memory analytical SQL processing.
+- **Natural Language to SQL**: Ask "What were the top 5 regions by sales?" and the AI will write the exact SQL query.
+- **Auto-Visualization**: Automatically charts the results of your query (bar, line, scatter, pie, or heatmap) based on the resultant data shape.
 
-| Format | Details |
-|--------|---------|
-| `.csv` | Auto-detects delimiter: comma, semicolon, pipe, tab, space |
-| `.xlsx / .xls / .xlsm` | Multi-sheet support with interactive sheet selector |
-| `.parquet / .feather` | Columnar formats read natively |
-| `.json` | Flat and nested — auto-flattens with path-based column naming (e.g. `address.city`) |
-| `.tsv / .txt` | Tab-separated and fixed-width tabular formats |
-| `.xml` | Auto schema detection |
-| `.sql` | Parses SQL dump files |
-| `.zip / .gz` | Auto-decompresses on the fly |
+### 🤖 5. Context-Aware AI Chat Assistant
+- **Continuous Intelligence**: A persistent chat panel powered by Google Gemini that knows your schema, profiling results, and cleaning history.
+- **Actionable Responses**: Generates clickable UI actions directly in chat to jump to specific tabs or apply cleaning operations.
+- **Strict Privacy Gate**: Raw data is NEVER sent to the AI without an explicit, verifiable opt-in from the user. Only metadata is shared by default.
 
-**Additional ingestion capabilities:**
-- **Auto Encoding Detection**: UTF-8, UTF-16, Latin-1, ISO-8859-1, Windows-1252, BOM markers
-- **Chunked Reading**: Files over 50MB are read in configurable chunks — never loads the entire file into memory
-- **Multi-file Upload**: Same schema → auto-merge; different schema → separate tables; mixed → user decision dialog
-- **Real-time Progress**: Live progress bar with estimated time and memory usage during ingestion
+### 🎯 6. Insight & Reporting Generation
+- **Analyst Briefing**: Generates a multi-page, executive-style summary of your dataset.
+- **Feature Importance Ranking**: Automatically determines which columns act as the strongest predictors in your data.
+- **Automated Anomaly Watchlist**: Flags unusual outliers across all dimensions for your review.
+- **Export Everywhere**: Export your insights, data stories, and analysis directly to **PDF, DOCX, HTML, or Jupyter Notebooks**. Generate pipeline code in Python or export cleaned data back to CSV/Excel/Parquet.
 
----
+### 📊 7. Multi-Dimensional Cross-Analysis
+- **Relationship Graph**: Force-directed network diagram showing strong correlations between columns.
+- **Statistical Tests**: 1-click Pearson/Spearman correlations, T-Tests, ANOVAs, and Chi-Square tests translated into plain English explanations.
+- **Hypothesis Generator**: Evaluates column pairs in the background and surfaces interesting statistical hypotheses without being asked.
+- **Dataset Diffing**: Compare the "Before" and "After" state of your dataset to verify your cleaning pipeline results.
 
-### 2. Autonomous Data Profiling
-
-Prism generates a complete dataset profile automatically, with no configuration required.
-
-**Dataset-level metrics:**
-- Row count, column count, total memory usage
-- Duplicate row detection
-- Missing value summary (total and per-column)
-- Schema classification and type inference
-
-**Column-level metrics (per column):**
-- Data type (inferred, with override capability)
-- Null count and null percentage
-- Cardinality (unique value count)
-- Min, Max, Mean, Median, Mode, Standard Deviation, Variance
-- Skewness and Kurtosis for numeric columns
-- Top-N most frequent values for categorical columns
-- Value distribution histograms (inline, interactive)
-
-**Quality Scoring:**
-- Gamified 0–100 quality score with trophy tiers (Bronze → Platinum)
-- Scored across 5 dimensions: Completeness, Consistency, Uniqueness, Validity, Timeliness
-- Before/after improvement tracking during cleaning
+### 🎨 8. Premium Technical Aesthetic
+- Seamless Dark, Light, and Cyberpunk UI themes utilizing glassmorphism and subtle animations.
+- Persistent IndexedDB state management — reload the browser and never lose your place.
+- Interactive, responsive AG Grid implementation for massive live-data rendering.
 
 ---
 
-### 3. Live Data Grid
+## 🛠️ Tech Stack
 
-A full Excel-like interactive data grid powered by AG Grid.
+**Frontend:**
+*   **React 18** + **Vite**
+*   **TypeScript**
+*   **Ant Design (antd)** + Custom CSS Design System
+*   **AG Grid** for high-performance data visualization
+*   **Monaco Editor** for SQL
+*   **Recharts / ECharts**
 
-| Capability | Details |
-|------------|---------|
-| **Sort** | Click column header to cycle through asc / desc / none |
-| **Multi-sort** | Hold `Shift` + click a second column for multi-column sort |
-| **Filter** | Per-column filter bar with text search, numeric range sliders, date range pickers, and categorical multi-select |
-| **Global Search** | Highlights matching cells across all columns simultaneously |
-| **Pin Columns** | Freeze columns to the left or right (like Excel's freeze pane) |
-| **Resize Columns** | Drag column borders to resize |
-| **Reorder Columns** | Drag column headers to reorder |
-| **Hide / Show Columns** | Column visibility panel with toggle switches |
-| **Row Selection** | Single and multi-row selection with checkbox column |
-| **Bulk Operations** | Delete, export, or annotate multiple selected rows |
-| **Context Menu** | Right-click any cell for quick actions (copy, filter by, inspect) |
-| **Conditional Formatting** | Heatmap background for numeric columns based on value intensity |
-| **Auto-fit Columns** | Double-click column border to auto-size to content |
+**Backend:**
+*   **FastAPI** + **Uvicorn**
+*   **Python 3.10+** (Pandas, NumPy, Scikit-Learn, SciPy)
+*   **DuckDB** (Blazing fast in-process SQL OLAP)
+*   **Google Gemini AI** (`google-generativeai`)
+*   **slowapi** (Rate Limiting) & **python-docx** / **ReportLab** (Exports)
 
 ---
 
-### 4. Data Cleaning Engine
+## 💻 Step-by-Step Installation
 
-A visual, no-code pipeline for data quality transformations.
-
-**Operations available:**
-- Drop columns by name or pattern
-- Fill null values (mean, median, mode, constant, forward-fill, back-fill)
-- Clip outliers (Z-score or IQR based)
-- Normalize/standardize numeric columns (Min-Max, Z-score)
-- Parse and standardize datetime columns
-- Convert data types (string → numeric, etc.)
-- Rename columns
-- Deduplicate rows (by key columns or entire row)
-- Drop rows where any / all values are null
-
-**Schema Override Panel:** Manually correct inferred types per column before proceeding.
-
-**Intelligent Cell Repair:** AI-powered suggestions for replacing corrupt or illogical cell values based on column distribution and domain context.
-
----
-
-### 5. SQL Workbench
-
-A fully featured, in-browser SQL query environment.
-
-- **Monaco Editor** (same engine as VS Code) with SQL syntax highlighting, autocompletion, and keyword suggestions
-- **Visual Query Builder**: Point-and-click interface for SELECT, JOIN, WHERE, GROUP BY without writing SQL
-- **Schema Sidebar**: Always-visible column browser with types and sample values
-- **Paginated Results**: Sortable and filterable result table with row count, execution time, and memory display
-- **Auto-Visualization**: After every query, Prism analyzes the result shape and automatically renders the most appropriate chart:
-  - Single numeric → KPI card
-  - One dimension + one measure → Bar chart
-  - One datetime + one measure → Line chart
-  - Two numeric columns → Scatter plot
-  - Categorical with low cardinality → Pie / Donut chart
-  - Many columns, many rows → Heatmap data table
-- **Query History**: Full history with timestamps, re-runnable with one click
-
----
-
-### 6. AI Chat Assistant
-
-A persistent, context-aware AI conversation panel powered by Gemini.
-
-- Understands your full dataset schema, profiling results, and every cleaning step applied
-- Multi-turn conversation with history
-- Generates SQL from natural language queries
-- Produces clickable **action cards** (run this SQL, navigate to this tab, apply this fix)
-- Proactive insight suggestions based on detected patterns
-- **Privacy-first**: Only schema and metadata are sent — raw data rows are never transmitted to the AI by default (user must explicitly approve)
-
----
-
-### 7. Anomaly Watchlist
-
-A persistent monitoring system for tracking data quality issues.
-
-- One-click to "bookmark" a specific anomaly found during profiling
-- Watchlist persists across sessions
-- Configurable severity thresholds (warning / critical)
-- Summary panel showing total active issues, resolved count, and trend
-
----
-
-### 8. Statistical Testing Suite
-
-Formal hypothesis testing with plain-English interpretations.
-
-| Test | Use Case |
-|------|---------|
-| **Independent samples T-Test** | Compare means between two groups |
-| **One-way ANOVA** | Compare means across 3+ groups |
-| **Chi-Square Test** | Test independence between two categorical variables |
-| **Pearson / Spearman Correlation** | Measure linear and rank-based relationships |
-| **Shapiro-Wilk** | Test for normality |
-
-Every test result is accompanied by a **plain English interpretation** so non-statisticians can act on the findings.
-
----
-
-### 9. Hypothesis Generator
-
-Automatically surfaces data hypotheses without any prompting.
-
-- Scans column pairs and identifies statistically interesting relationships
-- Generates insight cards like: *"Revenue is significantly higher for users in Tier A vs. Tier B (p < 0.01)"*
-- Each hypothesis card shows: the finding, supporting statistics, confidence level, and a suggested action
-- Bulk accept or dismiss hypotheses
-
----
-
-### 10. What-If Simulator
-
-Simulate the impact of any cleaning operation before committing it.
-
-- Select a transformation (e.g., "Fill nulls in `salary` with median")
-- Prism instantly previews: rows affected, column distribution before/after, memory delta, and quality score change
-- Commit or discard — no irreversible actions
-
----
-
-### 11. Column Relationship Graph
-
-A force-directed, interactive graph of column correlations and relationships.
-
-- Nodes = columns, coloured by data type
-- Edges = correlation strength (thickness represents strength)
-- Adjustable correlation threshold slider (filter out weak relationships)
-- Hover tooltips show exact correlation coefficient
-- Zoom, pan, and node-drag interactions powered by ECharts
-
----
-
-### 12. Dataset Comparison (Diff)
-
-Compare two versions of the same dataset (before vs. after cleaning).
-
-- Side-by-side statistics for every column
-- Row count deltas, null count changes, distribution shifts
-- Columns added or removed are highlighted
-- Value change summaries for key columns
-
----
-
-### 13. Explain This Column
-
-AI-powered natural language explanation of any column.
-
-- Describes what the column likely represents based on its name, type, and distribution
-- Identifies potential data quality risks
-- Suggests downstream use cases (feature for ML, filter dimension, segment key, etc.)
-
----
-
-### 14. Data Story Builder
-
-Transform your analysis into a presentable data story.
-
-- Automatically generates a sequence of "slides":
-  - **Title slide**: Dataset name, row/column counts, key quality score
-  - **KPI slide**: Top 3–5 most important numbers
-  - **Insight slides**: One insight per significant finding
-  - **Recommendation slide**: Suggested next steps
-- Edit, reorder, or delete slides
-- Export as a shareable HTML presentation
-
----
-
-### 15. Data Recipe System
-
-Save and reuse sequences of cleaning steps as "Recipes."
-
-- After building a cleaning pipeline, save it as a named recipe
-- Browse the recipe library
-- Apply a saved recipe to any new dataset with one click
-- Recipes are fully editable
-
----
-
-### 16. Collaborative Annotations
-
-Attach notes and findings to specific data points.
-
-- Right-click any cell or column to add a note
-- Notes are target-specific (column, row, or cell-level)
-- Annotations are persisted per dataset
-- Useful for flagging issues for teammates or future review
-
----
-
-### 17. Reporting & Export
-
-**Full Analysis Report** (Pillar 4.1):
-- Executive summary in plain English
-- Dataset overview and profiling findings
-- Quality assessment with scored dimensions
-- Preprocessing decisions log
-- Before/after statistics for every transformed column
-- Feature importance ranking
-- Recommended next steps
-
-Export formats: **PDF**, **DOCX**, **HTML**, **Jupyter Notebook**
-
-> Toggle options: Include Charts, Include Anomaly Deep-dive
-
----
-
-**Code Export** (Pillar 4.2):
-
-Export the entire preprocessing pipeline as:
-
-| Format | Description |
-|--------|-------------|
-| `pipeline.py` | Documented Python script using pandas & scikit-learn |
-| `pipeline.ipynb` | Jupyter Notebook with markdown explanations |
-| `pipeline.json` | Machine-readable pipeline definition |
-| `pipeline.sql` | SQL queries for database reproduction |
-
----
-
-**Data Export** (Pillar 4.3):
-
-Export the cleaned dataset as: **CSV**, **Excel**, **JSON**, **Parquet**, **Feather**, **SQL INSERT statements**
-
----
-
-### 18. UI & Workspace
-
-| Feature | Details |
-|---------|---------|
-| **Themes** | Dark, Light, and Cyberpunk modes — persists across sessions |
-| **Onboarding** | Step-by-step first-run walkthrough for new users |
-| **Responsiveness** | Optimized for desktop and tablet (≥768px) |
-| **Session Persistence** | IndexedDB-powered session recovery across page reloads |
-| **Privacy Disclosure** | Explicit consent gate before any AI feature is used |
-| **Accessibility** | Semantic HTML, ARIA labels, keyboard-navigable interactions |
-
----
-
-## Project Structure
-
-```
-prism/
-├── backend/
-│   ├── main.py                   # FastAPI app entry point, all routers registered
-│   ├── config.py                 # App configuration (CORS, env vars)
-│   ├── api/
-│   │   ├── upload.py             # File ingestion & format detection
-│   │   ├── profiling.py          # Dataset + column profiling
-│   │   ├── cleaning.py           # Cleaning transformations
-│   │   ├── sql.py                # SQL query engine (DuckDB)
-│   │   ├── reporting.py          # Report generation & data export
-│   │   ├── chat.py               # AI assistant API
-│   │   ├── grid.py               # Live data grid API
-│   │   ├── watchlist.py          # Anomaly watchlist
-│   │   ├── simulate.py           # What-If simulator
-│   │   ├── stats.py              # Statistical testing
-│   │   ├── explain.py            # Column explainer (AI)
-│   │   ├── graph.py              # Relationship graph API
-│   │   ├── story.py              # Data story builder
-│   │   ├── recipe.py             # Data recipe system
-│   │   ├── metadata.py           # Column tagger / metadata
-│   │   └── collab.py             # Collaborative annotations
-│   ├── ingestion/
-│   │   ├── file_detector.py      # Format detection & routing
-│   │   ├── encoding_detector.py  # Encoding auto-detection
-│   │   └── multi_file_handler.py # Multi-upload schema comparison
-│   ├── profiling/
-│   │   ├── profiler.py           # Core profiling engine
-│   │   ├── type_inference.py     # Column type inference
-│   │   └── quality_scoring.py    # Quality score computation
-│   ├── cleaning/
-│   │   ├── cleaning_engine.py    # Transformation pipeline
-│   │   ├── cell_repair.py        # Intelligent cell repair
-│   │   └── simulator.py          # What-If simulation
-│   ├── insights/
-│   │   ├── anomaly_detector.py   # Z-Score & Isolation Forest
-│   │   ├── hypothesis_engine.py  # Automated hypothesis generation
-│   │   ├── stat_tests.py         # Statistical test suite
-│   │   └── graph_builder.py      # Relationship graph construction
-│   ├── comparison/
-│   │   └── diff_engine.py        # Dataset diff engine
-│   ├── chat/
-│   │   └── engine.py             # AI conversation engine (Gemini)
-│   └── reporting/
-│       └── report_builder.py     # PDF/DOCX/HTML report generator
-│
-└── frontend/
-    └── src/
-        ├── App.tsx                # Root application shell
-        ├── index.css              # Global design system (dark/light/cyberpunk)
-        ├── components/
-        │   ├── upload/            # FileUploader, UploadProgress, SheetSelector
-        │   ├── profiling/         # ProfileDashboard, ColumnExplainer, ColumnTagger
-        │   ├── grid/              # LiveDataGrid, GridToolbar
-        │   ├── cleaning/          # CleaningPanel, RecipeBrowser, CellRepairPanel
-        │   ├── sql/               # QueryWorkbench, VisualQueryBuilder
-        │   ├── insights/          # HypothesisCards, StatTestPanel, RelationshipGraph
-        │   ├── comparison/        # DatasetDiff
-        │   ├── reporting/         # ReportPanel, StoryBuilder
-        │   ├── chat/              # ChatSidebar, PrivacyDisclosure
-        │   ├── collab/            # CollabPanel
-        │   └── common/            # Layout, ThemeToggle, OnboardingWalkthrough
-        ├── hooks/
-        │   ├── useUpload.ts       # Upload state machine
-        │   ├── useTheme.tsx       # Dark/Light/Cyberpunk theme context
-        │   ├── useSession.ts      # Session state management
-        │   └── useCleaning.ts     # Cleaning pipeline state
-        └── utils/
-            └── persistence.ts     # IndexedDB session storage
-```
-
----
-
-## Setup & Installation
+Anyone can run Prism entirely locally on their machine.
 
 ### Prerequisites
+1. **Python 3.10** or higher installed and added to your systemic PATH.
+2. **Node.js 18** or higher installed.
+3. Git installed.
 
-| Tool | Version |
-|------|---------|
-| Python | 3.10 or higher |
-| Node.js | 18 or higher |
-| npm | 9 or higher |
-
----
-
-### 1. Clone the Repository
-
+### Step 1: Clone the Repository
 ```bash
-git clone <your-repo-url> prism
+git clone https://github.com/your-username/prism.git
 cd prism
 ```
 
----
+### Step 2: Environment Configuration
+Prism needs an API key to run its AI functions (like the internal Chat Assistant).
+1. Go to `backend/` and copy the template environment file:
+   - On Windows: `copy .env.example .env`
+   - On Mac/Linux: `cp .env.example .env`
+2. Open the newly created `backend/.env` file.
+3. Obtain a free Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+4. Paste your key into the `GEMINI_API_KEY=` field.
+*(Note: Prism secures API interactions locally using `DATA_INTEL_API_KEY`. You can leave this as the default for local use).*
 
-### 2. Backend Setup
+### Step 3: Launching the Application
 
-```powershell
+**🟢 For Windows Users (The Easy Way):**
+Simply double-click the `start.bat` file in the root of the project. 
+The script will automatically:
+- Create a Python Virtual Environment.
+- Install all Backend dependencies (`pip install`).
+- Install all Frontend dependencies (`npm install`).
+- Launch both servers and automatically open the application in your browser.
+
+**🔵 For Mac / Linux Users (Manual Launch):**
+You'll need two terminal windows.
+
+*Terminal 1 - Backend:*
+```bash
 cd backend
-
-# Create and activate a virtual environment (recommended)
-python -m venv venv
-venv\Scripts\activate       # Windows
-# source venv/bin/activate  # macOS / Linux
-
-# Install dependencies
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-
-# Create your environment file
-copy .env.example .env      # Windows
-# cp .env.example .env      # macOS / Linux
-
-# Add your Gemini API key to .env (see Environment Variables section)
-```
-
-**Start the backend server:**
-
-```powershell
 python main.py
 ```
+*(Backend runs on http://localhost:8000)*
 
-> The API is now live at `http://localhost:8000`  
-> Interactive API docs: `http://localhost:8000/docs`
-
----
-
-### 3. Frontend Setup
-
-Open a second terminal:
-
-```powershell
+*Terminal 2 - Frontend:*
+```bash
 cd frontend
-
-# Install dependencies
 npm install
-
-# Start the development server
 npm run dev
 ```
+*(Frontend runs on http://localhost:5173)*
 
-> The app is now live at `http://localhost:5173`
-
----
-
-### 4. Production Build (Optional)
-
-```powershell
-cd frontend
-npm run build
-# Outputs to frontend/dist/
-```
+Open your browser to the Frontend URL to access Prism!
 
 ---
 
-## Environment Variables
+## 🔒 Security & Privacy Architecture
 
-Create a `.env` file in the `backend/` directory:
-
-```env
-# Required — Gemini API key for AI features (Chat, Explain, Hypothesis)
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# Optional — Backend server settings (defaults shown)
-HOST=0.0.0.0
-PORT=8000
-DEBUG=true
-
-# Optional — CORS origins (comma-separated)
-CORS_ORIGINS=http://localhost:5173,http://localhost:3000
-```
-
-> **Get a Gemini API key**: [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)  
-> AI features (Chat, Column Explainer, Hypothesis Generator) require this key. All other features work without it.
+Prism is designed primarily as a local-first workspace.
+- **AI Privacy Gate**: Prism comes with a hard user-consent gate. By default, **only column headers, types, and mathematical abstractions (like min/max bounds) are ever shared with the AI endpoint**. Raw cell data is walled off unless the user explicitly checks the "Enable Insight Generation" consent box.
+- **Rate Limiting**: Built-in backend rate-limiting (`slowapi`) prevents API abuse.
+- **API Key Required**: All backend routes enforce API key checks if you choose to deploy Prism behind a reverse proxy or on a remote VM.
 
 ---
 
-## API Reference
+## 📜 License
 
-All endpoints are prefixed with `/api/`. Full interactive documentation is available at `http://localhost:8000/docs` after starting the backend.
-
-| Router | Base Path | Description |
-|--------|-----------|-------------|
-| Upload | `/api/upload` | File ingestion, format detection |
-| Profiling | `/api/profile` | Dataset and column profiling |
-| Cleaning | `/api/clean` | Apply transformations |
-| SQL | `/api/sql` | Execute SQL queries |
-| Reporting | `/api/reporting` | Generate and export reports |
-| Chat | `/api/chat` | AI assistant messages |
-| Grid | `/api/grid` | Live data grid data source |
-| Watchlist | `/api/watchlist` | Anomaly watchlist management |
-| Simulate | `/api/simulate` | What-If impact prediction |
-| Statistics | `/api/stats` | Statistical test execution |
-| Explain | `/api/explain` | Column AI explanation |
-| Graph | `/api/graph` | Column relationship graph data |
-| Story | `/api/story` | Data story generation |
-| Recipe | `/api/recipe` | Cleaning recipe management |
-| Metadata | `/api/metadata` | Column tagging |
-| Collab | `/api/collab` | Collaborative annotations |
-
----
-
-## License
-
-MIT — Built by Srikant.
+MIT License. Designed and Built by Srikant.

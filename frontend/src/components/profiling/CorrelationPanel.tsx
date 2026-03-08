@@ -43,18 +43,18 @@ const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data }) => {
 
         return {
             tooltip: { position: 'top' },
-            grid: { top: '10%', bottom: '20%', left: '20%', right: '10%' },
+            grid: { top: '5%', bottom: '25%', left: '25%', right: '5%' },
             xAxis: {
                 type: 'category',
                 data: features,
                 splitArea: { show: true },
-                axisLabel: { interval: 0, rotate: 45, color: 'rgba(255,255,255,0.7)' }
+                axisLabel: { interval: 0, rotate: 60, color: 'rgba(255,255,255,0.7)', fontSize: 10 }
             },
             yAxis: {
                 type: 'category',
                 data: features,
                 splitArea: { show: true },
-                axisLabel: { color: 'rgba(255,255,255,0.7)' }
+                axisLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 10 }
             },
             visualMap: {
                 min: -1,
@@ -99,7 +99,7 @@ const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data }) => {
                     target: pair.col2,
                     value: pair.score,
                     lineStyle: {
-                        width: Math.abs(pair.score) * 5,
+                        width: Math.abs(pair.score) * 3 + 1,
                         color: pair.score > 0 ? '#ff7875' : '#69c0ff'
                     }
                 });
@@ -114,14 +114,14 @@ const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data }) => {
                 {
                     type: 'graph',
                     layout: 'force',
-                    symbolSize: 40,
+                    symbolSize: 25,
                     roam: true,
-                    label: { show: true, color: '#fff' },
+                    label: { show: true, color: '#fff', position: 'right', fontSize: 10 },
                     edgeSymbol: ['circle', 'none'],
-                    edgeSymbolSize: [4, 10],
+                    edgeSymbolSize: [4, 8],
                     data: nodes,
                     links: edges,
-                    force: { repulsion: 200 },
+                    force: { repulsion: 800, edgeLength: [50, 100] },
                     itemStyle: { color: '#722ed1', borderColor: '#b37feb', borderWidth: 2 }
                 }
             ]
@@ -130,7 +130,7 @@ const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data }) => {
 
 
     return (
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
             {data.multicollinearity.has_multicollinearity && (
                 <Alert
                     message="High Multicollinearity Detected"
@@ -148,7 +148,7 @@ const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data }) => {
                 <Col span={24} lg={12}>
                     <Card title="Correlation Matrix" variant="borderless" className="glass-panel">
                         {Object.keys(data.correlation_matrix).length > 0 ? (
-                            <ReactECharts option={heatmapOption} style={{ height: 400 }} theme="dark" />
+                            <ReactECharts option={heatmapOption} style={{ height: 600 }} theme="dark" />
                         ) : (
                             <Paragraph type="secondary">Not enough numeric columns for a matrix.</Paragraph>
                         )}
@@ -157,7 +157,7 @@ const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data }) => {
                 <Col span={24} lg={12}>
                     <Card title="Association Network (Score > 0.4)" variant="borderless" className="glass-panel">
                         {data.strongest_pairs.some(p => Math.abs(p.score) > 0.4) ? (
-                            <ReactECharts option={networkOption} style={{ height: 400 }} theme="dark" />
+                            <ReactECharts option={networkOption} style={{ height: 600 }} theme="dark" />
                         ) : (
                             <Paragraph type="secondary">No strong correlations found to graph.</Paragraph>
                         )}

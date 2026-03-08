@@ -1,5 +1,5 @@
-﻿/**
- * TableExplorer â€” Tree view of all available tables with expandable column lists.
+/**
+ * TableExplorer — Tree view of all available tables with expandable column lists.
  */
 
 import React, { useState } from 'react';

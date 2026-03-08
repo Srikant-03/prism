@@ -1,5 +1,5 @@
-﻿/**
- * ThemeToggle.tsx â€” Switch between Dark, Light, and Cyberpunk modes.
+/**
+ * ThemeToggle.tsx — Switch between Dark, Light, and Cyberpunk modes.
  */
 
 import React, { useState, useEffect } from 'react';

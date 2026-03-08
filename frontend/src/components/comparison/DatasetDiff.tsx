@@ -1,5 +1,5 @@
-﻿/**
- * DatasetDiff â€” Upload and compare two datasets (structural + statistical diff).
+/**
+ * DatasetDiff — Upload and compare two datasets (structural + statistical diff).
  */
 
 import React, { useState, useCallback } from 'react';
@@ -104,10 +104,10 @@ const DatasetDiff: React.FC<Props> = ({ fileIdA }) => {
             ),
         },
         {
-            title: 'Mean A â†’ B',
+            title: 'Mean A → B',
             render: (_: any, r: any) => (
                 <span style={{ fontFamily: 'monospace', fontSize: 11 }}>
-                    {r.mean_a?.toFixed(2)} â†’ {r.mean_b?.toFixed(2)}
+                    {r.mean_a?.toFixed(2)} → {r.mean_b?.toFixed(2)}
                 </span>
             ),
         },
@@ -175,7 +175,7 @@ const DatasetDiff: React.FC<Props> = ({ fileIdA }) => {
                             ))}
                             {result.schema_diff.type_changed.map(c => (
                                 <Tag key={c.column} color="orange" icon={<SwapOutlined />}>
-                                    {c.column}: {c.from}â†’{c.to}
+                                    {c.column}: {c.from}→{c.to}
                                 </Tag>
                             ))}
                             {result.schema_diff.added_columns.length === 0 &&

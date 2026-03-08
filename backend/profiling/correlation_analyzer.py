@@ -193,23 +193,23 @@ class CorrelationAnalyzer:
 
     def _compute_mutual_information(self, df: pd.DataFrame, num_cols: List[str], cat_cols: List[str], bin_cols: List[str]) -> Dict[str, Dict[str, float]]:
         # Take a subset to avoid excessive compute time, MI is expensive
-        # Maximum 5000 rows, maximum 20 features
+        # Maximum 2000 rows, maximum 10 features
         mi_dict: Dict[str, Dict[str, float]] = {c: {} for c in (num_cols + cat_cols + bin_cols)}
         
         all_features = num_cols + cat_cols + bin_cols
         if not all_features:
             return mi_dict
             
-        # Select features to compare (cap at 20 most complete)
+        # Select features to compare (cap at 10 most complete)
         null_counts = df[all_features].isnull().sum()
-        selected_features = null_counts.nsmallest(20).index.tolist()
+        selected_features = null_counts.nsmallest(10).index.tolist()
         
         if len(selected_features) < 2:
             return mi_dict
 
         sub_df = df[selected_features].copy()
-        if len(sub_df) > 5000:
-            sub_df = sub_df.sample(5000, random_state=42)
+        if len(sub_df) > 2000:
+            sub_df = sub_df.sample(2000, random_state=42)
 
         # Label encode cat columns
         for c in selected_features:
@@ -255,12 +255,20 @@ class CorrelationAnalyzer:
             # Use subset of numeric columns without a lot of nulls
             null_pct = df[num_cols].isnull().mean()
             valid_cols = null_pct[null_pct < 0.2].index.tolist()
+
+            # Cap columns to 15 to prevent slow VIF
+            if len(valid_cols) > 15:
+                valid_cols = valid_cols[:15]
             
             if len(valid_cols) < 2:
                 return MulticollinearityReport(has_multicollinearity=False, vif_scores={}, warnings=[])
 
             # Dropna for VIF compute
             X = df[valid_cols].apply(pd.to_numeric, errors='coerce').dropna()
+
+            # Cap rows
+            if len(X) > 3000:
+                X = X.sample(3000, random_state=42)
             
             if len(X) < max(10, len(valid_cols) + 2):
                 return MulticollinearityReport(has_multicollinearity=False, vif_scores={}, warnings=[])

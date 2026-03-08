@@ -1,5 +1,5 @@
-﻿/**
- * StatTestPanel â€” Built-in statistical testing suite with auto-suggestions.
+/**
+ * StatTestPanel — Built-in statistical testing suite with auto-suggestions.
  */
 
 import React, { useState, useCallback } from 'react';

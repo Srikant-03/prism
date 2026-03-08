@@ -1,15 +1,30 @@
 """
 Data Intelligence Platform — FastAPI Application Entry Point.
+
+NOTE: This application uses in-memory state dicts (_ingestion_store, _profile_store,
+_cleaning_store) which are NOT shared across worker processes. When deploying with
+uvicorn, use a single worker (--workers 1) or migrate state to Redis/a shared store.
 """
 
 from dotenv import load_dotenv
 load_dotenv()  # Load .env before anything else reads os.getenv
 
-import uvicorn
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+import logging
+from contextlib import asynccontextmanager
 
-from config import AppConfig
+import uvicorn
+from fastapi import FastAPI, Depends, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+from config import AppConfig, LLMConfig
+
+logger = logging.getLogger(__name__)
+from api.dependencies import verify_api_key
+from llm.api_manager import key_manager
 from api.upload import router as upload_router
 from api.profiling import router as profiling_router
 from api.cleaning import router as cleaning_router
@@ -28,6 +43,35 @@ from api.stats import router as stats_router
 from api.explain import router as explain_router
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup/shutdown lifecycle: validate config and log warnings."""
+    # ── Startup validation ────────────────────────────────────────
+    warnings_list = []
+
+    if not LLMConfig.GEMINI_API_KEY:
+        warnings_list.append("GEMINI_API_KEY is not set — NL Query and chat features will fail.")
+
+    if AppConfig.API_KEY == "dev-secret-key-123":
+        warnings_list.append("DATA_INTEL_API_KEY is using the default dev key — set a secure key for production.")
+
+    if AppConfig.DEBUG:
+        warnings_list.append("DEBUG mode is ON — stack traces will be exposed. Disable for production.")
+
+    for w in warnings_list:
+        logger.warning("[STARTUP] %s", w)
+
+    logger.info(
+        "[STARTUP] Data Intelligence Platform v%s | host=%s port=%d debug=%s",
+        AppConfig.VERSION, AppConfig.HOST, AppConfig.PORT, AppConfig.DEBUG,
+    )
+
+    yield  # App is running
+
+    # ── Shutdown ──────────────────────────────────────────────────
+    logger.info("[SHUTDOWN] Data Intelligence Platform shutting down.")
+
+
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     app = FastAPI(
@@ -37,9 +81,10 @@ def create_app() -> FastAPI:
             "Upload any file — the system handles everything from format detection "
             "to data profiling without any user configuration."
         ),
-        version="2.0.0",
+        version=AppConfig.VERSION,
         docs_url="/docs",
         redoc_url="/redoc",
+        lifespan=lifespan,
     )
 
     # CORS — allow frontend dev server
@@ -47,33 +92,42 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=AppConfig.CORS_ORIGINS,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization", "X-API-Key"],
     )
 
-    # Register API routes
-    app.include_router(upload_router)
-    app.include_router(profiling_router)
-    app.include_router(cleaning_router)
-    app.include_router(sql_router)
-    app.include_router(reporting_router)
-    app.include_router(chat_router)
-    app.include_router(grid_router)
-    app.include_router(watchlist_router)
-    app.include_router(graph_router)
-    app.include_router(story_router)
-    app.include_router(recipe_router)
-    app.include_router(metadata_router)
-    app.include_router(collab_router)
-    app.include_router(simulate_router)
-    app.include_router(stats_router)
-    app.include_router(explain_router)
+    # Rate limiting
+    limiter = Limiter(
+        key_func=get_remote_address,
+        default_limits=[AppConfig.RATE_LIMIT],
+    )
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+    # Register API routes with API Key requirement
+    app.include_router(upload_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(profiling_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(cleaning_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(sql_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(reporting_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(chat_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(grid_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(watchlist_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(graph_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(story_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(recipe_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(metadata_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(collab_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(simulate_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(stats_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(explain_router, dependencies=[Depends(verify_api_key)])
 
     @app.get("/")
+    @limiter.exempt
     async def root():
         return {
             "name": "Data Intelligence Platform",
-            "version": "1.0.0",
+            "version": AppConfig.VERSION,
             "status": "operational",
             "endpoints": {
                 "upload": "/api/upload",
@@ -83,6 +137,7 @@ def create_app() -> FastAPI:
         }
 
     @app.get("/health")
+    @limiter.exempt
     async def health():
         return {"status": "healthy"}
 

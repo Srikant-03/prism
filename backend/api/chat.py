@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from chat.engine import get_chat_engine, ChatContextBuilder
+from chat.engine import get_chat_engine
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -39,23 +39,25 @@ async def chat_message(request: ChatRequest):
 @router.post("/context")
 async def update_context(request: ContextUpdate):
     """Update the AI's awareness of the current dataset state."""
+    ctx = get_chat_engine().context
     if request.schema:
-        ChatContextBuilder.set_schema(request.schema)
+        ctx.set_schema(request.schema)
     if request.profile_summary:
-        ChatContextBuilder.set_profile(request.profile_summary)
+        ctx.set_profile(request.profile_summary)
     if request.cleaning_step:
-        ChatContextBuilder.add_cleaning_step(request.cleaning_step)
+        ctx.add_cleaning_step(request.cleaning_step)
     if request.query:
-        ChatContextBuilder.add_query(request.query)
+        ctx.add_query(request.query)
     return {"status": "context_updated"}
 
 
 @router.get("/context")
 async def get_context():
     """Get current AI context state for debugging."""
+    ctx = get_chat_engine().context
     return {
-        "has_schema": ChatContextBuilder._schema is not None,
-        "has_profile": ChatContextBuilder._profile_summary is not None,
-        "cleaning_steps": len(ChatContextBuilder._cleaning_log),
-        "recent_queries": len(ChatContextBuilder._recent_queries),
+        "has_schema": ctx._schema is not None,
+        "has_profile": ctx._profile_summary is not None,
+        "cleaning_steps": len(ctx._cleaning_log),
+        "recent_queries": len(ctx._recent_queries),
     }

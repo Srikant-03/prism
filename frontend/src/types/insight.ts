@@ -31,6 +31,11 @@ export interface AnalystBriefing {
     quality_assessment: string;
     key_findings: string[];
     recommended_actions: string[];
+    column_deep_dives?: {
+        column_name: string;
+        mathematical_summary: string;
+        layman_explanation: string;
+    }[];
 }
 
 export interface DatasetInsights {

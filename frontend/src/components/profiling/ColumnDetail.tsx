@@ -1,5 +1,5 @@
-﻿/**
- * ColumnDetail â€” Deep column profiling view with all type-specific stats and charts.
+/**
+ * ColumnDetail — Deep column profiling view with all type-specific stats and charts.
  * Shows universal stats + the appropriate type-specific panel.
  */
 
@@ -35,11 +35,11 @@ function getQualityColor(score: number): string {
     return '#ff4d4f';
 }
 
-// â”€â”€ Histogram Chart â”€â”€
+// ── Histogram Chart ──
 function HistogramChart({ num }: { num: NumericProfile }) {
     if (!num.histogram_bins.length) return null;
     const categories = num.histogram_bins.slice(0, -1).map((b, i) =>
-        `${b.toFixed(1)}â€“${num.histogram_bins[i + 1].toFixed(1)}`
+        `${b.toFixed(1)}–${num.histogram_bins[i + 1].toFixed(1)}`
     );
     const option = {
         tooltip: { trigger: 'axis' as const },
@@ -57,7 +57,7 @@ function HistogramChart({ num }: { num: NumericProfile }) {
     return <ReactECharts option={option} style={{ height: 250 }} theme="dark" />;
 }
 
-// â”€â”€ Box Plot Chart â”€â”€
+// ── Box Plot Chart ──
 function BoxPlotChart({ num }: { num: NumericProfile }) {
     if (num.box_q1 == null) return null;
     const option = {
@@ -79,7 +79,7 @@ function BoxPlotChart({ num }: { num: NumericProfile }) {
     return <ReactECharts option={option} style={{ height: 200 }} theme="dark" />;
 }
 
-// â”€â”€ Q-Q Plot Chart â”€â”€
+// ── Q-Q Plot Chart ──
 function QQPlotChart({ num }: { num: NumericProfile }) {
     if (!num.qq_theoretical.length) return null;
     const data = num.qq_theoretical.map((t, i) => [t, num.qq_sample[i]]);
@@ -98,7 +98,7 @@ function QQPlotChart({ num }: { num: NumericProfile }) {
     return <ReactECharts option={option} style={{ height: 250 }} theme="dark" />;
 }
 
-// â”€â”€ Pie Chart â”€â”€
+// ── Pie Chart ──
 function PieChart({ data }: { data: { name: string; value: number }[] }) {
     if (!data.length) return null;
     const option = {
@@ -112,7 +112,7 @@ function PieChart({ data }: { data: { name: string; value: number }[] }) {
     return <ReactECharts option={option} style={{ height: 250 }} theme="dark" />;
 }
 
-// â”€â”€ Bar Chart (Top Values) â”€â”€
+// ── Bar Chart (Top Values) ──
 function FrequencyBarChart({ data }: { data: { value: unknown; count: number; percentage: number }[] }) {
     if (!data.length) return null;
     const option = {
@@ -125,7 +125,7 @@ function FrequencyBarChart({ data }: { data: { value: unknown; count: number; pe
     return <ReactECharts option={option} style={{ height: Math.max(200, data.length * 28) }} theme="dark" />;
 }
 
-// â”€â”€ Main Component â”€â”€
+// ── Main Component ──
 const ColumnDetail: React.FC<ColumnDetailProps> = ({ column }) => {
     const typeColor = SEMANTIC_TYPE_COLORS[column.semantic_type] || '#6b7280';
 
@@ -170,7 +170,7 @@ const ColumnDetail: React.FC<ColumnDetailProps> = ({ column }) => {
                 <Col xs={8} sm={4}>
                     <div className="mini-stat"><Text type="secondary" style={{ fontSize: 10 }}>Most Freq</Text>
                         <Tooltip title={`${column.most_frequent?.value} (${column.most_frequent?.count})`}>
-                            <Text strong style={{ fontSize: 11 }}>{String(column.most_frequent?.value || 'â€”').slice(0, 15)}</Text>
+                            <Text strong style={{ fontSize: 11 }}>{String(column.most_frequent?.value || '—').slice(0, 15)}</Text>
                         </Tooltip>
                     </div>
                 </Col>
@@ -208,7 +208,7 @@ const ColumnDetail: React.FC<ColumnDetailProps> = ({ column }) => {
     );
 };
 
-// â”€â”€ Type-Specific Panels â”€â”€
+// ── Type-Specific Panels ──
 
 function NumericPanel({ num }: { num: NumericProfile }) {
     return (
@@ -339,7 +339,7 @@ function BooleanPanel({ bool }: { bool: BooleanProfile }) {
                     {bool.is_disguised && (
                         <Alert type="info" showIcon style={{ marginTop: 8 }} message="Disguised Boolean"
                             description={<div>{Object.entries(bool.disguised_mapping).map(([k, v]) =>
-                                <div key={k}><Text code>{k}</Text> â†’ {v}</div>
+                                <div key={k}><Text code>{k}</Text> → {v}</div>
                             )}</div>} />
                     )}
                 </Col>
@@ -353,7 +353,7 @@ function TextPanel({ txt }: { txt: TextProfile }) {
         <div className="type-panel">
             <Descriptions size="small" column={{ xs: 1, sm: 2, md: 3 }} bordered>
                 <Descriptions.Item label="Avg Length">{txt.avg_length.toFixed(1)} chars</Descriptions.Item>
-                <Descriptions.Item label="Range">{txt.min_length}â€“{txt.max_length} chars</Descriptions.Item>
+                <Descriptions.Item label="Range">{txt.min_length}–{txt.max_length} chars</Descriptions.Item>
                 <Descriptions.Item label="Avg Tokens">{txt.avg_token_count.toFixed(1)}</Descriptions.Item>
                 {txt.detected_language && <Descriptions.Item label="Language"><Tag>{txt.detected_language}</Tag> ({(txt.language_confidence * 100).toFixed(0)}%)</Descriptions.Item>}
             </Descriptions>
@@ -370,7 +370,7 @@ function TextPanel({ txt }: { txt: TextProfile }) {
             )}
             {txt.has_pii_risk && (
                 <Alert type="error" showIcon icon={<ExclamationCircleOutlined />} style={{ marginTop: 8 }}
-                    message="âš ï¸ PII Risk Detected" description={
+                    message="⚠ï¸ PII Risk Detected" description={
                         <div>{txt.pii_risks.map((r, i) => (
                             <div key={i} style={{ marginBottom: 4 }}>
                                 <Tag color="error">{r.type}</Tag>

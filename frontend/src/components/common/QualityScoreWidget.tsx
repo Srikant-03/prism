@@ -1,5 +1,5 @@
-﻿/**
- * QualityScoreWidget â€” Persistent floating widget showing data quality score.
+/**
+ * QualityScoreWidget — Persistent floating widget showing data quality score.
  * Gamified: animated score, dimension breakdown, next-best-action, badge system.
  */
 
@@ -130,7 +130,7 @@ const QualityScoreWidget: React.FC<Props> = ({ dimensions, nextAction, scoreHist
                                 />
                                 {dim.suggestion && (
                                     <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>
-                                        ðŸ’¡ {dim.suggestion}
+                                        💡 {dim.suggestion}
                                     </div>
                                 )}
                             </div>
@@ -146,7 +146,7 @@ const QualityScoreWidget: React.FC<Props> = ({ dimensions, nextAction, scoreHist
                         border: '1px solid rgba(99,102,241,0.15)',
                     }}>
                         <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 4 }}>
-                            ðŸŽ¯ Next Best Action
+                            🎯 Next Best Action
                         </div>
                         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
                             {nextAction.label}

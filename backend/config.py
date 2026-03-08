@@ -17,8 +17,8 @@ class IngestionConfig:
     # Chunk size for reading large files
     CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", 5 * 1024 * 1024))  # 5 MB per chunk
 
-    # Maximum file size allowed for upload (0 = unlimited)
-    MAX_FILE_SIZE: int = int(os.getenv("MAX_FILE_SIZE", 0))
+    # Maximum file size allowed for upload (bytes); default 500 MB
+    MAX_FILE_SIZE: int = int(os.getenv("MAX_FILE_SIZE", 500 * 1024 * 1024))
 
     # --- Preview Settings ---
     # Number of rows to include in data preview
@@ -56,6 +56,22 @@ class IngestionConfig:
         ".gz": "compressed",
         ".gzip": "compressed",
     }
+
+    # --- Allowed MIME Types for Upload ---
+    ALLOWED_MIME_TYPES: set = {
+        "text/csv", "text/plain", "text/tab-separated-values",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-excel",
+        "application/json",
+        "application/xml", "text/xml",
+        "application/octet-stream",  # fallback for parquet/feather/sql/compressed
+        "application/x-parquet",
+        "application/sql",
+        "application/zip", "application/gzip", "application/x-gzip",
+    }
+
+    # --- Allowed File Extensions ---
+    ALLOWED_EXTENSIONS: set = set(FORMAT_REGISTRY.keys())
 
     # --- Upload ---
     UPLOAD_DIR: Path = Path(os.getenv("UPLOAD_DIR", "./uploads"))
@@ -104,10 +120,14 @@ class LLMConfig:
 class AppConfig:
     """Top-level application configuration."""
 
+    VERSION: str = os.getenv("APP_VERSION", "2.0.0")
     HOST: str = os.getenv("HOST", "0.0.0.0")
     PORT: int = int(os.getenv("PORT", 8000))
-    DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
+    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     CORS_ORIGINS: list = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+    API_KEY: str = os.getenv("DATA_INTEL_API_KEY", "dev-secret-key-123")
+    RATE_LIMIT: str = os.getenv("RATE_LIMIT", "60/minute")            # General API rate limit
+    RATE_LIMIT_UPLOAD: str = os.getenv("RATE_LIMIT_UPLOAD", "10/minute")  # Stricter limit for uploads
 
     ingestion = IngestionConfig()
     cleaning = CleaningConfig()

@@ -35,11 +35,18 @@ const App: React.FC = () => {
     reset,
   } = useUpload();
   const [chatOpen, setChatOpen] = useState(false);
+  const [activeTabKey, setActiveTabKey] = useState('preview');
+  const [pendingSqlQuery, setPendingSqlQuery] = useState<string | undefined>(undefined);
 
   const handleChatAction = (action: any) => {
-    if (action.type === 'sql') {
-      // Could navigate to SQL tab and populate query
-      console.log('SQL action:', action.payload);
+    if (action.type === 'sql' && action.payload) {
+      // Navigate to SQL tab and populate the query
+      setPendingSqlQuery(action.payload);
+      setActiveTabKey('sql');
+    } else if (action.type === 'grid') {
+      setActiveTabKey('grid');
+    } else if (action.type === 'navigate' && action.payload) {
+      setActiveTabKey(action.payload);
     }
   };
 
@@ -137,7 +144,8 @@ const App: React.FC = () => {
                 </div>
               )}
               <Tabs
-                defaultActiveKey="preview"
+                activeKey={activeTabKey}
+                onChange={setActiveTabKey}
                 type="card"
                 style={{ marginBottom: 20 }}
                 items={[
@@ -161,7 +169,7 @@ const App: React.FC = () => {
                   {
                     key: 'sql',
                     label: <span><CodeOutlined /> SQL Query Engine</span>,
-                    children: <QueryWorkbench />,
+                    children: <QueryWorkbench initialQuery={pendingSqlQuery} />,
                   },
                   {
                     key: 'reporting',

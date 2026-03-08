@@ -1,6 +1,6 @@
-﻿/**
- * NLQueryPanel â€” Natural Language to SQL query interface.
- * Free-text input â†’ LLM generates SQL â†’ user reviews/edits â†’ execute.
+/**
+ * NLQueryPanel — Natural Language to SQL query interface.
+ * Free-text input → LLM generates SQL → user reviews/edits → execute.
  */
 
 import React, { useState, useCallback } from 'react';
@@ -138,7 +138,7 @@ const NLQueryPanel: React.FC<Props> = ({ onResultReady, onSQLGenerated }) => {
                 closable
                 banner
                 message="Privacy Notice"
-                description="Natural language queries are processed by Google Gemini. Only column names, data types, and a few sample values are sent â€” never your full dataset rows. All data remains local."
+                description="Natural language queries are processed by Google Gemini. Only column names, data types, and a few sample values are sent — never your full dataset rows. All data remains local."
                 style={{ borderRadius: 8, fontSize: 12 }}
             />
             {/* Header */}

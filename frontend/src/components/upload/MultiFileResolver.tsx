@@ -1,5 +1,5 @@
-﻿/**
- * MultiFileResolver â€” Schema comparison UI with merge/separate decision.
+/**
+ * MultiFileResolver — Schema comparison UI with merge/separate decision.
  */
 
 import React from 'react';
@@ -38,7 +38,7 @@ const relationshipConfig = {
     mixed: {
         color: '#faad14',
         icon: <QuestionCircleOutlined />,
-        label: 'Mixed â€” Your Decision Needed',
+        label: 'Mixed — Your Decision Needed',
         bgColor: 'rgba(250, 173, 20, 0.08)',
     },
 };

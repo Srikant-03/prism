@@ -1,5 +1,6 @@
 /**
- * SessionStore — IndexedDB-backed session persistence using localforage.
+ * SessionStore — localStorage-backed session persistence for lightweight state.
+ * IDBStore — IndexedDB-backed store for large data that exceeds localStorage limits.
  * Persists pipeline state, query library, settings across browser refreshes.
  */
 

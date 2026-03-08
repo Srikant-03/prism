@@ -1,5 +1,5 @@
-﻿/**
- * Layout â€” App shell with animated background, header, and theme/help controls.
+/**
+ * Layout — App shell with animated background, header, and theme/help controls.
  */
 
 import React, { useState } from 'react';
@@ -28,32 +28,32 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
     const tourSteps: TourProps['steps'] = [
         {
-            title: 'ðŸ‘‹ Welcome to Data Intelligence Platform',
-            description: 'Upload any dataset â€” CSV, Excel, JSON, Parquet, XML, or SQL dump. The system handles everything automatically.',
+            title: '👋 Welcome to Data Intelligence Platform',
+            description: 'Upload any dataset — CSV, Excel, JSON, Parquet, XML, or SQL dump. The system handles everything automatically.',
             target: null,
         },
         {
-            title: 'ðŸ“Š Pillar 1: Smart Profiling',
-            description: 'After upload, every column is deeply profiled â€” types, distributions, quality, correlations, anomalies.',
+            title: '📊 Pillar 1: Smart Profiling',
+            description: 'After upload, every column is deeply profiled — types, distributions, quality, correlations, anomalies.',
             target: null,
         },
         {
-            title: 'ðŸ§¹ Pillar 2: Auto Preprocessing',
-            description: 'The AI Decision Engine recommends cleaning steps â€” duplicates, missing values, outliers, encoding, scaling. You approve or let it run autonomously.',
+            title: '🧹 Pillar 2: Auto Preprocessing',
+            description: 'The AI Decision Engine recommends cleaning steps — duplicates, missing values, outliers, encoding, scaling. You approve or let it run autonomously.',
             target: null,
         },
         {
-            title: 'ðŸ—ƒï¸ Pillar 3: SQL Query Engine',
+            title: '🗃ï¸ Pillar 3: SQL Query Engine',
             description: 'Query your data with a visual builder, raw SQL, or plain English. Auto-visualization suggests the best chart for every result.',
             target: null,
         },
         {
-            title: 'ðŸ“„ Pillar 4: Reporting & Export',
+            title: '📄 Pillar 4: Reporting & Export',
             description: 'Export full analysis reports (PDF, DOCX, HTML, Notebook), pipeline code, and data in 6+ formats.',
             target: null,
         },
         {
-            title: 'ðŸŒ— Theme & Settings',
+            title: '🌗 Theme & Settings',
             description: 'Toggle dark/light mode anytime. Your settings, queries, and pipeline state persist across sessions.',
             target: null,
         },

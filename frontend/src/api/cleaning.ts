@@ -2,11 +2,21 @@
  * API client for the Data Cleaning Pipeline.
  */
 
-import { API_BASE } from './ingestion';
+import { API_BASE, API_KEY } from './ingestion';
 import type { CleaningPlan, ActionResult } from '../types/cleaning';
 
+const fetchAuth = (url: RequestInfo | URL, init?: RequestInit) => {
+    return fetch(url, {
+        ...init,
+        headers: {
+            ...init?.headers,
+            'X-API-Key': API_KEY,
+        },
+    });
+};
+
 export async function analyzeCleaning(fileId: string): Promise<CleaningPlan> {
-    const res = await fetch(`${API_BASE}/cleaning/${fileId}/analyze`);
+    const res = await fetchAuth(`${API_BASE}/api/cleaning/${fileId}/analyze`);
     if (!res.ok) throw new Error(`Analyze failed: ${res.statusText}`);
     return res.json();
 }
@@ -16,9 +26,9 @@ export async function applyAction(
     actionIndex: number,
     selectedOption?: string,
 ): Promise<ActionResult> {
-    const url = new URL(`${API_BASE}/cleaning/${fileId}/apply/${actionIndex}`);
+    const url = new URL(`${API_BASE}/api/cleaning/${fileId}/apply/${actionIndex}`);
     if (selectedOption) url.searchParams.set('selected_option', selectedOption);
-    const res = await fetch(url.toString(), { method: 'POST' });
+    const res = await fetchAuth(url.toString(), { method: 'POST' });
     if (!res.ok) throw new Error(`Apply failed: ${res.statusText}`);
     return res.json();
 }
@@ -29,7 +39,7 @@ export async function applyAllDefinitive(fileId: string): Promise<{
     rows_after: number;
     columns_after: number;
 }> {
-    const res = await fetch(`${API_BASE}/cleaning/${fileId}/apply-all-definitive`, {
+    const res = await fetchAuth(`${API_BASE}/api/cleaning/${fileId}/apply-all-definitive`, {
         method: 'POST',
     });
     if (!res.ok) throw new Error(`Apply-all failed: ${res.statusText}`);
@@ -37,7 +47,7 @@ export async function applyAllDefinitive(fileId: string): Promise<{
 }
 
 export async function skipAction(fileId: string, actionIndex: number): Promise<void> {
-    const res = await fetch(`${API_BASE}/cleaning/${fileId}/skip/${actionIndex}`, {
+    const res = await fetchAuth(`${API_BASE}/api/cleaning/${fileId}/skip/${actionIndex}`, {
         method: 'POST',
     });
     if (!res.ok) throw new Error(`Skip failed: ${res.statusText}`);
@@ -49,7 +59,23 @@ export async function previewAction(fileId: string, actionIndex: number): Promis
     preview: { before: Record<string, unknown>[]; after: Record<string, unknown>[] } | null;
     impact: Record<string, unknown>;
 }> {
-    const res = await fetch(`${API_BASE}/cleaning/${fileId}/preview/${actionIndex}`);
+    const res = await fetchAuth(`${API_BASE}/api/cleaning/${fileId}/preview/${actionIndex}`);
     if (!res.ok) throw new Error(`Preview failed: ${res.statusText}`);
+    return res.json();
+}
+
+export async function getCellRepairs(fileId: string): Promise<{ repairs: any[] }> {
+    const res = await fetchAuth(`${API_BASE}/api/cleaning/${fileId}/cell-repair`, { method: 'POST' });
+    if (!res.ok) throw new Error(`Cell repair fetch failed: ${res.statusText}`);
+    return res.json();
+}
+
+export async function applyCellRepairs(fileId: string, repairs: any[]): Promise<{ status: string, applied_count: number }> {
+    const res = await fetchAuth(`${API_BASE}/api/cleaning/${fileId}/cell-repair/apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repairs }),
+    });
+    if (!res.ok) throw new Error(`Cell repair apply failed: ${res.statusText}`);
     return res.json();
 }

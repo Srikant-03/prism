@@ -1,5 +1,5 @@
-﻿/**
- * AggregationBuilder â€” GROUP BY + aggregate measures builder.
+/**
+ * AggregationBuilder — GROUP BY + aggregate measures builder.
  */
 
 import React from 'react';
