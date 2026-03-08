@@ -2,18 +2,9 @@
  * API client for the Data Cleaning Pipeline.
  */
 
-import { API_BASE, API_KEY } from './ingestion';
+import { fetchAuth, API_BASE } from './client';
 import type { CleaningPlan, ActionResult } from '../types/cleaning';
 
-const fetchAuth = (url: RequestInfo | URL, init?: RequestInit) => {
-    return fetch(url, {
-        ...init,
-        headers: {
-            ...init?.headers,
-            'X-API-Key': API_KEY,
-        },
-    });
-};
 
 export async function analyzeCleaning(fileId: string): Promise<CleaningPlan> {
     const res = await fetchAuth(`${API_BASE}/api/cleaning/${fileId}/analyze`);

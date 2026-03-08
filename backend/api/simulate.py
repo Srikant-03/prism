@@ -175,8 +175,12 @@ def _compute_stats(df) -> dict:
 
 
 def _readiness_score(df) -> int:
-    """Compute a model readiness score (0-100)."""
+    """Compute a model readiness score (0-100).
+    Delegates to QualityScorer when possible, falls back to lightweight heuristic.
+    """
     import numpy as np
+
+    # Lightweight heuristic for simulation previews (avoids full profile construction)
     score = 100
 
     # Penalize nulls

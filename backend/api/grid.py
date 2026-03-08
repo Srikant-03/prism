@@ -64,23 +64,22 @@ async def column_stats(column: str = Query(...)):
                 "max": row.get("max_value"),
             }
 
-            # Try numeric stats
+            # Try numeric stats via profiler utility
             try:
-                num_result = engine.execute(f"""
-                    SELECT
-                        AVG(CAST("{column}" AS DOUBLE)) as mean,
-                        MEDIAN(CAST("{column}" AS DOUBLE)) as median,
-                        STDDEV(CAST("{column}" AS DOUBLE)) as std_dev
-                    FROM "{table_name}"
-                    WHERE "{column}" IS NOT NULL
-                """)
-                if num_result["rows"]:
-                    nr = num_result["rows"][0]
-                    stats["mean"] = nr.get("mean")
-                    stats["median"] = nr.get("median")
-                    stats["std_dev"] = nr.get("std_dev")
+                from profiling.numeric_profiler import NumericProfiler
+                import pandas as pd
+                # Fetch the column data from the engine and profile it
+                col_result = engine.execute(f'SELECT "{column}" FROM "{table_name}" WHERE "{column}" IS NOT NULL')
+                if col_result["rows"]:
+                    series = pd.Series([r[column] for r in col_result["rows"]])
+                    if pd.api.types.is_numeric_dtype(series):
+                        profiler = NumericProfiler()
+                        num_profile = profiler.profile(series)
+                        stats["mean"] = num_profile.mean
+                        stats["median"] = num_profile.median
+                        stats["std_dev"] = num_profile.std_dev
             except Exception:
-                pass  # Not numeric
+                pass  # Not numeric or profiler unavailable
 
             return stats
         return {"error": "No data"}

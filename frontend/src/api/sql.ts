@@ -4,17 +4,8 @@
 
 import type { QuerySpec, QueryResult, TableInfo, ColumnInfo } from '../types/sql';
 
-import { API_BASE, API_KEY } from './ingestion';
+import { fetchAuth, API_BASE } from './client';
 
-const fetchAuth = (url: RequestInfo | URL, init?: RequestInit) => {
-    return fetch(url, {
-        ...init,
-        headers: {
-            ...init?.headers,
-            'X-API-Key': API_KEY,
-        },
-    });
-};
 
 export async function fetchTables(): Promise<TableInfo[]> {
     const res = await fetchAuth(`${API_BASE}/api/sql/tables`);

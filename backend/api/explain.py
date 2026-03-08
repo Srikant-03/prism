@@ -104,7 +104,9 @@ async def explain_column(request: ExplainRequest):
 
 
 def _generate_fallback(profile: dict) -> str:
-    """Generate a basic explanation if AI is unavailable."""
+    """Generate a basic explanation if AI is unavailable.
+    Uses inline heuristic templating (mirrors BriefingGenerator's column deep-dive approach).
+    """
     lines = []
     name = profile["name"]
     dtype = profile["dtype"]
@@ -125,6 +127,10 @@ def _generate_fallback(profile: dict) -> str:
         )
         if abs(profile.get("skewness", 0)) > 2:
             lines.append("The distribution is heavily skewed — consider log transformation.")
+        if profile.get("zeros", 0) > 0:
+            lines.append(f"Contains {profile['zeros']} zero values.")
+        if profile.get("negatives", 0) > 0:
+            lines.append(f"Contains {profile['negatives']} negative values.")
 
     if profile.get("correlations"):
         corr_str = ", ".join(f"{k} (r={v})" for k, v in list(profile["correlations"].items())[:3])
@@ -133,8 +139,12 @@ def _generate_fallback(profile: dict) -> str:
     if profile.get("top_values"):
         top_str = ", ".join(f"'{k}' ({v})" for k, v in list(profile["top_values"].items())[:5])
         lines.append(f"\nTop values: {top_str}.")
+        if profile.get("is_potential_id"):
+            lines.append("⚠️ This column has very high uniqueness — it may be an ID column with no analytical value.")
 
     if profile["null_pct"] > 20:
         lines.append(f"\n⚠️ High missing rate ({profile['null_pct']:.1f}%) — imputation or removal recommended.")
+    elif profile["null_pct"] > 5:
+        lines.append(f"\nModerate missing rate ({profile['null_pct']:.1f}%) — consider imputation strategy.")
 
     return "\n".join(lines)

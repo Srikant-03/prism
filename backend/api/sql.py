@@ -308,7 +308,6 @@ async def execute_cached(request: ExecuteRequest):
     engine = get_engine()
     sql = request.sql or ""
     if request.query_spec and not sql:
-        from sql.query_builder import QueryBuilder
         sql = QueryBuilder.build(request.query_spec)
     return engine.execute_cached(sql)
 
