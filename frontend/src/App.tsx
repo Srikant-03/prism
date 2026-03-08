@@ -3,9 +3,9 @@
  * Orchestrates the upload flow and conditionally renders appropriate UI.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ConfigProvider, theme, Alert, Button, Result, Tabs, FloatButton } from 'antd';
-import { ReloadOutlined, CodeOutlined, TableOutlined, FileTextOutlined, AppstoreOutlined, RobotOutlined } from '@ant-design/icons';
+import { ReloadOutlined, CodeOutlined, TableOutlined, FileTextOutlined, AppstoreOutlined, RobotOutlined, BulbOutlined } from '@ant-design/icons';
 import Layout from './components/common/Layout';
 import FileUploader from './components/upload/FileUploader';
 import UploadProgress from './components/upload/UploadProgress';
@@ -21,7 +21,9 @@ import ChatSidebar from './components/chat/ChatSidebar';
 import ThemeToggle from './components/common/ThemeToggle';
 import OnboardingWalkthrough from './components/common/OnboardingWalkthrough';
 import RelationshipGraph from './components/insights/RelationshipGraph';
+import HypothesisCards from './components/insights/HypothesisCards';
 import { ThemeProvider, useTheme } from './hooks/useTheme';
+import { fetchAuth, API_BASE } from './api/client';
 import { useUpload } from './hooks/useUpload';
 
 const App: React.FC = () => {
@@ -37,6 +39,34 @@ const App: React.FC = () => {
   const [chatOpen, setChatOpen] = useState(false);
   const [activeTabKey, setActiveTabKey] = useState('preview');
   const [pendingSqlQuery, setPendingSqlQuery] = useState<string | undefined>(undefined);
+
+  // Graph and hypothesis state
+  const [graphData, setGraphData] = useState<any>(null);
+  const [graphLoading, setGraphLoading] = useState(false);
+  const [graphThreshold, setGraphThreshold] = useState(0.3);
+  const [hypotheses, setHypotheses] = useState<any[]>([]);
+
+  // Fetch graph data when file is ready
+  useEffect(() => {
+    if (state.status === 'complete' && state.result?.file_id) {
+      setGraphLoading(true);
+      fetchAuth(`${API_BASE}/api/graph/${state.result.file_id}?threshold=${graphThreshold}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) setGraphData(data); })
+        .catch(() => { })
+        .finally(() => setGraphLoading(false));
+    }
+  }, [state.status, state.result?.file_id, graphThreshold]);
+
+  // Fetch hypotheses when file is ready
+  useEffect(() => {
+    if (state.status === 'complete' && state.result?.file_id) {
+      fetchAuth(`${API_BASE}/api/hypotheses/${state.result.file_id}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data?.hypotheses) setHypotheses(data.hypotheses); })
+        .catch(() => { });
+    }
+  }, [state.status, state.result?.file_id]);
 
   const handleChatAction = (action: any) => {
     if (action.type === 'sql' && action.payload) {
@@ -179,7 +209,34 @@ const App: React.FC = () => {
                   {
                     key: 'graph',
                     label: <span><AppstoreOutlined /> Relationship Graph</span>,
-                    children: <RelationshipGraph data={null} loading={false} />,
+                    children: (
+                      <RelationshipGraph
+                        data={graphData}
+                        loading={graphLoading}
+                        threshold={graphThreshold}
+                        onThresholdChange={setGraphThreshold}
+                      />
+                    ),
+                  },
+                  {
+                    key: 'hypotheses',
+                    label: <span><BulbOutlined /> Hypotheses</span>,
+                    children: (
+                      <HypothesisCards
+                        hypotheses={hypotheses}
+                        onStatusChange={(id, status) => {
+                          setHypotheses(prev =>
+                            prev.map(h => h.id === id ? { ...h, status } : h)
+                          );
+                        }}
+                        onAction={(action) => {
+                          if (action.type === 'sql') {
+                            setPendingSqlQuery(action.payload);
+                            setActiveTabKey('sql');
+                          }
+                        }}
+                      />
+                    ),
                   },
                 ]}
               />

@@ -126,18 +126,56 @@ async def auto_profile(file_id: str) -> ProfilingResult | None:
 
 @router.post("/schema-override/{file_id}")
 async def override_schema(file_id: str, request: SchemaOverrideRequest):
-    """Override the inferred data type for a specific column."""
+    """Override the inferred data type for a specific column and re-coerce it."""
+    import pandas as pd
+
     if file_id not in _profile_store:
         raise HTTPException(status_code=404, detail="Profile not found.")
-    
-    result = _profile_store[file_id]
-    ds = result.profile
-    
-    # Store override metadata (in a real app this would trigger a re-profile or update the DF)
-    ds.metadata["schema_overrides"] = ds.metadata.get("schema_overrides", {})
-    ds.metadata["schema_overrides"][request.column] = request.new_type
-    
-    return {"status": "success", "message": f"Overrode {request.column} to {request.new_type}"}
+
+    # Get the stored DataFrame and coerce the column
+    df = get_stored_dataframe(file_id)
+    if df is None:
+        raise HTTPException(status_code=404, detail="Dataset not found.")
+
+    if request.column not in df.columns:
+        raise HTTPException(status_code=400, detail=f"Column '{request.column}' not found.")
+
+    new_type = request.new_type.lower().strip()
+    try:
+        if new_type in ("int", "int64", "integer"):
+            df[request.column] = pd.to_numeric(df[request.column], errors="coerce").astype("Int64")
+        elif new_type in ("float", "float64", "numeric", "number"):
+            df[request.column] = pd.to_numeric(df[request.column], errors="coerce")
+        elif new_type in ("datetime", "date", "timestamp"):
+            df[request.column] = pd.to_datetime(df[request.column], errors="coerce")
+        elif new_type in ("category", "categorical"):
+            df[request.column] = df[request.column].astype("category")
+        elif new_type in ("bool", "boolean"):
+            df[request.column] = df[request.column].astype(bool)
+        elif new_type in ("str", "string", "text", "object"):
+            df[request.column] = df[request.column].astype(str)
+        else:
+            df[request.column] = df[request.column].astype(new_type)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to coerce '{request.column}' to {new_type}: {str(e)}")
+
+    # Update the stored DataFrame
+    try:
+        from api.upload import _storage
+        if file_id in _storage:
+            _storage[file_id]["df"] = df
+    except Exception:
+        pass
+
+    # Invalidate profile cache so next request re-profiles with the new type
+    if file_id in _profile_store:
+        del _profile_store[file_id]
+
+    return {
+        "status": "success",
+        "message": f"Coerced '{request.column}' to {new_type} and invalidated profile cache.",
+        "new_dtype": str(df[request.column].dtype),
+    }
 
 # ──────────────────────────────────────────
 # Insights Exports
