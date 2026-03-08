@@ -24,16 +24,35 @@ class KeyDetector:
 
     @staticmethod
     def detect_primary_keys(df: pd.DataFrame) -> list[KeyCandidate]:
-        """Find columns or column combinations with 100% uniqueness."""
+        """Find columns or column combinations with 100% uniqueness with realistic constraints."""
         if df.empty:
             return []
 
         candidates: list[KeyCandidate] = []
         n = len(df)
+        
+        # If the dataset is too small, everything looks like a primary key
+        # We will use stricter rules for tiny datasets (< 50 rows)
+        is_tiny = n < 50
+
+        # Helper to check if a column name looks like an ID
+        def looks_like_id(col_name: str) -> bool:
+            cl = col_name.lower()
+            return any(k in cl for k in ['id', 'uuid', 'guid', 'pk', 'key', 'code', 'slug', 'no', 'num'])
 
         # Single-column primary keys
         for col in df.columns:
             if df[col].nunique() == n and df[col].notna().all():
+                # For floats, it's highly unlikely to be a primary key (e.g., GDP, ratios)
+                if pd.api.types.is_float_dtype(df[col]):
+                    continue
+                
+                # For tiny datasets, only suggest it if it looks like an ID or is an integer sequence
+                score = 100
+                if is_tiny:
+                    if not (looks_like_id(col) or pd.api.types.is_integer_dtype(df[col])):
+                        continue # Skip random unique strings/ints in tiny datasets if they don't look like IDs
+
                 candidates.append(KeyCandidate(
                     columns=[col],
                     uniqueness=1.0,
@@ -43,9 +62,13 @@ class KeyDetector:
                     ),
                 ))
 
-        # If no single-column PK, try 2-column combinations (capped)
-        if not candidates and len(df.columns) <= 30:
-            non_null_cols = [c for c in df.columns if df[c].notna().all()]
+        # Prioritize columns that look like IDs
+        candidates.sort(key=lambda c: 0 if looks_like_id(c.columns[0]) else 1)
+
+        # If no single-column PK, try 2-column combinations
+        # Only do this if we have enough rows to avoid spurious matches, or if we have no other choice
+        if not candidates and len(df.columns) <= 30 and n >= 20:
+            non_null_cols = [c for c in df.columns if df[c].notna().all() and not pd.api.types.is_float_dtype(df[c])]
             for combo in combinations(non_null_cols[:15], 2):
                 combined = df[list(combo)].apply(tuple, axis=1)
                 if combined.nunique() == n:
@@ -57,7 +80,7 @@ class KeyDetector:
                             f"100% unique values — composite primary key candidate."
                         ),
                     ))
-                    if len(candidates) >= 5:
+                    if len(candidates) >= 3:
                         break
 
         return candidates
