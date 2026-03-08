@@ -1,9 +1,11 @@
 import google.generativeai as genai
 import sys
 
+import os
+
 # Test the first key which previously failed
-key = "AIzaSyCzGltXEXjKYBX1G219PqdkiI23mQHmWxs"
-print(f"Testing Key: ...{key[-4:]}")
+key = os.environ.get("GEMINI_API_KEY", "")
+print(f"Testing Key: ...{key[-4:] if len(key) >= 4 else 'NONE'}")
 
 try:
     genai.configure(api_key=key)
