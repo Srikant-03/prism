@@ -12,13 +12,14 @@ from fastapi import APIRouter, HTTPException, Response
 from profiling.engine import DataProfiler
 from profiling.profiling_models import ProfilingResult
 from ingestion.orchestrator import get_stored_data, get_stored_dataframe
+from ingestion.orchestrator import TTLStore
 from insights.export_service import ExportService
 from api.models import SchemaOverrideRequest
 
 router = APIRouter(prefix="/api", tags=["profiling"])
 
-# In-memory store for profiling results
-_profile_store: dict[str, ProfilingResult] = {}
+# Bounded store for profiling results (50 entries, 2hr TTL)
+_profile_store: TTLStore = TTLStore(max_entries=50, ttl_seconds=7200)
 
 
 def get_stored_profile(file_id: str) -> ProfilingResult | None:

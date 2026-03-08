@@ -12,8 +12,16 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/watchlist", tags=["watchlist"])
 
-# In-memory watchlist store
+# Capped in-memory watchlist (max 500 items — evicts oldest on overflow)
+_MAX_WATCHLIST = 500
 _watchlist: list[dict] = []
+
+
+def _append_bounded(entry: dict):
+    """Append to _watchlist with capacity enforcement."""
+    _watchlist.append(entry)
+    while len(_watchlist) > _MAX_WATCHLIST:
+        _watchlist.pop(0)
 
 
 class WatchlistItem(BaseModel):
@@ -59,7 +67,7 @@ async def add_item(item: WatchlistItem):
         "note": "",
         "created_at": time.time(),
     }
-    _watchlist.append(entry)
+    _append_bounded(entry)
     return entry
 
 
@@ -80,7 +88,7 @@ async def bulk_add(items: list[WatchlistItem]):
             "note": "",
             "created_at": time.time(),
         }
-        _watchlist.append(entry)
+        _append_bounded(entry)
         added.append(entry)
     return {"added": len(added), "total": len(_watchlist)}
 

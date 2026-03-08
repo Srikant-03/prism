@@ -14,10 +14,12 @@ from api.profiling import get_stored_profile
 from cleaning.cell_repair import generate_repairs
 from api.models import CellRepairRequest
 
+from ingestion.orchestrator import TTLStore
+
 router = APIRouter(prefix="/api/cleaning", tags=["cleaning"])
 
-# In-memory store for cleaning state
-_cleaning_store: dict[str, dict] = {}
+# Bounded store for cleaning state (50 entries, 2hr TTL)
+_cleaning_store: TTLStore = TTLStore(max_entries=50, ttl_seconds=7200)
 
 
 def _get_engine(file_id: str) -> DecisionEngine:
