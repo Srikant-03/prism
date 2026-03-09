@@ -78,6 +78,11 @@ async def upload_file(request: Request, files: List[UploadFile] = File(...)) -> 
 
         # ── Read content & enforce file-size limit ───────────────────
         content = await upload_file.read()
+        if len(content) == 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Uploaded file '{upload_file.filename}' is empty (0 bytes).",
+            )
         if config.MAX_FILE_SIZE and len(content) > config.MAX_FILE_SIZE:
             size_mb = len(content) / (1024 * 1024)
             limit_mb = config.MAX_FILE_SIZE / (1024 * 1024)

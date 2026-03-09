@@ -14,6 +14,10 @@ import numpy as np
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+import json
+
+from llm.api_manager import with_llm_failover, HAS_GENAI
+import google.generativeai as genai
 
 router = APIRouter(prefix="/api/story", tags=["story"])
 
@@ -205,30 +209,24 @@ async def generate_story(request: StoryRequest):
             "content": "\n".join(feat_lines),
         })
 
-        # ── 8. AI Narrative ──────────────────────────────────────────
-        briefing = None
+        # ── 8 & 9. AI Narrative & Recommendations ────────────────────
+        ai_briefing = "Run full profiling with insights to generate an AI analyst briefing."
+        rec_lines = []
+
+        # Default heuristic extraction
         if insights:
             b = getattr(insights, "briefing", None) or (insights.get("briefing") if isinstance(insights, dict) else None)
             if b:
                 exec_summary = getattr(b, "executive_summary", None) or (b.get("executive_summary") if isinstance(b, dict) else None)
                 key_findings = getattr(b, "key_findings", None) or (b.get("key_findings") if isinstance(b, dict) else [])
+                actions = getattr(b, "recommended_actions", None) or (b.get("recommended_actions") if isinstance(b, dict) else [])
+                
                 if exec_summary:
                     findings_str = "\n".join(f"• {f}" for f in (key_findings or [])[:4])
-                    briefing = f"{exec_summary}\n\n{findings_str}" if findings_str else exec_summary
-
-        slides.append({
-            "id": _uid(), "type": "insight",
-            "title": "AI Analyst Narrative",
-            "content": briefing or "Run full profiling with insights to generate an AI analyst briefing.",
-        })
-
-        # ── 9. Recommendations ───────────────────────────────────────
-        rec_lines = []
-        if insights:
-            b = getattr(insights, "briefing", None) or (insights.get("briefing") if isinstance(insights, dict) else None)
-            if b:
-                actions = getattr(b, "recommended_actions", None) or (b.get("recommended_actions") if isinstance(b, dict) else [])
+                    ai_briefing = f"{exec_summary}\n\n{findings_str}" if findings_str else exec_summary
+                
                 rec_lines = [f"• {a}" for a in (actions or [])[:5]]
+
         if not rec_lines:
             if null_total > 0:
                 rec_lines.append("• Impute or investigate high-null columns before modeling.")
@@ -238,6 +236,52 @@ async def generate_story(request: StoryRequest):
                 rec_lines.append("• Check multicollinearity among correlated features.")
             if not rec_lines:
                 rec_lines.append("• Dataset appears clean. Proceed to feature engineering.")
+
+        # Attempt to upgrade to real Gemini LLM if available
+        if HAS_GENAI and profile:
+            try:
+                @with_llm_failover(max_retries=2, tier_rpm=15)
+                async def _get_gemini_story():
+                    from config import AppConfig
+                    model_name = AppConfig.llm.MODEL_WORKHORSE if hasattr(AppConfig, "llm") else "gemini-1.5-flash"
+                    model = genai.GenerativeModel(model_name)
+                    
+                    profile_dump = profile.model_dump() if hasattr(profile, "model_dump") else (profile.dict() if hasattr(profile, "dict") else profile)
+                    # Strip heavy sample values to save tokens
+                    for col in profile_dump.get("columns", []):
+                        col.pop("sample_values", None)
+                        
+                    prompt = (
+                        f"You are a senior data scientist. Based on the following JSON data profile, generate a concise analyst briefing.\n"
+                        f"Return EXACTLY this JSON format, nothing else:\n"
+                        f"{{\n"
+                        f"  \"narrative\": \"[2-3 sentences summarizing the dataset, its quality, and its most interesting statistical features]\",\n"
+                        f"  \"recommendations\": [\"[Actionable step 1]\", \"[Actionable step 2]\", \"[Actionable step 3]\"]\n"
+                        f"}}\n\n"
+                        f"Profile JSON:\n{json.dumps(profile_dump)[:15000]}"
+                    )
+                    
+                    response = model.generate_content(prompt)
+                    text = response.text.replace("```json", "").replace("```", "").strip()
+                    return json.loads(text)
+                
+                # Run the LLM call
+                llm_res = await _get_gemini_story()
+                if "narrative" in llm_res:
+                    ai_briefing = llm_res["narrative"]
+                if "recommendations" in llm_res and isinstance(llm_res["recommendations"], list):
+                    rec_lines = [f"• {r}" for r in llm_res["recommendations"]]
+                    
+            except Exception as e:
+                # Fall silently back to heuristics if Gemini fails, API key is missing, or JSON parsing fails
+                pass
+
+        slides.append({
+            "id": _uid(), "type": "insight",
+            "title": "AI Analyst Narrative",
+            "content": ai_briefing,
+        })
+
         slides.append({
             "id": _uid(), "type": "insight",
             "title": "Recommendations",

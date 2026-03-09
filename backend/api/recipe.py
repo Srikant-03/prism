@@ -72,6 +72,7 @@ def _guess_category(action_value: str) -> str:
 class RecipeStep(BaseModel):
     action: str
     column: Optional[str] = None
+    columns: list[str] = []
     params: dict = {}
 
 
@@ -233,7 +234,7 @@ async def save_from_session(request: SaveFromSessionRequest):
             column = cols[0] if cols else None
             params = getattr(entry, "metadata", {})
 
-        steps.append(RecipeStep(action=str(action), column=column, params=params or {}))
+        steps.append(RecipeStep(action=str(action), column=column, columns=list(cols), params=params or {}))
 
     recipe_data = {
         "name": request.recipe_name,
@@ -289,6 +290,12 @@ async def _execute_recipe(
             if mapped_col and column_mapping:
                 mapped_col = column_mapping.get(mapped_col, mapped_col)
 
+            mapped_cols = []
+            if getattr(step, "columns", None):
+                mapped_cols = [column_mapping.get(c, c) for c in step.columns]
+            elif mapped_col:
+                mapped_cols = [mapped_col]
+
             # Resolve ActionType
             try:
                 action_type = ActionType(step.action)
@@ -330,7 +337,7 @@ async def _execute_recipe(
                 evidence=f"Recipe '{recipe_name}' step {i + 1}",
                 recommendation=f"Apply {action_type.value}",
                 reasoning=f"From recipe '{recipe_name}'",
-                target_columns=[mapped_col] if mapped_col else [],
+                target_columns=mapped_cols,
                 metadata=params,
             )
 

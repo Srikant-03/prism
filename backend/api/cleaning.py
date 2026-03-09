@@ -112,11 +112,13 @@ async def skip_action(file_id: str, action_index: int):
     if file_id not in _cleaning_store:
         raise HTTPException(status_code=400, detail="Run analyze first.")
 
-    plan: CleaningPlan = _cleaning_store[file_id]["plan"]
+    store = _cleaning_store[file_id]
+    plan: CleaningPlan = store["plan"]
     if action_index < 0 or action_index >= len(plan.actions):
         raise HTTPException(status_code=400, detail=f"Invalid action index: {action_index}")
 
     plan.actions[action_index].status = ActionStatus.SKIPPED
+    _cleaning_store[file_id] = store  # Explicitly save back to store
     return {"status": "skipped", "action_index": action_index}
 
 
@@ -156,10 +158,13 @@ async def apply_cell_repairs(file_id: str, request: CellRepairRequest):
         raise HTTPException(status_code=404, detail="File not found")
         
     for repair in request.repairs:
-        col = repair.get("column")
-        idx = repair.get("row_index")
-        val = repair.get("suggested_value")
+        col = repair.model_dump().get("column") if hasattr(repair, "model_dump") else repair.get("column")
+        idx = repair.model_dump().get("row_index") if hasattr(repair, "model_dump") else repair.get("row_index")
+        val = repair.model_dump().get("suggested_value") if hasattr(repair, "model_dump") else repair.get("suggested_value")
         if col in df.columns and idx in df.index:
             df.at[idx, col] = val
+            
+    from state import set_df
+    set_df(file_id, df)
             
     return {"status": "success", "applied_count": len(request.repairs)}

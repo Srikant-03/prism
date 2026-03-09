@@ -111,7 +111,17 @@ def _t_test(data: dict) -> dict:
     from scipy import stats
     group_a = np.array(data.get("group_a", []), dtype=float)
     group_b = np.array(data.get("group_b", []), dtype=float)
-    stat, p = stats.ttest_ind(group_a[~np.isnan(group_a)], group_b[~np.isnan(group_b)])
+    
+    a_clean = group_a[~np.isnan(group_a)]
+    b_clean = group_b[~np.isnan(group_b)]
+    
+    if len(a_clean) < 2 or len(b_clean) < 2:
+        raise ValueError("Insufficient data points for Independent Samples t-test")
+        
+    if np.var(a_clean) == 0 and np.var(b_clean) == 0:
+        raise ValueError("Both groups have zero variance, t-test cannot be performed")
+
+    stat, p = stats.ttest_ind(a_clean, b_clean)
     sig = p < 0.05
     return {
         "test": "Independent Samples t-test",
@@ -129,7 +139,14 @@ def _mann_whitney(data: dict) -> dict:
     from scipy import stats
     group_a = np.array(data.get("group_a", []), dtype=float)
     group_b = np.array(data.get("group_b", []), dtype=float)
-    stat, p = stats.mannwhitneyu(group_a[~np.isnan(group_a)], group_b[~np.isnan(group_b)])
+    
+    a_clean = group_a[~np.isnan(group_a)]
+    b_clean = group_b[~np.isnan(group_b)]
+    
+    if len(a_clean) < 1 or len(b_clean) < 1:
+        raise ValueError("Insufficient data points for Mann-Whitney U Test")
+
+    stat, p = stats.mannwhitneyu(a_clean, b_clean)
     sig = p < 0.05
     return {
         "test": "Mann-Whitney U Test",
@@ -147,6 +164,13 @@ def _anova(data: dict) -> dict:
     from scipy import stats
     groups = [np.array(g, dtype=float) for g in data.get("groups", [])]
     groups = [g[~np.isnan(g)] for g in groups]
+    
+    if len(groups) < 2:
+        raise ValueError("ANOVA requires at least 2 groups")
+    
+    if any(len(g) == 0 for g in groups):
+        raise ValueError("All ANOVA groups must have at least one valid data point")
+        
     stat, p = stats.f_oneway(*groups)
     sig = p < 0.05
     return {
@@ -167,7 +191,17 @@ def _chi_squared(data: dict) -> dict:
     if table.size == 0:
         col_a = data.get("column_a", [])
         col_b = data.get("column_b", [])
+        if not col_a or not col_b:
+            raise ValueError("Missing categorical data for Chi-Squared test")
         table = pd.crosstab(pd.Series(col_a), pd.Series(col_b)).values
+        
+    if table.size == 0 or min(table.shape) < 2:
+        raise ValueError("Contingency table must be at least 2x2")
+        
+    expected_freq = stats.contingency.expected_freq(table)
+    if (expected_freq == 0).any():
+        raise ValueError("Contingency table has zero expected frequencies")
+
     stat, p, dof, expected = stats.chi2_contingency(table)
     sig = p < 0.05
     return {
@@ -188,7 +222,14 @@ def _pearson(data: dict) -> dict:
     x = np.array(data.get("x", []), dtype=float)
     y = np.array(data.get("y", []), dtype=float)
     mask = ~(np.isnan(x) | np.isnan(y))
-    r, p = stats.pearsonr(x[mask], y[mask])
+    x_clean, y_clean = x[mask], y[mask]
+    
+    if len(x_clean) < 2:
+        raise ValueError("Insufficient data points for Pearson Correlation")
+    if np.var(x_clean) == 0 or np.var(y_clean) == 0:
+        raise ValueError("Constant input array; Pearson Correlation is undefined")
+
+    r, p = stats.pearsonr(x_clean, y_clean)
     strength = "strong" if abs(r) > 0.7 else "moderate" if abs(r) > 0.4 else "weak"
     direction = "positive" if r > 0 else "negative"
     return {
@@ -208,7 +249,14 @@ def _spearman(data: dict) -> dict:
     x = np.array(data.get("x", []), dtype=float)
     y = np.array(data.get("y", []), dtype=float)
     mask = ~(np.isnan(x) | np.isnan(y))
-    r, p = stats.spearmanr(x[mask], y[mask])
+    x_clean, y_clean = x[mask], y[mask]
+    
+    if len(x_clean) < 2:
+        raise ValueError("Insufficient data points for Spearman Correlation")
+    if np.var(x_clean) == 0 or np.var(y_clean) == 0:
+        raise ValueError("Constant input array; Spearman Correlation is undefined")
+
+    r, p = stats.spearmanr(x_clean, y_clean)
     strength = "strong" if abs(r) > 0.7 else "moderate" if abs(r) > 0.4 else "weak"
     return {
         "test": "Spearman Rank Correlation",

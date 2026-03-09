@@ -98,8 +98,11 @@ async def _run_monitor_job(job_id: str):
         # Simulate fetching new data from origin
         # In a real system, you'd use httpx or read_csv from the origin URL
         # For demonstration purposes, we'll pretend we fetched slightly worse data
-        if "http" in origin_url:
-            raise NotImplementedError("HTTP fetching not fully implemented in demo mode.")
+        if origin_url.startswith("http"):
+            try:
+                new_df = pd.read_csv(origin_url)
+            except Exception as e:
+                raise ValueError(f"Failed to fetch or parse external URL {origin_url}: {e}")
         elif origin_url.endswith(".csv"):
             new_df = pd.read_csv(origin_url)
         else:

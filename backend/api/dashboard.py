@@ -38,8 +38,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["dashboard"])
 
-# Bounded store for saved dashboards (100 entries, 24hr TTL)
-_dashboard_store: TTLStore = TTLStore(max_entries=100, ttl_seconds=86400)
+# Internal state store for dashboard results to avoid re-aggregating continuously
+_dashboard_store: TTLStore = TTLStore("dashboard_local_cache", max_entries=100, ttl_seconds=86400)
 
 
 def _get_schema_for_file(file_id: str) -> dict:

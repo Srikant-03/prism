@@ -18,7 +18,7 @@ from api.models import SchemaOverrideRequest
 router = APIRouter(prefix="/api", tags=["profiling"])
 
 # Bounded store for profiling results (50 entries, 2hr TTL)
-_profile_store: TTLStore = TTLStore(max_entries=50, ttl_seconds=7200)
+_profile_store: TTLStore = TTLStore("profiling_local_cache", max_entries=50, ttl_seconds=7200)
 
 
 def get_stored_profile(file_id: str) -> ProfilingResult | None:
