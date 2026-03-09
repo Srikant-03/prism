@@ -43,6 +43,9 @@ from api.stats import router as stats_router
 from api.explain import router as explain_router
 from api.hypotheses import router as hypotheses_router
 from api.dashboard import router as dashboard_router
+from api.drift import router as drift_router
+from api.hypothesis_testing import router as hypothesis_testing_router
+from api.joins import router as joins_router
 
 
 @asynccontextmanager
@@ -125,6 +128,9 @@ def create_app() -> FastAPI:
     app.include_router(explain_router, dependencies=[Depends(verify_api_key)])
     app.include_router(hypotheses_router, dependencies=[Depends(verify_api_key)])
     app.include_router(dashboard_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(drift_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(hypothesis_testing_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(joins_router, dependencies=[Depends(verify_api_key)])
 
     @app.get("/")
     @limiter.exempt
