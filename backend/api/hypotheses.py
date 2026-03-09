@@ -20,7 +20,11 @@ async def get_hypotheses(file_id: str):
         if stored is None:
             raise HTTPException(status_code=404, detail="Profile not found — upload and profile a file first.")
 
-        profile = stored.get("profile")
+        if isinstance(stored, dict):
+            profile = stored.get("profile")
+        else:
+            profile = getattr(stored, "profile", None)
+
         if profile is None:
             raise HTTPException(status_code=404, detail="Profiling data missing for this file.")
 
@@ -46,7 +50,11 @@ async def get_hypotheses(file_id: str):
         if "row_count" not in profile_dict and "total_rows" in profile_dict:
             profile_dict["row_count"] = profile_dict["total_rows"]
 
-        quality = stored.get("quality")
+        if isinstance(stored, dict):
+            quality = stored.get("quality")
+        else:
+            quality = getattr(stored, "quality", None) or getattr(stored, "quality_score", None)
+
         quality_dict = None
         if quality is not None:
             if hasattr(quality, "model_dump"):

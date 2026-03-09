@@ -14,8 +14,15 @@ def generate_hypotheses(profile: dict, quality: dict = None) -> list[dict]:
 
     columns_profile = profile.get("columns", {})
     row_count = profile.get("row_count", 0)
+    
+    if isinstance(columns_profile, dict):
+        col_items = columns_profile.items()
+    elif isinstance(columns_profile, list):
+        col_items = [(col.get("name", "unknown"), col) for col in columns_profile if isinstance(col, dict)]
+    else:
+        col_items = []
 
-    for col_name, col_info in columns_profile.items():
+    for col_name, col_info in col_items:
         dtype = col_info.get("inferred_dtype", col_info.get("dtype", ""))
         null_pct = col_info.get("null_percentage", col_info.get("null_pct", 0))
         unique_count = col_info.get("distinct_count", col_info.get("unique_count", 0))
@@ -131,7 +138,7 @@ def generate_hypotheses(profile: dict, quality: dict = None) -> list[dict]:
             })
 
     # Class imbalance detection
-    for col_name, col_info in columns_profile.items():
+    for col_name, col_info in col_items:
         categorical_profile = col_info.get("categorical") or {}
         if isinstance(categorical_profile, dict):
             top_values = categorical_profile.get("top_values", [])
