@@ -435,7 +435,7 @@ class ReportGenerator:
         if not recs:
             recs.append("Dataset is ready for downstream analysis or modeling.")
 
-        content = "\n".join(f"• {r}" for r in recs)
+        content = "\n".join(f"- {r}" for r in recs)
         return ReportSection("Recommended Next Steps", content)
 
 
@@ -567,25 +567,31 @@ class ReportExporter:
         pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
 
+        def sanitize_text(text: str) -> str:
+            if not isinstance(text, str):
+                text = str(text)
+            # Replace common unsupported FPDF unicode chars
+            return text.replace("—", "-").replace("×", "x").replace("…", "...").replace("’", "'").replace("‘", "'").replace("•", "-").replace("“", '"').replace("”", '"')
+
         # Title
         pdf.set_font("Arial", "B", 16)
-        pdf.cell(0, 12, report.title, ln=True, align="C")
+        pdf.cell(0, 12, sanitize_text(report.title), ln=True, align="C")
         pdf.set_font("Arial", "", 10)
-        pdf.cell(0, 6, f"Generated: {report.generated_at}", ln=True, align="C")
+        pdf.cell(0, 6, sanitize_text(f"Generated: {report.generated_at}"), ln=True, align="C")
         pdf.ln(8)
 
         for section in report.sections:
             pdf.set_font("Arial", "B", 13)
-            pdf.cell(0, 10, section.title, ln=True)
+            pdf.cell(0, 10, sanitize_text(section.title), ln=True)
             pdf.set_font("Arial", "", 10)
             # Clean markdown bold markers
             text = section.content.replace("**", "")
-            pdf.multi_cell(0, 5, text)
+            pdf.multi_cell(0, 5, sanitize_text(text))
             pdf.ln(3)
 
             for table in section.tables:
                 pdf.set_font("Arial", "B", 10)
-                pdf.cell(0, 7, table.get("title", ""), ln=True)
+                pdf.cell(0, 7, sanitize_text(table.get("title", "")), ln=True)
 
                 headers = table.get("headers", [])
                 rows_data = table.get("rows", [])
@@ -595,13 +601,13 @@ class ReportExporter:
                 col_w = min(180 // len(headers), 50)
                 pdf.set_font("Arial", "B", 8)
                 for h in headers:
-                    pdf.cell(col_w, 6, str(h)[:20], border=1)
+                    pdf.cell(col_w, 6, sanitize_text(str(h)[:20]), border=1)
                 pdf.ln()
 
                 pdf.set_font("Arial", "", 8)
                 for row in rows_data[:30]:
                     for val in row:
-                        pdf.cell(col_w, 5, str(val)[:20], border=1)
+                        pdf.cell(col_w, 5, sanitize_text(str(val)[:20]), border=1)
                     pdf.ln()
                 pdf.ln(3)
 
