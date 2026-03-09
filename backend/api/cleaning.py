@@ -9,17 +9,12 @@ from fastapi import APIRouter, HTTPException
 
 from cleaning.decision_engine import DecisionEngine
 from cleaning.cleaning_models import CleaningPlan, ActionResult, ActionStatus
-from state import get_stored_dataframe, get_stored_data
+from state import get_stored_dataframe, get_stored_data, cleaning_store as _cleaning_store
 from api.profiling import get_stored_profile
 from cleaning.cell_repair import generate_repairs
 from api.models import CellRepairRequest
 
-from ingestion.orchestrator import TTLStore
-
 router = APIRouter(prefix="/api/cleaning", tags=["cleaning"])
-
-# Bounded store for cleaning state (50 entries, 2hr TTL)
-_cleaning_store: TTLStore = TTLStore(max_entries=50, ttl_seconds=7200)
 
 
 def _get_engine(file_id: str) -> DecisionEngine:
