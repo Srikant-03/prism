@@ -130,6 +130,7 @@ class InterpretRequest(BaseModel):
 class InterpretResponse(BaseModel):
     """Response from prompt interpretation — either a config or a clarification."""
     success: bool = True
+    error: Optional[str] = None
     config: Optional[ChartConfig] = None
     clarification: Optional[ClarificationRequest] = None
     sql: Optional[str] = None

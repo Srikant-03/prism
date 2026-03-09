@@ -31,7 +31,7 @@ def _agg_to_sql(agg: AggregationType) -> str:
         AggregationType.MAX: "MAX",
         AggregationType.MEDIAN: "MEDIAN",
         AggregationType.NONE: "",
-    }.get(agg, "SUM")
+    }.get(agg, "")
 
 
 def _filter_to_condition(f: FilterCondition) -> dict:
@@ -196,10 +196,14 @@ def _fallback_sql(
 
     if config.chart_type == ChartType.KPI:
         col = config.kpi_value_column or config.y_axis or "*"
+        
+        # Don't quote "*" 
+        col_str = f'"{col}"' if col != "*" else "*"
+            
         if agg_fn:
-            select_parts.append(f"{agg_fn}({col}) AS value")
+            select_parts.append(f"{agg_fn}({col_str}) AS value")
         else:
-            select_parts.append(f"{col} AS value")
+            select_parts.append(f"{col_str} AS value")
     else:
         if config.x_axis:
             select_parts.append(f'"{config.x_axis}"')
@@ -221,16 +225,25 @@ def _fallback_sql(
     if filters:
         conditions = []
         for f in filters:
+            col = f.column.replace('"', '""') # Basic identifier escaping
             if f.operator == "is_null":
-                conditions.append(f'"{f.column}" IS NULL')
+                conditions.append(f'"{col}" IS NULL')
             elif f.operator == "is_not_null":
-                conditions.append(f'"{f.column}" IS NOT NULL')
+                conditions.append(f'"{col}" IS NOT NULL')
             elif f.operator == "in" and f.values:
-                vals = ", ".join(f"'{v}'" for v in f.values)
-                conditions.append(f'"{f.column}" IN ({vals})')
+                # Basic escaping for string values
+                vals = ", ".join(f"'{str(v).replace(chr(39), chr(39)*2)}'" for v in f.values)
+                conditions.append(f'"{col}" IN ({vals})')
+            elif f.operator == "not_in" and f.values:
+                vals = ", ".join(f"'{str(v).replace(chr(39), chr(39)*2)}'" for v in f.values)
+                conditions.append(f'"{col}" NOT IN ({vals})')
+            elif f.operator == "between" and f.values and len(f.values) >= 2:
+                v1 = str(f.values[0]).replace(chr(39), chr(39)*2)
+                v2 = str(f.values[1]).replace(chr(39), chr(39)*2)
+                conditions.append(f'"{col}" BETWEEN \'{v1}\' AND \'{v2}\'')
             else:
-                val = f"'{f.value}'" if isinstance(f.value, str) else str(f.value)
-                conditions.append(f'"{f.column}" {f.operator} {val}')
+                val = str(f.value).replace(chr(39), chr(39)*2)
+                conditions.append(f'"{col}" {f.operator} \'{val}\'')
         if conditions:
             parts.append("WHERE " + " AND ".join(conditions))
 
