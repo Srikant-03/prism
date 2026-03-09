@@ -11,6 +11,7 @@ import json
 import logging
 import re
 from typing import Optional
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ from dashboard.chart_config_models import (
     FilterCondition,
     ClarificationRequest,
 )
+from llm.api_manager import with_llm_failover
 
 
 # ── System Prompt ──
@@ -111,6 +113,41 @@ def _parse_config_from_dict(data: dict, current_config: Optional[ChartConfig] = 
     return ChartConfig(**{k: v for k, v in data.items() if v is not None})
 
 
+@with_llm_failover(tier_rpm=5)
+async def _execute_interpretation_prompt(full_prompt: str, system_prompt: str) -> genai.types.GenerateContentResponse:
+    model = genai.GenerativeModel("gemini-2.0-flash")
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None,
+        lambda: model.generate_content(
+            [
+                {"role": "user", "parts": [system_prompt]},
+                {"role": "model", "parts": ["I understand. I will return only valid JSON chart configurations."]},
+                {"role": "user", "parts": [full_prompt]},
+            ],
+            generation_config=genai.GenerationConfig(
+                temperature=0.1,
+                response_mime_type="application/json",
+            )
+        )
+    )
+
+@with_llm_failover(tier_rpm=2)
+async def _execute_followup_prompt(prompt: str) -> genai.types.GenerateContentResponse:
+    model = genai.GenerativeModel("gemini-2.0-flash")
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None,
+        lambda: model.generate_content(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                temperature=0.7,
+                response_mime_type="application/json",
+            )
+        )
+    )
+
+
 async def interpret_prompt(
     message: str,
     schema: dict,
@@ -144,25 +181,8 @@ async def interpret_prompt(
     full_prompt = "\n".join(parts)
 
     try:
-        from llm.api_manager import with_llm_failover
-
-        @with_llm_failover(tier_rpm=5)
-        async def _call_gemini():
-            model = genai.GenerativeModel("gemini-2.0-flash")
-            response = model.generate_content(
-                [
-                    {"role": "user", "parts": [SYSTEM_PROMPT]},
-                    {"role": "model", "parts": ["I understand. I will return only valid JSON chart configurations."]},
-                    {"role": "user", "parts": [full_prompt]},
-                ],
-                generation_config=genai.GenerationConfig(
-                    temperature=0.1,
-                    response_mime_type="application/json",
-                ),
-            )
-            return response.text
-
-        response_text = await _call_gemini()
+        response = await _execute_interpretation_prompt(full_prompt, SYSTEM_PROMPT)
+        response_text = response.text
         data = _extract_json(response_text)
 
         if data is None:
@@ -313,8 +333,6 @@ async def suggest_follow_ups(
         return _fallback_suggestions(current_config)
 
     try:
-        from llm.api_manager import with_llm_failover
-
         schema_desc = _build_schema_description(schema)
         config_str = current_config.model_dump_json(indent=2) if current_config else "No chart yet."
 
@@ -326,19 +344,8 @@ async def suggest_follow_ups(
             f"\"Filter to last 30 days\", \"Break down by category\". Return ONLY the JSON array."
         )
 
-        @with_llm_failover(tier_rpm=2)
-        async def _call():
-            model = genai.GenerativeModel("gemini-2.0-flash")
-            response = model.generate_content(
-                prompt,
-                generation_config=genai.GenerationConfig(
-                    temperature=0.7,
-                    response_mime_type="application/json",
-                ),
-            )
-            return response.text
-
-        text = await _call()
+        response = await _execute_followup_prompt(prompt)
+        text = response.text
         data = _extract_json(text)
         if isinstance(data, list):
             return [str(s) for s in data[:6]]
