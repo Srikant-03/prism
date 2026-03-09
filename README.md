@@ -392,12 +392,15 @@ Every result includes a **plain English interpretation**.
 - **Hypothesis Generator** — Automatically surfaces interesting statistical relationships across column pairs with insight cards
 - **Column Relationship Graph** — Force-directed network visualization of correlations (zoom, pan, drag, threshold slider)
 - **Explain This Column (AI)** — Natural language description of any column's likely meaning, quality risks, and downstream use cases
-- **Dataset Comparison (Diff)** — Side-by-side before/after statistics for every column
-- **Anomaly Watchlist** — Bookmark and track data quality issues across sessions
-- **Data Story Builder** — Auto-generates a slide sequence (title, KPIs, insights, recommendations) exportable as HTML
-- **Data Recipe System** — Save cleaning pipelines as reusable recipes, apply to new datasets
+- **Schema Drift Detector** — Compare two versions of a dataset side-by-side. Highlights new/removed columns, type changes, distribution shifts (Population Stability Index & KS-test), and quality score deltas.
+- **Multi-Dataset Join Workbench** — Visual builder to merge datasets. Uses foreign key detection to suggest optimal join conditions, warns on N:M cardinality explosions, and saves the merged result as a new working table.
+- **ML Readiness Report Card** — After cleaning, generates a scorecard assessing class imbalance, target prediction confidence, missing value ceilings, and overall readiness for machine learning.
+- **Scheduled Data Freshness Monitor** — Register a URL/path to poll on a schedule. Prism re-ingests, diffs against the baseline profile, and alerts on schema changes or quality drops on your Watchlist.
+- **Data Story Generator (AI)** — Auto-generates a 10-slide narrative presentation (title, KPIs, insights, executive summary, recommendations) using Gemini, exportable as an HTML deck.
+- **Data Recipe Library** — Save your visual cleaning pipelines as reusable recipes. One-click apply recipes to new datasets with intelligent cross-dataset column mapping.
+- **Anomaly Watchlist** — Bookmark and track specific data quality issues across sessions
 - **Collaborative Annotations** — Attach notes to cells, columns, or rows; persisted per dataset
-- **Column Tagging / Metadata** — Tag columns with custom metadata labels
+- **Zero-Config Persistence** — All uploads, profiles, annotations, recipes, and cleaning sessions are persisted automatically using lightweight local `diskcache`. Close the app and resume exactly where you left off.
 
 ---
 
