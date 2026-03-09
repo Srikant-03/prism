@@ -18,3 +18,10 @@ backend/uploads/
 backend/temp/
 backend/data/
 *.log
+
+# Temp/debug output files
+*.txt
+!requirements.txt
+!README.txt
+*.ps1
+profiling_debug.log
