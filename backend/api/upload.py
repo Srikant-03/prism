@@ -29,7 +29,8 @@ from models.schemas import (
     ProgressUpdate,
     SheetSelectionRequest,
 )
-from ingestion.orchestrator import IngestionOrchestrator, get_stored_data, get_stored_dataframe
+from ingestion.orchestrator import IngestionOrchestrator
+from state import get_stored_data, get_stored_dataframe
 from ingestion.malformed_handler import MalformedHandler
 from ingestion.schema_comparator import SchemaComparator
 from api.profiling import auto_profile
@@ -293,7 +294,8 @@ async def resolve_multi_file(request: MultiFileResolveRequest):
 
         # Register merged result
         try:
-            register_table_from_upload(merged_df, "merged_dataset", "merged", request.file_ids[0])
+            table_name = f"merged_{request.file_ids[0][:8]}"
+            register_table_from_upload(merged_df, table_name, "merged", request.file_ids[0])
         except Exception as e:
             logger.error("Failed to auto-register merged dataset: %s", e)
 

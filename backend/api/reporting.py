@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from reporting.report_generator import ReportGenerator, ReportExporter, FullReport
 from reporting.code_exporter import CodeExporter
 from reporting.data_exporter import DataExporter
-from ingestion.orchestrator import get_stored_dataframe, get_stored_data
+from state import get_stored_dataframe, get_stored_data
 
 router = APIRouter(prefix="/api/reporting", tags=["reporting"])
 

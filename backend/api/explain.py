@@ -22,7 +22,7 @@ async def explain_column(request: ExplainRequest):
     try:
         import numpy as np
         import pandas as pd
-        from ingestion.orchestrator import get_stored_dataframe
+        from state import get_stored_dataframe
 
         df = get_stored_dataframe(request.file_id)
         if df is None:

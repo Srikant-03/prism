@@ -24,7 +24,7 @@ async def run_stat_test(request: TestRequest):
     """Run a statistical test on the dataset."""
     try:
         import numpy as np
-        from ingestion.orchestrator import get_stored_dataframe
+        from state import get_stored_dataframe
         from insights.stat_tests import run_test
 
         df = get_stored_dataframe(request.file_id)
@@ -88,7 +88,7 @@ async def run_stat_test(request: TestRequest):
 async def suggest_tests(file_id: str):
     """Suggest appropriate tests for the current dataset."""
     try:
-        from ingestion.orchestrator import get_stored_dataframe
+        from state import get_stored_dataframe
         from insights.stat_tests import suggest_tests
 
         df = get_stored_dataframe(file_id)

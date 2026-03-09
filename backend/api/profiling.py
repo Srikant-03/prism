@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException, Response
 
 from profiling.engine import DataProfiler
 from profiling.profiling_models import ProfilingResult
-from ingestion.orchestrator import get_stored_data, get_stored_dataframe
+from state import get_stored_data, get_stored_dataframe, profile_store as _profile_store
 from ingestion.orchestrator import TTLStore
 from insights.export_service import ExportService
 from api.models import SchemaOverrideRequest
@@ -162,7 +162,7 @@ async def override_schema(file_id: str, request: SchemaOverrideRequest):
 
     # Update the stored DataFrame
     try:
-        from ingestion.orchestrator import update_stored_dataframe
+        from state import update_stored_dataframe
         update_stored_dataframe(file_id, df)
     except Exception:
         pass

@@ -13,8 +13,7 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/collab", tags=["collab"])
 
-# In-memory store for annotations (per-session)
-_annotations: dict[str, list[dict]] = {}
+from state import annotation_store as _annotations
 
 
 class Annotation(BaseModel):

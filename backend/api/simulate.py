@@ -30,7 +30,7 @@ class SimRequest(BaseModel):
 async def simulate_chain(request: SimRequest):
     """Simulate a chain of preprocessing steps on a sample."""
     try:
-        from ingestion.orchestrator import get_stored_dataframe
+        from state import get_stored_dataframe
         from cleaning.simulation_utils import apply_step, compute_stats, readiness_score
 
         df = get_stored_dataframe(request.file_id)
@@ -79,7 +79,7 @@ async def simulate_chain(request: SimRequest):
 async def commit_steps(request: SimRequest):
     """Apply steps to the full dataset (commit simulation)."""
     try:
-        from ingestion.orchestrator import get_stored_dataframe, update_stored_dataframe
+        from state import get_stored_dataframe, update_stored_dataframe
         from cleaning.simulation_utils import apply_step
 
         df = get_stored_dataframe(request.file_id)

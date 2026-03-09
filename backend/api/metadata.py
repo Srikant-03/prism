@@ -11,8 +11,7 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/metadata", tags=["metadata"])
 
-# In-memory tag store: file_id -> { column_name -> { tag, custom, notes } }
-_tag_store: dict[str, dict[str, dict]] = {}
+from state import tag_store as _tag_store
 
 
 class TagRequest(BaseModel):
@@ -25,7 +24,7 @@ class TagRequest(BaseModel):
 async def detect_tags(file_id: str):
     """Auto-detect semantic tags for all columns."""
     try:
-        from ingestion.orchestrator import get_stored_dataframe
+        from state import get_stored_dataframe
 
         df = get_stored_dataframe(file_id)
         if df is None:
@@ -83,7 +82,7 @@ async def detect_tags(file_id: str):
 async def save_tag(file_id: str, request: TagRequest):
     """Save a custom tag for a column (persists across detect calls)."""
     try:
-        from ingestion.orchestrator import get_stored_dataframe
+        from state import get_stored_dataframe
 
         df = get_stored_dataframe(file_id)
         if df is None:

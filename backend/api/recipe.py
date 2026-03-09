@@ -13,8 +13,7 @@ from api.profiling import get_stored_profile
 
 router = APIRouter(prefix="/api/recipe", tags=["recipe"])
 
-# In-memory recipe library
-_recipe_store: dict[str, dict] = {}
+from state import recipe_store as _recipe_store
 
 # Map action prefixes to ActionCategory for automatic categorization
 _ACTION_TO_CATEGORY = {
@@ -113,7 +112,7 @@ async def apply_recipe(request: ApplyRecipeRequest):
         from cleaning.cleaning_models import (
             CleaningAction, ActionType, ActionCategory, ActionConfidence,
         )
-        from ingestion.orchestrator import get_stored_dataframe, update_stored_dataframe
+        from state import get_stored_dataframe, update_stored_dataframe
 
         df = get_stored_dataframe(request.file_id)
         if df is None:

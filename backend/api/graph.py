@@ -14,7 +14,7 @@ router = APIRouter(prefix="/api/graph", tags=["graph"])
 async def get_graph(file_id: str, threshold: float = 0.3):
     """Retrieve the relationship graph for a dataset."""
     try:
-        from ingestion.orchestrator import get_stored_dataframe
+        from state import get_stored_dataframe
 
         df = get_stored_dataframe(file_id)
         if df is None:

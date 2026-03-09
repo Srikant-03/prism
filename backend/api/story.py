@@ -28,7 +28,7 @@ class ExportStoryRequest(BaseModel):
 async def generate_story(request: StoryRequest):
     """Auto-generate a data story (slide deck) from real profiling insights."""
     try:
-        from ingestion.orchestrator import get_stored_dataframe
+        from state import get_stored_dataframe
         from api.profiling import get_stored_profile
 
         df = get_stored_dataframe(request.file_id)
@@ -183,7 +183,7 @@ async def export_story(request: ExportStoryRequest):
     """Export the data story as an HTML or PDF file."""
     try:
         from reporting.report_generator import ReportGenerator, ReportExporter
-        from ingestion.orchestrator import get_stored_dataframe
+        from state import get_stored_dataframe
         from api.profiling import get_stored_profile
 
         df = get_stored_dataframe(request.file_id)

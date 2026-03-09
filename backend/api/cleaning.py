@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException
 
 from cleaning.decision_engine import DecisionEngine
 from cleaning.cleaning_models import CleaningPlan, ActionResult, ActionStatus
-from ingestion.orchestrator import get_stored_dataframe, get_stored_data
+from state import get_stored_dataframe, get_stored_data
 from api.profiling import get_stored_profile
 from cleaning.cell_repair import generate_repairs
 from api.models import CellRepairRequest

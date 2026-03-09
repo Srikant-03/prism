@@ -19,7 +19,7 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
-from ingestion.orchestrator import TTLStore, get_stored_dataframe, get_stored_data
+from state import TTLStore, get_stored_dataframe, get_stored_data
 
 from dashboard.chart_config_models import (
     ChartConfig,
@@ -108,7 +108,8 @@ async def interpret(request: InterpretRequest):
     except Exception as e:
         logger.warning("SQL execution failed after interpretation: %s", e)
         return InterpretResponse(
-            success=True,
+            success=False,
+            error=str(e),
             config=config,
             sql=None,
             data=None,
@@ -124,7 +125,8 @@ async def query(request: QueryRequest):
         data = _execute_sql(request.file_id, sql)
         return {"sql": sql, "data": data, "row_count": len(data)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Query execution failed: %s", e)
+        raise HTTPException(status_code=500, detail="Query execution failed. Please check your data and configuration.")
 
 
 @router.post("/api/dashboard/suggest")
@@ -150,7 +152,10 @@ def _execute_sql(file_id: str, sql: str) -> list[dict]:
         if df is None:
             return []
         try:
-            result_df = duckdb.query(sql).to_df()
+            table_name = _get_table_name(file_id)
+            conn = duckdb.connect()
+            conn.register(table_name, df)
+            result_df = conn.execute(sql).df()
             return result_df.to_dict(orient="records")
         except Exception as e:
             logger.error("DuckDB execution failed: %s", e)
@@ -164,9 +169,15 @@ def _execute_sql(file_id: str, sql: str) -> list[dict]:
 @router.post("/api/dashboards")
 async def save_dashboard(dashboard: DashboardModel):
     """Save a dashboard configuration."""
-    dashboard.updated_at = time.time()
-    if not dashboard.created_at:
+    existing = _dashboard_store.get(dashboard.id)
+    if existing:
+        if existing.get("file_id") != dashboard.file_id:
+            raise HTTPException(status_code=403, detail="Cannot overwrite dashboard belonging to another file.")
+        dashboard.created_at = existing.get("created_at", time.time())
+    else:
         dashboard.created_at = time.time()
+        
+    dashboard.updated_at = time.time()
     _dashboard_store[dashboard.id] = dashboard.model_dump()
     return {"id": dashboard.id, "status": "saved"}
 
