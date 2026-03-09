@@ -5,7 +5,7 @@
 import React from 'react';
 import { Spin, Empty, Alert } from 'antd';
 import { LoadingOutlined } from '@ant-design/icons';
-import { ChartConfig } from '../../types/dashboard';
+import type { ChartConfig } from '../../types/dashboard';
 
 // Lazy-load chart components
 import DashboardBarChart from './charts/BarChart';

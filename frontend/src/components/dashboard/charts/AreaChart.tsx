@@ -6,7 +6,8 @@ import {
     AreaChart as RechartsArea, Area, XAxis, YAxis, CartesianGrid,
     Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
-import { ChartConfig, COLOR_PALETTES } from '../../types/dashboard';
+import { COLOR_PALETTES } from "../../../types/dashboard";
+import type { ChartConfig } from "../../../types/dashboard";
 
 interface Props { config: ChartConfig; data: Record<string, any>[]; }
 

@@ -2,13 +2,14 @@
  * DashboardCanvas — react-grid-layout responsive grid for dashboard widgets.
  */
 import React from 'react';
-import RGL, { WidthProvider } from 'react-grid-layout';
+import RGL, { WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import type { Widget } from '../../types/dashboard';
 import WidgetContainer from './WidgetContainer';
 
-const GridLayout = WidthProvider(RGL as any);
+// @ts-ignore – legacy HOC wrapper; runtime props are correct
+const GridLayout = WidthProvider(RGL) as any;
 
 interface LayoutItem {
     i: string;
