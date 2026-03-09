@@ -6,11 +6,20 @@ Provides full dataset awareness across all pillars.
 from __future__ import annotations
 
 import json
+import logging
+import asyncio # Added for _execute_chat_prompt
 from typing import Any, Optional
 
 import google.generativeai as genai
 from config import LLMConfig
 from llm.api_manager import with_llm_failover
+
+logger = logging.getLogger(__name__)
+
+@with_llm_failover(tier_rpm=10)
+async def _execute_chat_prompt(model, contents) -> Any:
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, lambda: model.generate_content(contents))
 
 
 # ── Context builder ──────────────────────────────────────────────────
@@ -127,11 +136,7 @@ class ChatEngine:
         contents.append({"role": "user", "parts": [{"text": message}]})
 
         try:
-            @with_llm_failover(tier_rpm=10)
-            def do_generate():
-                return self.model.generate_content(contents)
-                
-            response = await do_generate()
+            response = await _execute_chat_prompt(self.model, contents)
             text = response.text
 
             # Parse action blocks from response
