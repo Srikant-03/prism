@@ -85,6 +85,12 @@ class ReportGenerator:
         if profile_data:
             report.add_section(ReportGenerator._dataset_overview(profile_data))
 
+        # 2.5 Data completeness heatmap
+        if profile_data and "columns" in profile_data:
+            completeness = ReportGenerator._data_completeness(profile_data)
+            if completeness:
+                report.add_section(completeness)
+
         # 3. Data quality assessment
         if insights_data and "quality_score" in insights_data:
             report.add_section(ReportGenerator._quality_assessment(
@@ -93,6 +99,18 @@ class ReportGenerator:
         # 4. Profiling findings
         if profile_data and "columns" in profile_data:
             report.add_section(ReportGenerator._profiling_findings(profile_data))
+
+        # 4.5 Numeric distribution analysis
+        if profile_data and "columns" in profile_data:
+            dist = ReportGenerator._distribution_analysis(profile_data)
+            if dist:
+                report.add_section(dist)
+
+        # 4.6 Correlation analysis
+        if profile_data:
+            corr = ReportGenerator._correlation_analysis(profile_data)
+            if corr:
+                report.add_section(corr)
 
         # 5. Preprocessing decisions log
         if audit_log:
@@ -181,24 +199,84 @@ class ReportGenerator:
 
         # Column type breakdown table
         columns = profile.get("columns", [])
+        if isinstance(columns, dict):
+            columns = list(columns.values())
         type_counts = {}
         for c in columns:
-            t = c.get("semantic_type", c.get("ui_type", "unknown"))
-            type_counts[t] = type_counts.get(t, 0) + 1
+            if isinstance(c, dict):
+                t = c.get("semantic_type", c.get("ui_type", "unknown"))
+                type_counts[t] = type_counts.get(t, 0) + 1
+
+        # Compute summary stats for intro
+        num_numeric = sum(1 for c in columns if isinstance(c, dict) and c.get("inferred_dtype", c.get("dtype", "")) in ("int64", "float64", "int32", "float32"))
+        num_cat = sum(1 for c in columns if isinstance(c, dict) and c.get("inferred_dtype", c.get("dtype", "")) in ("object", "category", "string", "bool"))
+        avg_null = 0
+        if columns:
+            avg_null = sum(c.get("null_percentage", 0) for c in columns if isinstance(c, dict)) / len(columns)
+
+        content += (
+            f" The feature space is composed of **{num_numeric}** numeric and **{num_cat}** categorical variables. "
+            f"Average feature-level missing rate is **{avg_null:.2f}%**."
+        )
 
         tables = [{
-            "title": "Column Type Distribution",
-            "headers": ["Type", "Count"],
+            "title": "Feature Type Distribution",
+            "headers": ["Semantic Type", "Count"],
             "rows": [[t, str(c)] for t, c in sorted(type_counts.items())],
         }]
 
         charts = [{
             "type": "pie",
-            "title": "Column Types Breakdown",
+            "title": "Feature Types Breakdown",
             "data": [{"label": str(t), "value": c} for t, c in sorted(type_counts.items())]
         }]
 
         return ReportSection("Dataset Overview", content, tables=tables, charts=charts)
+
+    @staticmethod
+    def _data_completeness(profile: dict) -> ReportSection | None:
+        """Data completeness analysis with bar chart."""
+        columns = profile.get("columns", [])
+        if isinstance(columns, dict):
+            columns = list(columns.values())
+
+        completeness_data = []
+        for c in columns:
+            if not isinstance(c, dict):
+                continue
+            null_pct = c.get("null_percentage", c.get("null_pct", 0))
+            completeness = 100.0 - null_pct
+            completeness_data.append({
+                "label": c.get("name", "unknown"),
+                "value": round(completeness, 1)
+            })
+
+        if not completeness_data:
+            return None
+
+        # Sort by completeness (lowest first to highlight problems)
+        completeness_data.sort(key=lambda x: x["value"])
+
+        fully_complete = sum(1 for d in completeness_data if d["value"] >= 100)
+        sparse = sum(1 for d in completeness_data if d["value"] < 70)
+
+        content = (
+            f"Out of {len(completeness_data)} features, **{fully_complete}** are fully populated (100% completeness). "
+        )
+        if sparse > 0:
+            content += f"**{sparse}** feature(s) have completeness below 70%, which may require imputation or removal before modeling. "
+        else:
+            content += "All features exhibit healthy completeness levels above 70%. "
+
+        content += "The chart below visualizes how complete each feature is across the dataset."
+
+        charts = [{
+            "type": "bar",
+            "title": "Feature Completeness (%)",
+            "data": completeness_data[:20]
+        }]
+
+        return ReportSection("Data Completeness Analysis", content, charts=charts)
 
     @staticmethod
     def _quality_assessment(quality: dict) -> ReportSection:
@@ -228,10 +306,14 @@ class ReportGenerator:
     def _profiling_findings(profile: dict) -> ReportSection:
         """Per-column profiling stats."""
         columns = profile.get("columns", [])
+        if isinstance(columns, dict):
+            columns = list(columns.values())
 
         rows_data = []
         null_data = []
-        for c in columns[:50]:  # Limit to 50 columns
+        for c in columns[:50]:
+            if not isinstance(c, dict):
+                continue
             null_pct = c.get('null_percentage', c.get('null_pct', 0))
             rows_data.append([
                 c.get("name", ""),
@@ -244,22 +326,184 @@ class ReportGenerator:
                 null_data.append({"label": c.get("name", ""), "value": float(null_pct)})
 
         tables = [{
-            "title": "Column Statistics",
-            "headers": ["Column", "Type", "Nulls %", "Unique", "Semantic Type"],
+            "title": "Feature Catalog",
+            "headers": ["Feature", "Data Type", "Missing %", "Distinct Values", "Semantic Type"],
             "rows": rows_data,
         }]
-        
+
+        # Numeric summary sub-table
+        numeric_rows = []
+        for c in columns[:50]:
+            if not isinstance(c, dict):
+                continue
+            dtype = c.get("inferred_dtype", c.get("dtype", ""))
+            if dtype not in ("int64", "float64", "int32", "float32"):
+                continue
+            num = c.get("numeric") or {}
+            if not isinstance(num, dict):
+                continue
+            numeric_rows.append([
+                c.get("name", ""),
+                f"{num.get('mean', 0):.2f}",
+                f"{num.get('std', 0):.2f}",
+                f"{num.get('min', 0):.2f}",
+                f"{num.get('percentile_25', num.get('q1', 0)):.2f}",
+                f"{num.get('median', num.get('percentile_50', 0)):.2f}",
+                f"{num.get('percentile_75', num.get('q3', 0)):.2f}",
+                f"{num.get('max', 0):.2f}",
+            ])
+
+        if numeric_rows:
+            tables.append({
+                "title": "Descriptive Statistics (Numeric Features)",
+                "headers": ["Feature", "Mean", "Std Dev", "Min", "Q1 (25%)", "Median", "Q3 (75%)", "Max"],
+                "rows": numeric_rows,
+            })
+
         charts = []
         if null_data:
             null_data.sort(key=lambda x: x["value"], reverse=True)
             charts.append({
                 "type": "bar",
-                "title": "Missing Values (%) by Column",
+                "title": "Missing Values (%) by Feature",
                 "data": null_data[:15]
             })
 
-        content = f"The following table summarizes the structural data types, sparsity (missing value percentages), and cardinality (distinct values) for the top {len(columns)} features."
+        content = f"The following table summarizes the structural data types, sparsity (missing value percentages), and cardinality (distinct values) for all {len(columns)} features."
+        if numeric_rows:
+            content += f" A separate descriptive statistics table is included for {len(numeric_rows)} numeric features, showing central tendency (mean, median) and spread (std, quartiles)."
+
         return ReportSection("Statistical Profiling & Feature Distributions", content, tables=tables, charts=charts)
+
+    @staticmethod
+    def _distribution_analysis(profile: dict) -> ReportSection | None:
+        """Analyze distributions of numeric columns — skewness, kurtosis."""
+        columns = profile.get("columns", [])
+        if isinstance(columns, dict):
+            columns = list(columns.values())
+
+        dist_rows = []
+        skew_chart = []
+        for c in columns:
+            if not isinstance(c, dict):
+                continue
+            dtype = c.get("inferred_dtype", c.get("dtype", ""))
+            if dtype not in ("int64", "float64", "int32", "float32"):
+                continue
+            num = c.get("numeric") or {}
+            if not isinstance(num, dict):
+                continue
+            skew = num.get("skewness")
+            kurt = num.get("kurtosis")
+            if skew is None and kurt is None:
+                continue
+
+            skew_val = skew if skew is not None else 0
+            kurt_val = kurt if kurt is not None else 0
+
+            # Interpret skewness
+            if abs(skew_val) < 0.5:
+                skew_interp = "Approximately symmetric"
+            elif skew_val > 0:
+                skew_interp = f"Right-skewed ({skew_val:.2f})"
+            else:
+                skew_interp = f"Left-skewed ({skew_val:.2f})"
+
+            # Interpret kurtosis
+            if abs(kurt_val) < 1:
+                kurt_interp = "Mesokurtic (normal-like)"
+            elif kurt_val > 0:
+                kurt_interp = f"Leptokurtic/heavy-tailed ({kurt_val:.2f})"
+            else:
+                kurt_interp = f"Platykurtic/light-tailed ({kurt_val:.2f})"
+
+            dist_rows.append([
+                c.get("name", ""),
+                f"{skew_val:.3f}",
+                skew_interp,
+                f"{kurt_val:.3f}",
+                kurt_interp,
+            ])
+            skew_chart.append({"label": c.get("name", ""), "value": round(abs(skew_val), 2)})
+
+        if not dist_rows:
+            return None
+
+        skew_chart.sort(key=lambda x: x["value"], reverse=True)
+
+        tables = [{
+            "title": "Distribution Shape Analysis",
+            "headers": ["Feature", "Skewness", "Interpretation", "Kurtosis", "Interpretation"],
+            "rows": dist_rows,
+        }]
+
+        charts = [{
+            "type": "bar",
+            "title": "Absolute Skewness by Feature (higher = more asymmetric)",
+            "data": skew_chart[:15]
+        }]
+
+        heavily_skewed = sum(1 for r in dist_rows if abs(float(r[1])) > 2)
+        content = (
+            f"Distribution shape analysis for {len(dist_rows)} numeric features. "
+        )
+        if heavily_skewed:
+            content += (
+                f"**{heavily_skewed}** feature(s) exhibit severe skewness (|skew| > 2), indicating "
+                f"a long tail that may distort linear model assumptions. "
+                f"Consider log or Box-Cox transformations for these features before fitting parametric models."
+            )
+        else:
+            content += "All numeric features exhibit moderate or near-symmetric distributions."
+
+        return ReportSection("Distribution Shape Analysis", content, tables=tables, charts=charts)
+
+    @staticmethod
+    def _correlation_analysis(profile: dict) -> ReportSection | None:
+        """Analyze correlations from the profile."""
+        cross = profile.get("cross_analysis") or {}
+        correlations = cross.get("correlations") or profile.get("correlations") or {}
+
+        if isinstance(correlations, dict) and correlations:
+            corr_rows = []
+            strong_pairs = []
+            for pair, val in correlations.items():
+                if not isinstance(val, (int, float)):
+                    continue
+                strength = "Strong" if abs(val) > 0.7 else ("Moderate" if abs(val) > 0.4 else "Weak")
+                direction = "Positive" if val > 0 else "Negative"
+                corr_rows.append([str(pair), f"{val:.3f}", direction, strength])
+                if abs(val) > 0.7:
+                    strong_pairs.append({"label": str(pair)[:30], "value": round(abs(val), 3)})
+
+            if corr_rows:
+                corr_rows.sort(key=lambda r: abs(float(r[1])), reverse=True)
+
+                tables = [{
+                    "title": "Feature Correlation Matrix (Top Pairs)",
+                    "headers": ["Feature Pair", "Correlation (r)", "Direction", "Strength"],
+                    "rows": corr_rows[:20],
+                }]
+
+                charts = []
+                if strong_pairs:
+                    strong_pairs.sort(key=lambda x: x["value"], reverse=True)
+                    charts.append({
+                        "type": "bar",
+                        "title": "Strongly Correlated Feature Pairs (|r| > 0.7)",
+                        "data": strong_pairs[:10]
+                    })
+
+                strong_count = sum(1 for r in corr_rows if r[3] == "Strong")
+                content = (
+                    f"Pairwise Pearson correlation analysis identified **{len(corr_rows)}** feature pairs. "
+                    f"**{strong_count}** pair(s) exhibit strong correlation (|r| > 0.7), suggesting potential "
+                    f"multicollinearity. These should be examined before training regression or gradient-based models "
+                    f"to avoid inflated coefficient variance."
+                )
+                return ReportSection("Correlation & Multicollinearity Analysis", content, tables=tables, charts=charts)
+
+        return None
 
     @staticmethod
     def _preprocessing_log(audit_log: list[dict]) -> ReportSection:
