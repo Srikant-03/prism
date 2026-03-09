@@ -13,7 +13,7 @@ def generate_hypotheses(profile: dict, quality: dict = None) -> list[dict]:
     hypotheses = []
 
     columns_profile = profile.get("columns", {})
-    row_count = profile.get("row_count", 0)
+    row_count = profile.get("row_count") or profile.get("total_rows", 0)
     
     if isinstance(columns_profile, dict):
         col_items = columns_profile.items()
