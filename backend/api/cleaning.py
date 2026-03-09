@@ -71,8 +71,8 @@ async def apply_action(file_id: str, action_index: int, selected_option: str | N
     action.status = ActionStatus.APPLIED
 
     # Update stored DataFrame so subsequent actions operate on the cleaned data
-    from ingestion.orchestrator import update_stored_dataframe
-    update_stored_dataframe(file_id, new_df)
+    from state import set_df
+    set_df(file_id, new_df)
 
     return result.model_dump()
 
@@ -93,8 +93,8 @@ async def apply_all_definitive(file_id: str):
     new_df, results = engine.apply_all_definitive(plan)
 
     # Update stored DataFrame
-    from ingestion.orchestrator import update_stored_dataframe
-    update_stored_dataframe(file_id, new_df)
+    from state import set_df
+    set_df(file_id, new_df)
 
     return {
         "results": [r.model_dump() for r in results],

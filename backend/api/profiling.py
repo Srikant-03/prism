@@ -11,8 +11,7 @@ from fastapi import APIRouter, HTTPException, Response
 
 from profiling.engine import DataProfiler
 from profiling.profiling_models import ProfilingResult
-from state import get_stored_data, get_stored_dataframe, profile_store as _profile_store
-from ingestion.orchestrator import TTLStore
+from state import get_stored_data, get_stored_dataframe, TTLStore, profile_store as _profile_store
 from insights.export_service import ExportService
 from api.models import SchemaOverrideRequest
 

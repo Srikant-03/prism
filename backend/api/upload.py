@@ -234,8 +234,8 @@ async def confirm_malformed(request: MalformedConfirmRequest):
                 df = df.iloc[valid_indices].reset_index(drop=True)
 
     # Update stored dataframe so profiling/cleaning use the corrected data
-    from ingestion.orchestrator import update_stored_dataframe
-    update_stored_dataframe(request.file_id, df)
+    from state import set_df
+    set_df(request.file_id, df)
 
     config = IngestionConfig()
     preview_data = df.head(config.PREVIEW_ROWS).fillna("").to_dict(orient="records")
