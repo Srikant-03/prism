@@ -140,25 +140,31 @@ async def suggest(request: SuggestPromptsRequest):
 def _execute_sql(file_id: str, sql: str) -> list[dict]:
     """Execute SQL against the DuckDB engine and return rows as dicts."""
     try:
-        from sql.engine import execute_query
-        result = execute_query(file_id, sql)
+        from api.sql import get_engine
+        engine = get_engine()
+        result = engine.execute(sql)
         if isinstance(result, dict):
-            return result.get("rows", [])
+            if result.get("success"):
+                return result.get("rows", [])
+            else:
+                logger.warning("SQL execution error: %s", result.get("error", "unknown"))
+                return []
         return []
-    except ImportError:
-        # Fallback: execute directly on the DataFrame
-        import duckdb
-        df = get_stored_dataframe(file_id)
-        if df is None:
-            return []
+    except Exception as e:
+        logger.error("Dashboard SQL execution failed: %s", e)
+        # Fallback: try direct DuckDB with DataFrame registration
         try:
+            import duckdb
+            df = get_stored_dataframe(file_id)
+            if df is None:
+                return []
             table_name = _get_table_name(file_id)
             conn = duckdb.connect()
             conn.register(table_name, df)
             result_df = conn.execute(sql).df()
             return result_df.to_dict(orient="records")
-        except Exception as e:
-            logger.error("DuckDB execution failed: %s", e)
+        except Exception as fallback_err:
+            logger.error("Dashboard fallback SQL also failed: %s", fallback_err)
             return []
 
 

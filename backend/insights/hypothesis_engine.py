@@ -44,8 +44,8 @@ def generate_hypotheses(profile: dict, quality: dict = None) -> list[dict]:
         except Exception:
             cross = {}
 
-    # Target info
-    target_info = cross.get("target_analysis") or cross.get("target") or {}
+    # Target info — CrossColumnProfile serializes as 'target', but some contexts use 'target_analysis'
+    target_info = cross.get("target") or cross.get("target_analysis") or {}
     if not isinstance(target_info, dict):
         try:
             target_info = target_info.__dict__
