@@ -9,7 +9,7 @@ import {
     BulbOutlined, PlayCircleOutlined,
 } from '@ant-design/icons';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+import { fetchAuth, API_BASE } from '../../api/client';
 
 interface TestResult {
     test: string;
@@ -48,7 +48,7 @@ const StatTestPanel: React.FC<Props> = ({ columns, fileId }) => {
         if (!selectedTest || !column1) return;
         setLoading(true);
         try {
-            const res = await fetch(`${API_BASE}/api/stats/test`, {
+            const res = await fetchAuth(`${API_BASE}/api/stats/test`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

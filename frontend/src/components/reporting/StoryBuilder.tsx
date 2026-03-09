@@ -10,7 +10,7 @@ import {
     EditOutlined,
 } from '@ant-design/icons';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+import { fetchAuth, API_BASE } from '../../api/client';
 
 interface Slide {
     id: string;
@@ -80,7 +80,7 @@ const StoryBuilder: React.FC<Props> = ({ fileId }) => {
     const autoGenerate = useCallback(async () => {
         setGenerating(true);
         try {
-            const res = await fetch(`${API_BASE}/api/story/generate`, {
+            const res = await fetchAuth(`${API_BASE}/api/story/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ file_id: fileId }),
@@ -96,7 +96,7 @@ const StoryBuilder: React.FC<Props> = ({ fileId }) => {
 
     const exportStory = useCallback(async (format: 'html' | 'pdf') => {
         try {
-            const res = await fetch(`${API_BASE}/api/story/export`, {
+            const res = await fetchAuth(`${API_BASE}/api/story/export`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ slides, format }),

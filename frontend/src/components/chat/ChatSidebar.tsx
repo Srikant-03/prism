@@ -13,7 +13,7 @@ import {
     ClearOutlined, ExpandOutlined, CompressOutlined,
 } from '@ant-design/icons';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+import { fetchAuth, API_BASE } from '../../api/client';
 
 interface ChatAction {
     label: string;
@@ -83,7 +83,7 @@ const ChatSidebar: React.FC<Props> = ({ open, onClose, onAction }) => {
         }));
 
         try {
-            const res = await fetch(`${API_BASE}/api/chat/message`, {
+            const res = await fetchAuth(`${API_BASE}/api/chat/message`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

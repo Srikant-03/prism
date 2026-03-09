@@ -7,7 +7,7 @@ import React, { useState, useCallback } from 'react';
 import { Modal, Button, Spin, Tag, Space, Empty } from 'antd';
 import { FileSearchOutlined, RobotOutlined, CopyOutlined } from '@ant-design/icons';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+import { fetchAuth, API_BASE } from '../../api/client';
 
 interface Props {
     column: string;
@@ -24,7 +24,7 @@ const ColumnExplainer: React.FC<Props> = ({ column, fileId, trigger }) => {
         setOpen(true);
         setLoading(true);
         try {
-            const res = await fetch(`${API_BASE}/api/explain/column`, {
+            const res = await fetchAuth(`${API_BASE}/api/explain/column`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ file_id: fileId, column }),

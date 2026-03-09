@@ -12,7 +12,7 @@ import {
     BarChartOutlined,
 } from '@ant-design/icons';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+import { fetchAuth, API_BASE } from '../../api/client';
 
 interface Props {
     fileId: string | null;
@@ -46,7 +46,7 @@ const ReportPanel: React.FC<Props> = ({ fileId }) => {
         setError(null);
 
         try {
-            const res = await fetch(`${API_BASE}/api/reporting/generate`, {
+            const res = await fetchAuth(`${API_BASE}/api/reporting/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -73,7 +73,7 @@ const ReportPanel: React.FC<Props> = ({ fileId }) => {
         if (!fileId) return;
         setDownloading(format);
         try {
-            const res = await fetch(`${API_BASE}/api/reporting/generate`, {
+            const res = await fetchAuth(`${API_BASE}/api/reporting/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -101,7 +101,7 @@ const ReportPanel: React.FC<Props> = ({ fileId }) => {
         if (!fileId) return;
         setDownloading(`code_${format}`);
         try {
-            const res = await fetch(`${API_BASE}/api/reporting/export-code`, {
+            const res = await fetchAuth(`${API_BASE}/api/reporting/export-code`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ file_id: fileId, format }),
@@ -124,7 +124,7 @@ const ReportPanel: React.FC<Props> = ({ fileId }) => {
         if (!fileId) return;
         setDownloading(`data_${format}`);
         try {
-            const res = await fetch(`${API_BASE}/api/reporting/export-data`, {
+            const res = await fetchAuth(`${API_BASE}/api/reporting/export-data`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ file_id: fileId, format, use_cleaned: true }),

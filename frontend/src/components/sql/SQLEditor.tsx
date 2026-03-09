@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { Input, Button, Tag, Space, Tooltip } from 'antd';
 import { PlayCircleOutlined, CopyOutlined, CodeOutlined, FormatPainterOutlined } from '@ant-design/icons';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+import { fetchAuth, API_BASE } from '../../api/client';
 const { TextArea } = Input;
 
 interface Props {
@@ -33,7 +33,7 @@ const SQLEditor: React.FC<Props> = ({
         if (!displaySQL.trim()) return;
         setFormatting(true);
         try {
-            const res = await fetch(`${API_BASE}/api/sql/format`, {
+            const res = await fetchAuth(`${API_BASE}/api/sql/format`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sql: displaySQL }),

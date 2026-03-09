@@ -17,7 +17,7 @@ import { ClientSideRowModelModule } from 'ag-grid-community';
 
 ModuleRegistry.registerModules([AllCommunityModule, ClientSideRowModelModule]);
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+import { fetchAuth, API_BASE } from '../../api/client';
 
 interface CellQuality {
     row: number;
@@ -174,7 +174,7 @@ const LiveDataGrid: React.FC<Props> = ({
 
     const fetchColumnStats = useCallback(async (col: string) => {
         try {
-            const res = await fetch(`${API_BASE}/api/grid/column-stats?column=${encodeURIComponent(col)}`);
+            const res = await fetchAuth(`${API_BASE}/api/grid/column-stats?column=${encodeURIComponent(col)}`);
             const stats = await res.json();
             setMiniStats({ col, stats });
         } catch { setMiniStats(null); }

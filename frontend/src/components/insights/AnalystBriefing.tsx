@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, Typography, Divider, Button, Space, message } from 'antd';
 import { FilePdfOutlined, FileWordOutlined } from '@ant-design/icons';
 import type { AnalystBriefing } from '../../types/insight';
-import { API_BASE } from '../../api/ingestion';
+import { fetchAuth, API_BASE } from '../../api/client';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -21,7 +21,7 @@ const AnalystBriefingPanel: React.FC<AnalystBriefingProps> = ({ data, fileId }) 
 
         try {
             // Using window.location trick or fetch to download blob
-            const response = await fetch(`${API_BASE}/api/insights/${fileId}/${format}`);
+            const response = await fetchAuth(`${API_BASE}/api/insights/${fileId}/${format}`);
             if (!response.ok) throw new Error('Export Generation Failed');
 
             const blob = await response.blob();

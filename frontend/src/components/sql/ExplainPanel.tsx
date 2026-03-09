@@ -22,7 +22,7 @@ interface Props {
     onCreateView?: (name: string, sql: string) => void;
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+import { fetchAuth, API_BASE } from '../../api/client';
 
 const ExplainPanel: React.FC<Props> = ({ onCreateView }) => {
     const [sql, setSQL] = useState('');
@@ -38,7 +38,7 @@ const ExplainPanel: React.FC<Props> = ({ onCreateView }) => {
         setError(null);
 
         try {
-            const res = await fetch(`${API_BASE}/api/sql/explain`, {
+            const res = await fetchAuth(`${API_BASE}/api/sql/explain`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sql }),
@@ -62,7 +62,7 @@ const ExplainPanel: React.FC<Props> = ({ onCreateView }) => {
         if (!viewName.trim() || !sql.trim()) return;
 
         try {
-            const res = await fetch(`${API_BASE}/api/sql/views`, {
+            const res = await fetchAuth(`${API_BASE}/api/sql/views`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: viewName, sql }),

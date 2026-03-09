@@ -9,7 +9,7 @@ import {
     PlusCircleOutlined, MinusCircleOutlined, WarningOutlined,
 } from '@ant-design/icons';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+import { fetchAuth, API_BASE } from '../../api/client';
 
 interface DiffResult {
     schema_diff: {
@@ -53,7 +53,7 @@ const DatasetDiff: React.FC<Props> = ({ fileIdA }) => {
             formData.append('file_b', fileB);
             formData.append('file_id_a', fileIdA);
 
-            const res = await fetch(`${API_BASE}/api/comparison/diff`, {
+            const res = await fetchAuth(`${API_BASE}/api/comparison/diff`, {
                 method: 'POST',
                 body: formData,
             });
