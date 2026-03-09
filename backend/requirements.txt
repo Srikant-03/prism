@@ -21,6 +21,7 @@ ijson==3.3.0
 
 # System Monitoring
 psutil==6.1.1
+diskcache
 
 # Statistical Analysis & ML
 scipy==1.14.1

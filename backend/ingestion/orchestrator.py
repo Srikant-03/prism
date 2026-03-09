@@ -53,66 +53,12 @@ from collections.abc import MutableMapping
 logger = logging.getLogger(__name__)
 
 
-class TTLStore(MutableMapping):
-    """
-    Bounded in-memory store with TTL-based eviction and max-entry cap.
-    Drop-in replacement for dict[str, dict] — prevents unbounded memory growth.
-    """
-
-    def __init__(self, max_entries: int = 50, ttl_seconds: float = 7200):
-        self._data: OrderedDict[str, dict] = OrderedDict()
-        self._timestamps: dict[str, float] = {}
-        self.max_entries = max_entries
-        self.ttl_seconds = ttl_seconds
-
-    def _evict_expired(self):
-        """Remove entries older than TTL."""
-        now = time.time()
-        expired = [k for k, ts in self._timestamps.items() if now - ts > self.ttl_seconds]
-        for k in expired:
-            logger.info("Evicting expired ingestion entry: %s", k)
-            self._data.pop(k, None)
-            self._timestamps.pop(k, None)
-
-    def __setitem__(self, key: str, value: dict):
-        self._evict_expired()
-        # If key already exists, remove it so it moves to end (most recent)
-        if key in self._data:
-            self._data.pop(key)
-        # Evict oldest entries if at capacity
-        while len(self._data) >= self.max_entries:
-            oldest_key, _ = self._data.popitem(last=False)
-            self._timestamps.pop(oldest_key, None)
-            logger.info("Evicting oldest ingestion entry (capacity): %s", oldest_key)
-        self._data[key] = value
-        self._timestamps[key] = time.time()
-
-    def __getitem__(self, key: str):
-        if key not in self._data:
-            raise KeyError(key)
-        # Refresh timestamp on access (LRU behavior)
-        self._timestamps[key] = time.time()
-        self._data.move_to_end(key)
-        return self._data[key]
-
-    def __delitem__(self, key: str):
-        del self._data[key]
-        self._timestamps.pop(key, None)
-
-    def __iter__(self):
-        return iter(self._data)
-
-    def __len__(self):
-        return len(self._data)
-
-    def __contains__(self, key):
-        return key in self._data
-
+from state import TTLStore
 
 # In-memory store with LRU eviction (max 50 entries, 2-hour TTL)
 _max_entries = int(os.getenv("INGESTION_STORE_MAX_ENTRIES", 50))
 _ttl_seconds = float(os.getenv("INGESTION_STORE_TTL_SECONDS", 7200))
-_ingestion_store: TTLStore = TTLStore(max_entries=_max_entries, ttl_seconds=_ttl_seconds)
+_ingestion_store = TTLStore("ingestion", max_entries=_max_entries, ttl_seconds=_ttl_seconds)
 
 
 class IngestionOrchestrator:

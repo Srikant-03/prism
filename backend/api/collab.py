@@ -36,9 +36,8 @@ async def get_annotations(file_id: str):
 @router.post("/{file_id}")
 async def add_annotation(file_id: str, note: Annotation):
     """Add a new annotation."""
-    if file_id not in _annotations:
-        _annotations[file_id] = []
-
+    notes = _annotations.get(file_id, [])
+    
     new_note = {
         "id": str(uuid.uuid4())[:8],
         "author": note.author,
@@ -48,7 +47,8 @@ async def add_annotation(file_id: str, note: Annotation):
         "reactions": {},
         "pinned": False,
     }
-    _annotations[file_id].append(new_note)
+    notes.append(new_note)
+    _annotations[file_id] = notes
     return new_note
 
 
@@ -63,6 +63,7 @@ async def update_annotation(file_id: str, annotation_id: str, update: Annotation
                 note["edited_at"] = int(time.time() * 1000)
             if update.pinned is not None:
                 note["pinned"] = update.pinned
+            _annotations[file_id] = notes
             return note
 
     raise HTTPException(status_code=404, detail=f"Annotation '{annotation_id}' not found")
@@ -75,6 +76,7 @@ async def delete_annotation(file_id: str, annotation_id: str):
     for i, note in enumerate(notes):
         if note["id"] == annotation_id:
             notes.pop(i)
+            _annotations[file_id] = notes
             return {"deleted": True, "id": annotation_id}
 
     raise HTTPException(status_code=404, detail=f"Annotation '{annotation_id}' not found")

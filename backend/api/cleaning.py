@@ -74,6 +74,7 @@ async def apply_action(file_id: str, action_index: int, selected_option: str | N
     from state import set_df
     set_df(file_id, new_df)
 
+    _cleaning_store[file_id] = store # Persist mutated action status
     return result.model_dump()
 
 
@@ -96,6 +97,7 @@ async def apply_all_definitive(file_id: str):
     from state import set_df
     set_df(file_id, new_df)
 
+    _cleaning_store[file_id] = store # Persist mutated action statuses
     return {
         "results": [r.model_dump() for r in results],
         "total_applied": len(results),

@@ -15,19 +15,64 @@ from typing import Any, Optional
 
 import pandas as pd
 
+import os
+import diskcache
+from collections.abc import MutableMapping
+
 from ingestion.orchestrator import (
-    TTLStore,
     get_stored_data,
     get_stored_dataframe,
     update_stored_dataframe,
 )
 
+CACHE_DIR = os.path.join(os.path.dirname(__file__), ".prism_cache")
+os.makedirs(CACHE_DIR, exist_ok=True)
+
+class TTLStore(MutableMapping):
+    """
+    Disk-backed store with TTL-based eviction.
+    Drop-in replacement for dict[str, dict] to enable cross-session persistence.
+    """
+    def __init__(self, name: str, max_entries: int = 50, ttl_seconds: float = 7200):
+        self.cache = diskcache.Cache(
+            os.path.join(CACHE_DIR, name),
+            size_limit=int(5 * 1024**3), # 5GB limit per cache
+            eviction_policy="none"       # We use manual TTL
+        )
+        self.ttl_seconds = ttl_seconds
+
+    def __setitem__(self, key: str, value: Any):
+        self.cache.set(key, value, expire=self.ttl_seconds)
+
+    def __getitem__(self, key: str):
+        val = self.cache.get(key)
+        if val is None and key not in self.cache:
+            raise KeyError(key)
+        return val
+
+    def __delitem__(self, key: str):
+        if not self.cache.delete(key):
+            raise KeyError(key)
+
+    def __iter__(self):
+        return iter(self.cache)
+
+    def __len__(self):
+        return len(self.cache)
+
+    def __contains__(self, key):
+        return key in self.cache
+    
+    def get(self, key: str, default: Any = None) -> Any:
+        return self.cache.get(key, default=default)
+
 # ── Centralised TTL stores ────────────────────────────────────────────
-profile_store   = TTLStore(max_entries=50,  ttl_seconds=3600)
-cleaning_store  = TTLStore(max_entries=50,  ttl_seconds=7200)
-tag_store       = TTLStore(max_entries=500, ttl_seconds=86400)
-annotation_store = TTLStore(max_entries=500, ttl_seconds=86400)
-recipe_store    = TTLStore(max_entries=500, ttl_seconds=86400 * 30)
+profile_store   = TTLStore("profiles", max_entries=50,  ttl_seconds=3600*24*7) # 7 days
+cleaning_store  = TTLStore("cleaning", max_entries=50,  ttl_seconds=3600*24*7)
+tag_store       = TTLStore("tags", max_entries=500, ttl_seconds=3600*24*30)
+annotation_store = TTLStore("annotations", max_entries=500, ttl_seconds=3600*24*30)
+recipe_store    = TTLStore("recipes", max_entries=500, ttl_seconds=3600*24*365)
+watchlist_store = TTLStore("watchlist", max_entries=1, ttl_seconds=3600*24*30)
 
 
 # ── Convenience accessors ─────────────────────────────────────────────
@@ -80,7 +125,7 @@ __all__ = [
     # Stores (for direct access when needed)
     "TTLStore",
     "profile_store", "cleaning_store",
-    "tag_store", "annotation_store", "recipe_store",
+    "tag_store", "annotation_store", "recipe_store", "watchlist_store",
     # Legacy re-exports (still used widely)
     "get_stored_data", "get_stored_dataframe", "update_stored_dataframe",
 ]
