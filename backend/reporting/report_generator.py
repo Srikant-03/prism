@@ -789,9 +789,13 @@ class ReportGenerator:
 
     @staticmethod
     def _hypotheses_insights(hypotheses: list) -> ReportSection:
-        """Deep insights derived from hypotheses."""
+        """Strategic analytical hypotheses with both technical and plain-English explanations."""
+        if not hypotheses:
+            return ReportSection("Deep Dataset Insights",
+                                 "No strategic hypotheses could be generated from the available profiling data.")
+
         rows_data = []
-        for h in hypotheses[:15]:
+        for h in hypotheses[:12]:
             if isinstance(h, dict):
                 rows_data.append([
                     h.get("observation", ""),
@@ -802,12 +806,34 @@ class ReportGenerator:
                 ])
 
         tables = [{
-            "title": "Key Analytical Observations & Strategic Hypotheses",
-            "headers": ["Observation", "Evidence", "Impact", "Confidence", "Strategic Question"],
+            "title": "Strategic Hypotheses & Modeling Insights",
+            "headers": ["Observation", "Evidence", "Impact", "Confidence", "Recommended Action"],
             "rows": rows_data,
         }]
 
-        content = "The following strategic insights and hypotheses were automatically derived from the dataset's statistical properties. These represent potential hidden patterns, anomalies, or structural properties that can deeply inform downstream analysis."
+        # Build layman summary table
+        layman_rows = []
+        for h in hypotheses[:12]:
+            if isinstance(h, dict) and h.get("layman"):
+                layman_rows.append([
+                    h.get("observation", "")[:80] + ("..." if len(h.get("observation", "")) > 80 else ""),
+                    h.get("layman", ""),
+                ])
+
+        if layman_rows:
+            tables.append({
+                "title": "Plain-English Explanations",
+                "headers": ["Finding", "What This Means"],
+                "rows": layman_rows,
+            })
+
+        content = (
+            "The following strategic insights were automatically derived by analyzing "
+            "statistical relationships, distributional properties, and feature interactions "
+            "within the dataset. Unlike basic data quality checks, these hypotheses focus "
+            "on **modeling strategy** — the kinds of patterns that determine which algorithms "
+            "will succeed, which features to engineer, and where hidden risks lie."
+        )
         return ReportSection("Deep Dataset Insights", content, tables=tables)
 
     @staticmethod

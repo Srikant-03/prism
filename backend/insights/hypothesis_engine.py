@@ -1,265 +1,649 @@
 """
-Hypothesis Engine — Auto-generates data-driven hypotheses from profiling results.
+Hypothesis Engine — Generates advanced analytical hypotheses from profiling results.
+
+Unlike the AnomalyDetector (which flags data quality issues like nulls, constants,
+and ID columns), this engine focuses on **strategic modeling hypotheses** —
+the kinds of insights a senior data scientist would generate when planning
+a modeling strategy.
+
+Each hypothesis includes:
+  - observation: Technical description of the pattern
+  - layman: Plain-English explanation anyone can understand
+  - evidence: Statistical evidence supporting the hypothesis
+  - question: Strategic question the analyst should investigate
+  - confidence / impact: Severity scoring
 """
 
 from __future__ import annotations
 
+import math
 import uuid
 from typing import Optional
 
 
 def generate_hypotheses(profile: dict, quality: dict = None) -> list[dict]:
-    """Generate hypotheses from profiling data."""
+    """Generate advanced analytical hypotheses from profiling data."""
     hypotheses = []
 
     columns_profile = profile.get("columns", {})
     row_count = profile.get("row_count") or profile.get("total_rows", 0)
-    
+    total_cols = profile.get("total_columns") or profile.get("column_count", 0)
+
     if isinstance(columns_profile, dict):
-        col_items = columns_profile.items()
+        col_items = list(columns_profile.items())
     elif isinstance(columns_profile, list):
         col_items = [(col.get("name", "unknown"), col) for col in columns_profile if isinstance(col, dict)]
     else:
         col_items = []
 
+    # Extract cross-analysis data
+    cross = profile.get("cross_analysis") or {}
+    if not isinstance(cross, dict):
+        try:
+            cross = cross.__dict__ if hasattr(cross, "__dict__") else {}
+        except Exception:
+            cross = {}
+
+    # Target info
+    target_info = cross.get("target_analysis") or cross.get("target") or {}
+    if not isinstance(target_info, dict):
+        try:
+            target_info = target_info.__dict__
+        except Exception:
+            target_info = {}
+    target_col = target_info.get("target_column", "")
+    target_detected = target_info.get("is_target_detected", False)
+    problem_type = target_info.get("problem_type", "")
+    top_predictors = target_info.get("top_predictors") or []
+
+    # Correlation data
+    corr_data = cross.get("correlations") or {}
+    if not isinstance(corr_data, dict):
+        try:
+            corr_data = corr_data.__dict__
+        except Exception:
+            corr_data = {}
+    corr_matrix = corr_data.get("correlation_matrix") or {}
+    mutual_info = corr_data.get("mutual_information") or {}
+    strongest_pairs = corr_data.get("strongest_pairs") or []
+    vif_scores = {}
+    multi_report = corr_data.get("multicollinearity") or {}
+    if isinstance(multi_report, dict):
+        vif_scores = multi_report.get("vif_scores") or {}
+
+    # Temporal data
+    temporal = cross.get("temporal") or {}
+    if not isinstance(temporal, dict):
+        try:
+            temporal = temporal.__dict__
+        except Exception:
+            temporal = {}
+
+    # Geo data
+    geo = cross.get("geo") or {}
+    if not isinstance(geo, dict):
+        try:
+            geo = geo.__dict__
+        except Exception:
+            geo = {}
+
+    # Also extract flat correlations dict (used in report generation)
+    flat_correlations = profile.get("correlations") or {}
+
+    # ═══════════════════════════════════════════════════════════════
+    # CATEGORY 1: Non-Linear Relationship Detection
+    # ═══════════════════════════════════════════════════════════════
+    if target_detected and target_col and mutual_info and corr_matrix:
+        target_mi = mutual_info.get(target_col, {})
+        target_corr_row = corr_matrix.get(target_col, {})
+
+        for feat, mi_score in target_mi.items():
+            if feat == target_col:
+                continue
+            if not isinstance(mi_score, (int, float)):
+                continue
+
+            pearson_r = target_corr_row.get(feat, 0)
+            if not isinstance(pearson_r, (int, float)):
+                continue
+
+            # High MI but low linear correlation = non-linear relationship
+            if mi_score > 0.1 and abs(pearson_r) < 0.15:
+                hypotheses.append({
+                    "id": str(uuid.uuid4())[:8],
+                    "observation": (
+                        f"Non-linear relationship detected: '{feat}' has high mutual information "
+                        f"(MI={mi_score:.3f}) with '{target_col}' but near-zero linear correlation "
+                        f"(r={pearson_r:.3f})"
+                    ),
+                    "layman": (
+                        f"The feature '{feat}' strongly influences '{target_col}', but not in a "
+                        f"simple straight-line way. Think of it like this: studying more hours helps "
+                        f"your score up to a point, but after that you're too tired and the score drops. "
+                        f"A standard model won't catch this pattern — you need a smarter one."
+                    ),
+                    "evidence": (
+                        f"Mutual Information ({mi_score:.3f}) captures all forms of statistical "
+                        f"dependence, while Pearson r ({pearson_r:.3f}) only measures linear trends. "
+                        f"The gap suggests a U-shaped, threshold, or interaction-driven relationship."
+                    ),
+                    "question": (
+                        "Use tree-based models (XGBoost, Random Forest) which naturally handle "
+                        "non-linearity, or engineer polynomial/binned features for linear models."
+                    ),
+                    "confidence": min(0.95, 0.5 + mi_score),
+                    "impact": "high",
+                    "action": {"label": f"Explore '{feat}' vs '{target_col}'", "type": "navigate",
+                               "payload": f"compare/{feat}/{target_col}"},
+                    "status": "unreviewed",
+                })
+
+    # ═══════════════════════════════════════════════════════════════
+    # CATEGORY 2: Multicollinear Feature Cluster (Latent Factor)
+    # ═══════════════════════════════════════════════════════════════
+    if corr_matrix and len(corr_matrix) >= 3:
+        numeric_cols = [name for name, info in col_items
+                        if isinstance(info, dict) and
+                        info.get("semantic_type", info.get("inferred_dtype", "")) in
+                        ("numeric_continuous", "numeric_discrete", "float64", "int64")]
+
+        # Find clusters of 3+ columns all pairwise |r| > 0.6
+        visited = set()
+        for i, col_a in enumerate(numeric_cols):
+            if col_a in visited or col_a == target_col:
+                continue
+            cluster = [col_a]
+            for col_b in numeric_cols[i+1:]:
+                if col_b in visited or col_b == target_col:
+                    continue
+                r_ab = corr_matrix.get(col_a, {}).get(col_b, 0)
+                if not isinstance(r_ab, (int, float)):
+                    continue
+                if abs(r_ab) > 0.6:
+                    # Check this col_b is also correlated with all existing cluster members
+                    fits = all(
+                        abs(corr_matrix.get(c, {}).get(col_b, 0)) > 0.5
+                        for c in cluster
+                        if isinstance(corr_matrix.get(c, {}).get(col_b, 0), (int, float))
+                    )
+                    if fits:
+                        cluster.append(col_b)
+
+            if len(cluster) >= 3:
+                visited.update(cluster)
+                cluster_names = ", ".join(f"'{c}'" for c in cluster[:5])
+                avg_vif = 0
+                vif_parts = []
+                for c in cluster:
+                    v = vif_scores.get(c, 0)
+                    if isinstance(v, (int, float)) and v > 0:
+                        vif_parts.append(f"{c}={v:.1f}")
+                        avg_vif += v
+                avg_vif = avg_vif / max(len(vif_parts), 1)
+
+                hypotheses.append({
+                    "id": str(uuid.uuid4())[:8],
+                    "observation": (
+                        f"Correlated feature cluster detected: {cluster_names} "
+                        f"({len(cluster)} features all pairwise |r| > 0.6)"
+                    ),
+                    "layman": (
+                        f"The features {cluster_names} are all measuring essentially the same "
+                        f"underlying thing. It's like asking someone's height in inches, centimeters, "
+                        f"AND feet — they give you the same information three times. Keeping all of "
+                        f"them confuses the model. Pick the best one or combine them."
+                    ),
+                    "evidence": (
+                        f"These {len(cluster)} features form a tightly correlated cluster, suggesting "
+                        f"a single latent concept. "
+                        + (f"VIF scores ({', '.join(vif_parts[:4])}) confirm redundancy." if vif_parts else
+                           "Including all of them inflates coefficient variance in linear models.")
+                    ),
+                    "question": (
+                        "Apply PCA to extract a single composite feature from this cluster, or "
+                        "keep only the member with the highest target association and drop the rest."
+                    ),
+                    "confidence": 0.85,
+                    "impact": "high",
+                    "action": {"label": "View cluster correlations", "type": "navigate",
+                               "payload": "correlations"},
+                    "status": "unreviewed",
+                })
+
+    # ═══════════════════════════════════════════════════════════════
+    # CATEGORY 3: Diminishing Returns / Power-Law Distribution
+    # ═══════════════════════════════════════════════════════════════
     for col_name, col_info in col_items:
-        dtype = col_info.get("inferred_dtype", col_info.get("dtype", ""))
-        null_pct = col_info.get("null_percentage", col_info.get("null_pct", 0))
-        unique_count = col_info.get("distinct_count", col_info.get("unique_count", 0))
-        unique_ratio = unique_count / max(row_count, 1)
-
-        # High null hypothesis
-        if null_pct > 30:
-            hypotheses.append({
-                "id": str(uuid.uuid4())[:8],
-                "observation": f"Severe data sparsity in feature '{col_name}'",
-                "evidence": f"Feature is missing {null_pct:.1f}% of its contiguous values ({int(null_pct * row_count / 100)} missing records)",
-                "question": f"Is '{col_name}' critical for the target objective? Consider eliminating the feature to reduce background noise.",
-                "confidence": min(0.9, null_pct / 100 + 0.3),
-                "impact": "high" if null_pct > 50 else "medium",
-                "action": {
-                    "label": f"Analyze '{col_name}' importance",
-                    "type": "navigate",
-                    "payload": f"profile/{col_name}",
-                },
-                "status": "unreviewed",
-            })
-
-        # Potential ID column
-        if unique_ratio > 0.95 and dtype in ("int64", "object", "string"):
-            hypotheses.append({
-                "id": str(uuid.uuid4())[:8],
-                "observation": f"Feature '{col_name}' exhibits near-perfect cardinality",
-                "evidence": f"{unique_ratio:.1%} of values are strictly unique — strongly indicating an index or surrogate key",
-                "question": "Should this feature be excluded from predictive modeling to prevent severe overfitting?",
-                "confidence": unique_ratio,
-                "impact": "medium",
-                "action": {
-                    "label": "Mark as ID column",
-                    "type": "fix",
-                    "payload": f"tag/{col_name}/id",
-                },
-                "status": "unreviewed",
-            })
-
-        # Low variance / constant column
-        if unique_count <= 1:
-            hypotheses.append({
-                "id": str(uuid.uuid4())[:8],
-                "observation": f"Feature '{col_name}' has zero to near-zero variance",
-                "evidence": f"Contains only {unique_count} distinct scalar value(s) across the entire dataset",
-                "question": "A constant feature inherently provides zero information gain. Should it be dropped?",
-                "confidence": 0.95,
-                "impact": "low",
-                "action": {
-                    "label": f"Drop '{col_name}'",
-                    "type": "fix",
-                    "payload": f"drop/{col_name}",
-                },
-                "status": "unreviewed",
-            })
-
-        # High cardinality categorical
-        if dtype in ("object", "string", "category") and unique_count > 100:
-            hypotheses.append({
-                "id": str(uuid.uuid4())[:8],
-                "observation": f"High cardinality detected in categorical feature '{col_name}'",
-                "evidence": f"Contains {unique_count} unique categorical levels, risking extreme dimensionality if strictly one-hot encoded",
-                "question": "Are these highly granular categories truly necessary, or can rare levels be binned/grouped?",
-                "confidence": 0.75,
-                "impact": "medium",
-                "action": {
-                    "label": "View distribution",
-                    "type": "navigate",
-                    "payload": f"profile/{col_name}",
-                },
-                "status": "unreviewed",
-            })
-
-        # Skewed numeric
+        if not isinstance(col_info, dict):
+            continue
         numeric_profile = col_info.get("numeric") or {}
-        skewness = numeric_profile.get("skewness") if isinstance(numeric_profile, dict) else None
+        if not isinstance(numeric_profile, dict):
+            continue
+
+        skewness = numeric_profile.get("skewness")
         if skewness is None:
-             skewness = col_info.get("skewness")
-        if skewness is not None and abs(skewness) > 2:
+            skewness = col_info.get("skewness")
+        if skewness is None or abs(skewness) <= 2:
+            continue
+
+        # Check if this feature has meaningful target association
+        has_target_link = False
+        if target_col and mutual_info:
+            mi = mutual_info.get(target_col, {}).get(col_name, 0)
+            if isinstance(mi, (int, float)) and mi > 0.03:
+                has_target_link = True
+        if target_col and corr_matrix:
+            r = corr_matrix.get(target_col, {}).get(col_name, 0)
+            if isinstance(r, (int, float)) and abs(r) > 0.1:
+                has_target_link = True
+
+        # Only generate this hypothesis if feature matters for target, or if no target detected
+        if has_target_link or not target_detected:
             direction = "right" if skewness > 0 else "left"
             hypotheses.append({
                 "id": str(uuid.uuid4())[:8],
-                "observation": f"Distribution of '{col_name}' is severely {direction}-skewed (skew = {skewness:.2f})",
-                "evidence": f"A skewness of {skewness:.2f} significantly deviates from a normal distribution curve",
-                "question": "Would applying a log or Box-Cox transformation stabilize variance for linear models?",
-                "confidence": 0.7,
+                "observation": (
+                    f"Power-law distribution in '{col_name}' (skewness = {skewness:.2f}) "
+                    f"suggests diminishing returns behavior"
+                ),
+                "layman": (
+                    f"Most values in '{col_name}' are bunched up on one side, with a long tail "
+                    f"of extreme values. Picture a salary chart: most people earn $30-80K, but a "
+                    f"few earn millions. This long tail confuses models. Taking the logarithm "
+                    f"of this feature spreads the values more evenly and helps the model learn better."
+                ),
+                "evidence": (
+                    f"Skewness of {skewness:.2f} ({direction}-skewed) indicates a heavily "
+                    f"asymmetric distribution consistent with exponential or power-law dynamics. "
+                    f"Linear models are sensitive to such distributions — gradient updates are "
+                    f"dominated by extreme values."
+                ),
+                "question": (
+                    "Apply a log₁₀ or Box-Cox transformation to normalize the distribution. "
+                    "This typically improves linear model R² by 5-20% and stabilizes gradient descent."
+                ),
+                "confidence": min(0.85, 0.5 + abs(skewness) / 10),
                 "impact": "medium",
-                "action": {
-                    "label": "Simulate log transform",
-                    "type": "fix",
-                    "payload": f"simulate/log_transform/{col_name}",
-                },
+                "action": {"label": f"Transform '{col_name}'", "type": "fix",
+                           "payload": f"simulate/log_transform/{col_name}"},
                 "status": "unreviewed",
             })
 
-    # Correlations
-    correlations = profile.get("correlations", {})
-    for pair, corr_val in correlations.items():
-        if isinstance(corr_val, (int, float)) and abs(corr_val) > 0.9:
+    # ═══════════════════════════════════════════════════════════════
+    # CATEGORY 4: Target Proxy / Data Leakage Risk
+    # ═══════════════════════════════════════════════════════════════
+    if target_detected and target_col:
+        for p in top_predictors:
+            if isinstance(p, dict):
+                feat = p.get("feature", "")
+                score = p.get("importance_score", 0)
+            else:
+                feat = getattr(p, "feature", "")
+                score = getattr(p, "importance_score", 0)
+
+            if not feat or feat == target_col:
+                continue
+
+            if score > 0.90:
+                hypotheses.append({
+                    "id": str(uuid.uuid4())[:8],
+                    "observation": (
+                        f"Potential data leakage: '{feat}' has suspiciously high association "
+                        f"({score:.3f}) with target '{target_col}'"
+                    ),
+                    "layman": (
+                        f"The feature '{feat}' seems to almost perfectly predict '{target_col}'. "
+                        f"This sounds great, but it's actually suspicious — like knowing tomorrow's "
+                        f"winning lottery numbers today. If this feature was calculated AFTER the "
+                        f"outcome, it's cheating. The model will look amazing during testing but "
+                        f"fail completely in the real world."
+                    ),
+                    "evidence": (
+                        f"An association score of {score:.3f} between a feature and the target "
+                        f"is atypically high. This either indicates: (1) the feature is a direct "
+                        f"mathematical derivative of the target, (2) the feature encodes post-hoc "
+                        f"information, or (3) a genuinely powerful predictor."
+                    ),
+                    "question": (
+                        f"Critical: Verify that '{feat}' is available at prediction time. "
+                        f"Was it recorded BEFORE or AFTER '{target_col}' was determined? "
+                        f"If after, it must be excluded immediately."
+                    ),
+                    "confidence": min(0.95, score),
+                    "impact": "high",
+                    "action": {"label": f"Investigate '{feat}'", "type": "navigate",
+                               "payload": f"profile/{feat}"},
+                    "status": "unreviewed",
+                })
+
+    # ═══════════════════════════════════════════════════════════════
+    # CATEGORY 5: Feature Interaction Opportunity
+    # ═══════════════════════════════════════════════════════════════
+    if target_detected and target_col and mutual_info and corr_matrix:
+        target_mi = mutual_info.get(target_col, {})
+        target_corr_row = corr_matrix.get(target_col, {})
+
+        # Find pairs of features that are individually weak but have MI with target
+        weak_but_informative = []
+        for feat, mi_val in target_mi.items():
+            if feat == target_col:
+                continue
+            if not isinstance(mi_val, (int, float)):
+                continue
+            pearson = target_corr_row.get(feat, 0)
+            if not isinstance(pearson, (int, float)):
+                continue
+
+            if mi_val > 0.03 and abs(pearson) < 0.15:
+                weak_but_informative.append((feat, mi_val, pearson))
+
+        # Check pairs that are uncorrelated with each other
+        for i in range(len(weak_but_informative)):
+            for j in range(i + 1, min(len(weak_but_informative), i + 5)):
+                fa, mi_a, _ = weak_but_informative[i]
+                fb, mi_b, _ = weak_but_informative[j]
+                r_ab = corr_matrix.get(fa, {}).get(fb, 0)
+                if not isinstance(r_ab, (int, float)):
+                    continue
+
+                if abs(r_ab) < 0.15:
+                    hypotheses.append({
+                        "id": str(uuid.uuid4())[:8],
+                        "observation": (
+                            f"Hidden interaction opportunity between '{fa}' and '{fb}' — "
+                            f"individually weak predictors of '{target_col}' that may combine powerfully"
+                        ),
+                        "layman": (
+                            f"Neither '{fa}' nor '{fb}' on their own predict '{target_col}' well. "
+                            f"But together they might. Think of cooking: flour alone is bland, "
+                            f"sugar alone is too sweet, but combined they make cake. "
+                            f"Try creating a new feature by multiplying or dividing these two."
+                        ),
+                        "evidence": (
+                            f"Both features show non-linear information (MI: {fa}={mi_a:.3f}, "
+                            f"{fb}={mi_b:.3f}) but weak linear signal. They are independent of each "
+                            f"other (r={r_ab:.3f}), suggesting their predictive power may emerge "
+                            f"only through interaction."
+                        ),
+                        "question": (
+                            f"Engineer interaction features: {fa} × {fb}, {fa}/{fb}, or use "
+                            f"tree-based models which automatically discover interaction splits."
+                        ),
+                        "confidence": 0.6,
+                        "impact": "medium",
+                        "action": {"label": f"Create interaction", "type": "fix",
+                                   "payload": f"interact/{fa}/{fb}"},
+                        "status": "unreviewed",
+                    })
+                    break  # Only one interaction hypothesis per feature
+
+    # ═══════════════════════════════════════════════════════════════
+    # CATEGORY 6: Temporal Drift / Seasonality
+    # ═══════════════════════════════════════════════════════════════
+    has_temporal = temporal.get("has_temporal_patterns", False)
+    periodicities = temporal.get("detected_periodicities") or []
+    time_col = temporal.get("primary_time_col", "")
+
+    if has_temporal and target_detected:
+        period_str = ", ".join(periodicities[:3]) if periodicities else "periodic patterns"
+        hypotheses.append({
+            "id": str(uuid.uuid4())[:8],
+            "observation": (
+                f"Temporal patterns detected ({period_str}) — time-aware modeling required "
+                f"for '{target_col}'"
+            ),
+            "layman": (
+                f"Your data changes over time in a regular pattern (like how ice cream sales "
+                f"peak in summer). If you randomly shuffle your data for training and testing, "
+                f"the model 'peeks' at the future — like studying the answers before an exam. "
+                f"Always split by time: train on older data, test on newer data."
+            ),
+            "evidence": (
+                f"Temporal column '{time_col}' exhibits {period_str}. Standard random "
+                f"train/test splits will leak future information into training, producing "
+                f"overestimated performance metrics."
+            ),
+            "question": (
+                "Use time-based train/test splits (never random). Consider lag features, "
+                "rolling averages, and cyclical time encodings (sin/cos of day-of-week, month) "
+                "to capture temporal dynamics."
+            ),
+            "confidence": 0.9,
+            "impact": "high",
+            "action": {"label": "View temporal patterns", "type": "navigate",
+                       "payload": "temporal"},
+            "status": "unreviewed",
+        })
+    elif has_temporal and not target_detected:
+        hypotheses.append({
+            "id": str(uuid.uuid4())[:8],
+            "observation": (
+                f"Temporal structure detected — feature engineering opportunity"
+            ),
+            "layman": (
+                f"Your data has dates/times in the column '{time_col}'. You can extract "
+                f"useful information from it: Was it a weekend? Which month? What time of day? "
+                f"These new features often reveal hidden patterns."
+            ),
+            "evidence": (
+                f"Datetime column '{time_col}' can be decomposed into day-of-week, month, "
+                f"quarter, hour, is_weekend, and cyclical encodings."
+            ),
+            "question": (
+                "Extract temporal sub-features to capture seasonality and behavioral shifts."
+            ),
+            "confidence": 0.8,
+            "impact": "medium",
+            "action": {"label": "Extract time features", "type": "fix",
+                       "payload": f"extract_datetime/{time_col}"},
+            "status": "unreviewed",
+        })
+
+    # ═══════════════════════════════════════════════════════════════
+    # CATEGORY 7: Curse of Dimensionality
+    # ═══════════════════════════════════════════════════════════════
+    if row_count > 0 and total_cols > 0:
+        ratio = total_cols / max(math.sqrt(row_count), 1)
+        if ratio > 1.0 and total_cols > 15:
+            # Count features with negligible target association
+            weak_count = 0
+            if target_col and mutual_info:
+                target_mi = mutual_info.get(target_col, {})
+                for feat, mi_val in target_mi.items():
+                    if isinstance(mi_val, (int, float)) and mi_val < 0.01:
+                        weak_count += 1
+            weak_pct = (weak_count / max(total_cols - 1, 1)) * 100
+
             hypotheses.append({
                 "id": str(uuid.uuid4())[:8],
-                "observation": f"High collinearity between features {pair}",
-                "evidence": f"Pearson correlation coefficient of {corr_val:.3f} indicates significant redundant variance",
-                "question": "To avoid multicollinearity and coefficient instability, should one of these features be removed?",
-                "confidence": abs(corr_val),
+                "observation": (
+                    f"High-dimensional dataset: {total_cols} features vs {row_count:,} rows "
+                    f"(feature-to-√sample ratio: {ratio:.1f}x)"
+                ),
+                "layman": (
+                    f"Your dataset has a lot of columns ({total_cols}) compared to the number "
+                    f"of rows ({row_count:,}). Imagine trying to draw a trend line through just "
+                    f"5 data points in 50-dimensional space — there are infinitely many lines "
+                    f"that fit perfectly but predict terribly. Reduce the number of features first."
+                ),
+                "evidence": (
+                    f"With {total_cols} features and {row_count:,} samples, the feature-to-√N "
+                    f"ratio is {ratio:.1f}. "
+                    + (f"Approximately {weak_pct:.0f}% of features show negligible association with the target. " if weak_count > 0 else "")
+                    + "This creates severe overfitting risk without dimensionality reduction."
+                ),
+                "question": (
+                    "Apply L1 regularization (Lasso), recursive feature elimination (RFE), "
+                    "or tree-based feature selection to identify the most predictive subset. "
+                    "PCA can also compress correlated numeric features."
+                ),
+                "confidence": min(0.9, 0.5 + ratio / 5),
                 "impact": "high",
-                "action": {
-                    "label": "Compare columns",
-                    "type": "navigate",
-                    "payload": f"compare/{pair}",
-                },
+                "action": {"label": "View feature importance", "type": "navigate",
+                           "payload": "feature_importance"},
                 "status": "unreviewed",
             })
 
-    # Class imbalance detection
-    for col_name, col_info in col_items:
-        categorical_profile = col_info.get("categorical") or {}
-        if isinstance(categorical_profile, dict):
-            top_values = categorical_profile.get("top_values", [])
-            if isinstance(top_values, list) and len(top_values) >= 2:
-                values = [v.get("count", 0) if isinstance(v, dict) else 0 for v in top_values]
-                if values and len(values) >= 2:
-                    ratio = max(values) / max(min(values), 1)
-                    if ratio > 10 and col_info.get("distinct_count", col_info.get("unique_count", 0)) < 10:
-                        hypotheses.append({
-                            "id": str(uuid.uuid4())[:8],
-                            "observation": f"Extreme class imbalance observed in '{col_name}'",
-                            "evidence": f"The majority class frequency is {ratio:.1f}x higher than the minority class",
-                            "question": "If this is a target variable, should oversampling (e.g. SMOTE) or class weights be applied to prevent minority-class vanishing?",
-                            "confidence": 0.8,
-                            "impact": "high",
-                            "action": {
-                                "label": "View distribution",
-                                "type": "navigate",
-                                "payload": f"profile/{col_name}",
-                            },
-                            "status": "unreviewed",
-                        })
+    # ═══════════════════════════════════════════════════════════════
+    # CATEGORY 8: Class Boundary Overlap (for classification)
+    # ═══════════════════════════════════════════════════════════════
+    if target_detected and "classification" in problem_type and top_predictors:
+        best_predictor = None
+        best_score = 0
+        for p in top_predictors[:1]:
+            if isinstance(p, dict):
+                best_predictor = p.get("feature", "")
+                best_score = p.get("importance_score", 0)
+            else:
+                best_predictor = getattr(p, "feature", "")
+                best_score = getattr(p, "importance_score", 0)
 
-    # ── Outlier detection hypothesis ──
+        if best_predictor and best_score < 0.5:
+            hypotheses.append({
+                "id": str(uuid.uuid4())[:8],
+                "observation": (
+                    f"Weak class separability: even the best predictor '{best_predictor}' "
+                    f"has only {best_score:.3f} association with '{target_col}'"
+                ),
+                "layman": (
+                    f"No single feature does a great job of separating the different categories "
+                    f"in '{target_col}'. It's like trying to tell cat breeds apart by weight alone "
+                    f"— there's too much overlap. You'll need to combine multiple features "
+                    f"together, and even then, don't expect 99% accuracy."
+                ),
+                "evidence": (
+                    f"The strongest predictor '{best_predictor}' achieves only {best_score:.3f} "
+                    f"association, suggesting significant distributional overlap between classes. "
+                    f"Simple threshold-based or single-feature classifiers will underperform."
+                ),
+                "question": (
+                    "Use ensemble methods (Random Forest, Gradient Boosting) that combine many "
+                    "weak features into a strong decision boundary. Set realistic accuracy "
+                    "expectations and prioritize precision/recall tradeoffs over raw accuracy."
+                ),
+                "confidence": 0.75,
+                "impact": "medium",
+                "action": {"label": f"Explore class distributions", "type": "navigate",
+                           "payload": f"profile/{target_col}"},
+                "status": "unreviewed",
+            })
+
+    # ═══════════════════════════════════════════════════════════════
+    # CATEGORY 9: Geographic / Spatial Confounding
+    # ═══════════════════════════════════════════════════════════════
+    has_geo = geo.get("has_geo_patterns", False)
+    geo_cols = geo.get("geo_columns") or []
+    if has_geo and geo_cols and target_detected:
+        hypotheses.append({
+            "id": str(uuid.uuid4())[:8],
+            "observation": (
+                f"Geographic features detected ({', '.join(geo_cols[:3])}) — "
+                f"spatial confounding risk for '{target_col}'"
+            ),
+            "layman": (
+                f"Your data includes location information. If outcomes vary by geography "
+                f"(e.g., house prices differ by city), a random data split could mix locations "
+                f"between training and testing, giving falsely good results. Also, nearby "
+                f"locations tend to have similar outcomes — your model might just be memorizing "
+                f"neighborhoods, not learning real patterns."
+            ),
+            "evidence": (
+                f"Geographic columns: {', '.join(geo_cols[:3])}. Spatial autocorrelation "
+                f"can inflate cross-validation scores by 10-30% if locations are not properly "
+                f"blocked during splitting."
+            ),
+            "question": (
+                "Use spatial cross-validation (block by region/cluster). Consider deriving "
+                "location-based aggregate features (regional averages, distance to landmarks) "
+                "as powerful additional predictors."
+            ),
+            "confidence": 0.75,
+            "impact": "medium",
+            "action": {"label": "View geographic patterns", "type": "navigate",
+                       "payload": "geo"},
+            "status": "unreviewed",
+        })
+
+    # ═══════════════════════════════════════════════════════════════
+    # CATEGORY 10: Heavy-Tailed Outlier Sensitivity
+    # ═══════════════════════════════════════════════════════════════
     for col_name, col_info in col_items:
+        if not isinstance(col_info, dict):
+            continue
         numeric_profile = col_info.get("numeric") or {}
         if not isinstance(numeric_profile, dict):
             continue
         kurt = numeric_profile.get("kurtosis")
-        if kurt is not None and kurt > 5:
-            hypotheses.append({
-                "id": str(uuid.uuid4())[:8],
-                "observation": f"Feature '{col_name}' has extremely heavy tails (kurtosis = {kurt:.2f})",
-                "evidence": f"A kurtosis of {kurt:.2f} indicates significant concentration of extreme values relative to a normal distribution",
-                "question": "Consider using robust scalers (e.g. RobustScaler) or Winsorizing outliers before training sensitive models like linear regression or SVMs.",
-                "confidence": min(0.9, 0.5 + kurt / 20),
-                "impact": "medium",
-                "action": {"label": "View outliers", "type": "navigate", "payload": f"profile/{col_name}"},
-                "status": "unreviewed",
-            })
-
-    # ── Low coefficient of variation (quasi-constant numeric) ──
-    for col_name, col_info in col_items:
-        numeric_profile = col_info.get("numeric") or {}
-        if not isinstance(numeric_profile, dict):
+        if kurt is None:
             continue
-        mean = numeric_profile.get("mean")
-        std = numeric_profile.get("std")
-        if mean is not None and std is not None and abs(mean) > 0.001:
-            cov = abs(std / mean)
-            if cov < 0.01 and col_info.get("distinct_count", col_info.get("unique_count", 0)) > 1:
-                hypotheses.append({
-                    "id": str(uuid.uuid4())[:8],
-                    "observation": f"Feature '{col_name}' is quasi-constant (coefficient of variation = {cov:.4f})",
-                    "evidence": f"With a mean of {mean:.2f} and std of {std:.4f}, this feature carries almost no discriminative signal",
-                    "question": "Should this feature be dropped to reduce noise and dimensionality? It is unlikely to provide predictive value.",
-                    "confidence": 0.85,
-                    "impact": "low",
-                    "action": {"label": f"Drop '{col_name}'", "type": "fix", "payload": f"drop/{col_name}"},
-                    "status": "unreviewed",
-                })
 
-    # ── Datetime feature extraction opportunity ──
-    for col_name, col_info in col_items:
-        dtype = col_info.get("inferred_dtype", col_info.get("dtype", ""))
-        semantic = col_info.get("semantic_type", "")
-        if "datetime" in str(dtype).lower() or "temporal" in str(semantic).lower() or "date" in str(semantic).lower():
+        if kurt > 7:
+            mean_val = numeric_profile.get("mean", 0)
+            std_val = numeric_profile.get("std", 0)
             hypotheses.append({
                 "id": str(uuid.uuid4())[:8],
-                "observation": f"Temporal feature '{col_name}' detected - rich feature engineering opportunity",
-                "evidence": "Datetime columns can be decomposed into day-of-week, month, quarter, hour, is_weekend, days_since_epoch, and cyclical encodings",
-                "question": "Extract temporal sub-features to capture seasonality, trends, and periodic patterns for the model?",
-                "confidence": 0.85,
+                "observation": (
+                    f"Extreme tail concentration in '{col_name}' "
+                    f"(kurtosis = {kurt:.1f}, expected ≈ 3 for normal)"
+                ),
+                "layman": (
+                    f"The feature '{col_name}' has some wildly extreme values compared to "
+                    f"the rest. Imagine measuring people's wealth: most are in the thousands, "
+                    f"but a few billionaires skew everything. These extreme values can hijack "
+                    f"your model, making it focus on the outliers instead of the majority."
+                ),
+                "evidence": (
+                    f"Kurtosis of {kurt:.1f} (vs 3.0 for a normal distribution) indicates "
+                    f"extreme value concentration in the tails. "
+                    f"Mean={mean_val:.2f}, Std={std_val:.2f}. "
+                    f"Distance-based models (KNN, SVM) and linear models are particularly sensitive."
+                ),
+                "question": (
+                    "Apply RobustScaler (uses median/IQR instead of mean/std), "
+                    "Winsorize extreme values to the 1st/99th percentile, or use "
+                    "tree-based models that are inherently outlier-resistant."
+                ),
+                "confidence": min(0.9, 0.5 + kurt / 25),
                 "impact": "medium",
-                "action": {"label": "Extract temporal features", "type": "fix", "payload": f"extract_datetime/{col_name}"},
+                "action": {"label": f"View '{col_name}' distribution", "type": "navigate",
+                           "payload": f"profile/{col_name}"},
                 "status": "unreviewed",
             })
 
-    # ── Text/NLP feature extraction opportunity ──
-    for col_name, col_info in col_items:
-        dtype = col_info.get("inferred_dtype", col_info.get("dtype", ""))
-        unique_count = col_info.get("distinct_count", col_info.get("unique_count", 0))
-        semantic = col_info.get("semantic_type", "")
-        if dtype in ("object", "string") and unique_count > 50 and semantic not in ("id_key", "email", "url", "phone"):
-            avg_len = col_info.get("avg_length", 0)
-            if avg_len > 20 or unique_count > 500:
-                hypotheses.append({
-                    "id": str(uuid.uuid4())[:8],
-                    "observation": f"High-cardinality text feature '{col_name}' may contain extractable NLP signals",
-                    "evidence": f"Contains {unique_count} unique values with avg length suggesting prose or semi-structured text",
-                    "question": "Consider TF-IDF vectorization, sentence embeddings, or regex-based feature extraction to derive predictive signals from this text.",
-                    "confidence": 0.65,
-                    "impact": "medium",
-                    "action": {"label": "Analyze text", "type": "navigate", "payload": f"profile/{col_name}"},
-                    "status": "unreviewed",
-                })
+    # ═══════════════════════════════════════════════════════════════
+    # Also: High collinearity from flat correlations (backwards compat)
+    # ═══════════════════════════════════════════════════════════════
+    for pair, corr_val in flat_correlations.items():
+        if isinstance(corr_val, (int, float)) and abs(corr_val) > 0.9:
+            hypotheses.append({
+                "id": str(uuid.uuid4())[:8],
+                "observation": f"Near-perfect collinearity between features {pair}",
+                "layman": (
+                    f"Two features ({pair}) are almost identical copies of each other. "
+                    f"Keeping both is like having two speedometers in your car — the second one "
+                    f"adds no useful information but makes things more confusing for the model."
+                ),
+                "evidence": (
+                    f"Pearson correlation of {corr_val:.3f} indicates these features share "
+                    f">81% of their variance. One is likely redundant."
+                ),
+                "question": (
+                    "Drop the feature with lower target association, or combine both using PCA."
+                ),
+                "confidence": abs(corr_val),
+                "impact": "high",
+                "action": {"label": "Compare columns", "type": "navigate",
+                           "payload": f"compare/{pair}"},
+                "status": "unreviewed",
+            })
 
-    # ── Data leakage warning (feature too correlated with target) ──
-    cross_analysis = profile.get("cross_analysis") or {}
-    if isinstance(cross_analysis, dict):
-        target_info = cross_analysis.get("target_analysis") or {}
-        if isinstance(target_info, dict):
-            target_col = target_info.get("target_column", "")
-            top_predictors = target_info.get("top_predictors") or []
-            for p in top_predictors:
-                feat = p.get("feature", "") if isinstance(p, dict) else getattr(p, "feature", "")
-                score = p.get("importance_score", 0) if isinstance(p, dict) else getattr(p, "importance_score", 0)
-                if score > 0.95 and feat != target_col:
-                    hypotheses.append({
-                        "id": str(uuid.uuid4())[:8],
-                        "observation": f"Potential data leakage: '{feat}' is almost perfectly correlated with target '{target_col}'",
-                        "evidence": f"Association score of {score:.3f} is suspiciously high - this feature may contain future information or be a derivative of the target",
-                        "question": "Verify that this feature is available at prediction time. If it encodes post-hoc information, it must be excluded to prevent overly optimistic model evaluation.",
-                        "confidence": 0.9,
-                        "impact": "high",
-                        "action": {"label": f"Investigate '{feat}'", "type": "navigate", "payload": f"profile/{feat}"},
-                        "status": "unreviewed",
-                    })
-
-    # Sort by confidence x impact
+    # ═══════════════════════════════════════════════════════════════
+    # Sort by confidence × impact weight
+    # ═══════════════════════════════════════════════════════════════
     impact_weights = {"high": 3, "medium": 2, "low": 1}
-    hypotheses.sort(key=lambda h: h["confidence"] * impact_weights.get(h["impact"], 1), reverse=True)
+    hypotheses.sort(
+        key=lambda h: h["confidence"] * impact_weights.get(h["impact"], 1),
+        reverse=True
+    )
 
-    return hypotheses[:25]
+    return hypotheses[:20]

@@ -13,6 +13,7 @@ interface Hypothesis {
     id: string;
     observation: string;
     evidence: string;
+    layman?: string;
     question: string;
     confidence: number;
     impact: 'high' | 'medium' | 'low';
@@ -107,8 +108,20 @@ const HypothesisCards: React.FC<Props> = ({ hypotheses, onStatusChange, onAction
                     <div style={{ fontSize: 12, opacity: 0.6, marginBottom: 6 }}>
                         📊 {h.evidence}
                     </div>
+                    {h.layman && (
+                        <div style={{
+                            fontSize: 12,
+                            background: 'rgba(99, 102, 241, 0.08)',
+                            borderRadius: 6,
+                            padding: '8px 10px',
+                            marginBottom: 8,
+                            borderLeft: '2px solid #6366f1',
+                        }}>
+                            💡 <strong>In plain English:</strong> {h.layman}
+                        </div>
+                    )}
                     <div style={{ fontSize: 13, fontStyle: 'italic', marginBottom: 10 }}>
-                        â“ {h.question}
+                        ❓ {h.question}
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
