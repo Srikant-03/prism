@@ -4,9 +4,10 @@
 import React from 'react';
 import {
     LineChart as RechartsLine, Line, XAxis, YAxis, CartesianGrid,
-    Tooltip, Legend, ResponsiveContainer, ReferenceLine,
+    Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
-import { ChartConfig, COLOR_PALETTES } from '../../types/dashboard';
+import type { ChartConfig } from '../../../types/dashboard';
+import { COLOR_PALETTES } from '../../../types/dashboard';
 
 interface Props {
     config: ChartConfig;
@@ -22,13 +23,29 @@ const DashboardLineChart: React.FC<Props> = ({ config, data }) => {
 
     let chartData = data;
     if (config.group_by && config.x_axis) {
-        const pivoted: Record<string, any> = {};
+        const map = new Map<any, any>();
         data.forEach(row => {
             const x = row[config.x_axis!];
-            if (!pivoted[x]) pivoted[x] = { [config.x_axis!]: x };
-            pivoted[x][row[config.group_by!]] = row[config.y_axis || 'value'];
+            if (!map.has(x)) map.set(x, { ...row });
+            map.get(x)[row[config.group_by!]] = row[config.y_axis || 'value'];
         });
-        chartData = Object.values(pivoted);
+        chartData = Array.from(map.values());
+    }
+
+    if (config.trend_line && config.y_axis && !config.group_by && chartData.length > 1) {
+        const yVals = chartData.map((d, i) => ({ x: i, y: Number(d[config.y_axis!]) || 0 }));
+        const n = yVals.length;
+        const sumX = yVals.reduce((a, v) => a + v.x, 0);
+        const sumY = yVals.reduce((a, v) => a + v.y, 0);
+        const sumXY = yVals.reduce((a, v) => a + v.x * v.y, 0);
+        const sumX2 = yVals.reduce((a, v) => a + v.x * v.x, 0);
+        const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+        const intercept = (sumY - slope * sumX) / n;
+
+        chartData = chartData.map((d, i) => ({
+            ...d,
+            _trend: intercept + slope * i,
+        }));
     }
 
     return (
@@ -63,24 +80,16 @@ const DashboardLineChart: React.FC<Props> = ({ config, data }) => {
                     />
                 )}
 
-                {config.trend_line && !config.group_by && chartData.length > 1 && (() => {
-                    const yVals = chartData.map((d, i) => ({ x: i, y: Number(d[config.y_axis!]) || 0 }));
-                    const n = yVals.length;
-                    const sumX = yVals.reduce((a, v) => a + v.x, 0);
-                    const sumY = yVals.reduce((a, v) => a + v.y, 0);
-                    const sumXY = yVals.reduce((a, v) => a + v.x * v.y, 0);
-                    const sumX2 = yVals.reduce((a, v) => a + v.x * v.x, 0);
-                    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-                    const intercept = (sumY - slope * sumX) / n;
-                    return (
-                        <ReferenceLine
-                            y={intercept + slope * (n / 2)}
-                            stroke="#fbbf24"
-                            strokeDasharray="5 5"
-                            label={{ value: 'Trend', fill: '#fbbf24', fontSize: 11 }}
-                        />
-                    );
-                })()}
+                {config.trend_line && !config.group_by && chartData.length > 1 && (
+                    <Line
+                        type="linear"
+                        dataKey="_trend"
+                        stroke="#fbbf24"
+                        strokeDasharray="5 5"
+                        dot={false}
+                        name="Trend"
+                    />
+                )}
             </RechartsLine>
         </ResponsiveContainer>
     );

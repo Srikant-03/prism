@@ -2,13 +2,13 @@
  * DashboardCanvas — react-grid-layout responsive grid for dashboard widgets.
  */
 import React from 'react';
-import RGL from 'react-grid-layout';
+import RGL, { WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import type { Widget } from '../../types/dashboard';
 import WidgetContainer from './WidgetContainer';
 
-const GridLayout = RGL as any;
+const GridLayout = WidthProvider(RGL as any);
 
 interface LayoutItem {
     i: string;
@@ -51,7 +51,6 @@ const DashboardCanvas: React.FC<Props> = ({
                 layout={layout}
                 cols={12}
                 rowHeight={80}
-                width={1200}
                 draggableHandle=".widget-drag-handle"
                 onLayoutChange={(newLayout: any) => onLayoutChange?.(newLayout)}
                 margin={[16, 16]}

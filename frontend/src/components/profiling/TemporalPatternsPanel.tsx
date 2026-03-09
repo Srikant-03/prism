@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, Select, Typography, Space, Empty } from 'antd';
 import ReactECharts from 'echarts-for-react';
 import type { TemporalAnalysis } from '../../types/profiling';
@@ -89,7 +89,7 @@ const TemporalPatternsPanel: React.FC<TemporalPatternsPanelProps> = ({ data }) =
     }, [selectedCol, data.decompositions]);
 
     return (
-        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
             <Card variant="borderless" className="glass-panel">
                 <Title level={4} style={{ color: '#fff' }}>Time-Series Decomposition</Title>
                 <Paragraph style={{ color: 'rgba(255,255,255,0.7)' }}>

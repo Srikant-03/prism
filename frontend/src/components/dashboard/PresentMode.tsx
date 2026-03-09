@@ -18,8 +18,14 @@ const PresentMode: React.FC<Props> = ({ widgets, title, onExit }) => {
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         if (e.key === 'Escape') onExit();
-        else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') setActiveIdx(i => Math.min(i + 1, widgets.length - 1));
-        else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') setActiveIdx(i => Math.max(i - 1, 0));
+        else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            setActiveIdx(i => Math.min(i + 1, Math.max(0, widgets.length - 1)));
+        }
+        else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            setActiveIdx(i => Math.max(i - 1, 0));
+        }
     }, [onExit, widgets.length]);
 
     useEffect(() => {
@@ -29,12 +35,18 @@ const PresentMode: React.FC<Props> = ({ widgets, title, onExit }) => {
 
     if (widgets.length === 0) return null;
     const w = widgets[activeIdx];
+    if (!w) return null;
 
     return (
-        <div style={{
-            position: 'fixed', inset: 0, zIndex: 9999, background: '#0f172a',
-            display: 'flex', flexDirection: 'column',
-        }}>
+        <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Presentation Mode"
+            style={{
+                position: 'fixed', inset: 0, zIndex: 9999, background: '#0f172a',
+                display: 'flex', flexDirection: 'column',
+            }}
+        >
             {/* Header */}
             <div style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -71,6 +83,10 @@ const PresentMode: React.FC<Props> = ({ widgets, title, onExit }) => {
                     <div
                         key={widget.id}
                         onClick={() => setActiveIdx(i)}
+                        onKeyDown={(e) => e.key === 'Enter' && setActiveIdx(i)}
+                        tabIndex={0}
+                        role="button"
+                        aria-pressed={i === activeIdx}
                         style={{
                             width: 80, height: 50, borderRadius: 8, cursor: 'pointer',
                             background: i === activeIdx ? 'rgba(99,102,241,0.2)' : '#1e293b',
@@ -78,6 +94,7 @@ const PresentMode: React.FC<Props> = ({ widgets, title, onExit }) => {
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             color: '#94a3b8', fontSize: 10, textAlign: 'center',
                             flexShrink: 0,
+                            outline: 'none',
                         }}
                     >
                         {widget.config.chart_type}

@@ -64,9 +64,9 @@ const PromptBar: React.FC<Props> = ({
             {suggestions.length > 0 && (
                 <div style={{ marginBottom: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <BulbOutlined style={{ color: '#6366f1', marginTop: 4 }} />
-                    {suggestions.map((s, i) => (
+                    {suggestions.map((s) => (
                         <Tag
-                            key={i}
+                            key={s}
                             onClick={() => { setPrompt(s); inputRef.current?.focus(); }}
                             style={{
                                 cursor: 'pointer', background: 'rgba(99,102,241,0.1)',
@@ -87,9 +87,9 @@ const PromptBar: React.FC<Props> = ({
                     background: '#1e293b', borderRadius: 10, border: '1px solid #334155',
                     padding: 8,
                 }}>
-                    {history.slice().reverse().map((entry, i) => (
+                    {history.slice().reverse().map((entry) => (
                         <div
-                            key={i}
+                            key={entry.timestamp}
                             onClick={() => { setPrompt(entry.prompt); setShowHistory(false); }}
                             style={{
                                 padding: '6px 12px', cursor: 'pointer', borderRadius: 6,

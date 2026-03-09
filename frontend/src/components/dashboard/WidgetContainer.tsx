@@ -1,13 +1,13 @@
 /**
  * WidgetContainer — Wraps each ChartWidget with title bar, source prompt, and action toolbar.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button, Tooltip, Input } from 'antd';
 import {
     EditOutlined, FullscreenOutlined, CopyOutlined,
     DeleteOutlined, DragOutlined,
 } from '@ant-design/icons';
-import { Widget } from '../../types/dashboard';
+import type { Widget } from '../../types/dashboard';
 import ChartWidget from './ChartWidget';
 
 interface Props {
@@ -24,6 +24,10 @@ const WidgetContainer: React.FC<Props> = ({
 }) => {
     const [editingTitle, setEditingTitle] = useState(false);
     const [titleDraft, setTitleDraft] = useState(widget.config.title);
+
+    useEffect(() => {
+        setTitleDraft(widget.config.title);
+    }, [widget.config.title]);
 
     return (
         <div style={{
@@ -55,6 +59,12 @@ const WidgetContainer: React.FC<Props> = ({
                             onBlur={() => {
                                 onTitleChange?.(widget.id, titleDraft);
                                 setEditingTitle(false);
+                            }}
+                            onKeyDown={e => {
+                                if (e.key === 'Escape') {
+                                    setTitleDraft(widget.config.title);
+                                    setEditingTitle(false);
+                                }
                             }}
                             autoFocus
                             style={{ background: 'transparent', border: 'none', color: '#e2e8f0', padding: 0 }}

@@ -177,7 +177,7 @@ const CleaningDashboard: React.FC<CleaningDashboardProps> = ({ fileId }) => {
             <div className="glass-panel" style={{ padding: '20px 24px' }}>
                 <Row gutter={[24, 16]} align="middle">
                     <Col flex="auto">
-                        <Space orientation="vertical" size={4}>
+                        <Space direction="vertical" size={4}>
                             <Title level={4} style={{ margin: 0 }}>
                                 🧹 Intelligent Cleaning Engine
                             </Title>

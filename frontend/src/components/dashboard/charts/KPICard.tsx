@@ -3,7 +3,8 @@
  */
 import React from 'react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
-import { ChartConfig, COLOR_PALETTES } from '../../types/dashboard';
+import type { ChartConfig } from '../../../types/dashboard';
+import { COLOR_PALETTES } from '../../../types/dashboard';
 import { ArrowUpOutlined, ArrowDownOutlined, MinusOutlined } from '@ant-design/icons';
 
 interface Props { config: ChartConfig; data: Record<string, any>[]; }
@@ -28,7 +29,9 @@ const KPICard: React.FC<Props> = ({ config, data }) => {
     const compKey = config.kpi_comparison_column;
     let delta: number | null = null;
     if (compKey && data.length > 0 && data[0][compKey] !== undefined) {
-        const compValue = Number(data[0][compKey]) || 0;
+        const compValue = data.length === 1
+            ? Number(data[0][compKey]) || 0
+            : data.reduce((sum, d) => sum + (Number(d[compKey]) || 0), 0);
         if (compValue !== 0) delta = ((mainValue - compValue) / Math.abs(compValue)) * 100;
     }
 

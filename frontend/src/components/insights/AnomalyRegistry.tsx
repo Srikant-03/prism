@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Card, Table, Tag, Typography } from 'antd';
 import type { AnomalyWarning } from '../../types/insight';
 

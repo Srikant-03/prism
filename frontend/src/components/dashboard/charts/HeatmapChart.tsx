@@ -3,11 +3,14 @@
  */
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { ChartConfig, COLOR_PALETTES } from '../../types/dashboard';
+import type { ChartConfig } from '../../../types/dashboard';
+import { COLOR_PALETTES } from '../../../types/dashboard';
 
 interface Props { config: ChartConfig; data: Record<string, any>[]; }
 
 const DashboardHeatmapChart: React.FC<Props> = ({ config, data }) => {
+    if (!data || data.length === 0) return null;
+
     const colors = COLOR_PALETTES[config.color_scheme] || COLOR_PALETTES.default;
 
     const option = useMemo(() => {

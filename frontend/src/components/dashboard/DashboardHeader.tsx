@@ -2,7 +2,7 @@
  * DashboardHeader — Title, save, share, present mode, export controls.
  */
 import React, { useState } from 'react';
-import { Button, Input, Tooltip, Space, message } from 'antd';
+import { Button, Input, Tooltip, Space } from 'antd';
 import {
     SaveOutlined, ShareAltOutlined, ExpandOutlined,
     FileImageOutlined, FilePdfOutlined, PlusOutlined,
@@ -12,7 +12,6 @@ interface Props {
     title: string;
     description: string;
     onTitleChange: (title: string) => void;
-    onDescriptionChange: (desc: string) => void;
     onSave: () => void;
     onShare: () => void;
     onPresent: () => void;
@@ -23,7 +22,7 @@ interface Props {
 }
 
 const DashboardHeader: React.FC<Props> = ({
-    title, description, onTitleChange, onDescriptionChange,
+    title, description, onTitleChange,
     onSave, onShare, onPresent, onExportPng, onExportPdf, onAddWidget, saving,
 }) => {
     const [editingTitle, setEditingTitle] = useState(false);

@@ -246,7 +246,7 @@ const QueryLibrary: React.FC<Props> = ({ currentSQL, onLoadQuery, onExecuteQuery
             <Modal title={editId ? "Edit Query" : "Save Query"} open={showSave}
                 onOk={handleSave} onCancel={() => setShowSave(false)}
                 okText="Save" okButtonProps={{ disabled: !form.name.trim() }}>
-                <Space orientation="vertical" style={{ width: '100%' }}>
+                <Space direction="vertical" style={{ width: '100%' }}>
                     <Input placeholder="Query name" value={form.name}
                         onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
                     <Input placeholder="Description (optional)" value={form.description}

@@ -1,4 +1,4 @@
-﻿import React, { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Card, Typography, Row, Col, Statistic, Progress } from 'antd';
 import ReactECharts from 'echarts-for-react';
 import { AimOutlined, TrophyOutlined } from '@ant-design/icons';

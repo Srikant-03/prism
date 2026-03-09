@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Tabs } from 'antd';
 import type { CrossColumnProfile } from '../../types/profiling';
 import type { DatasetInsights } from '../../types/insight';

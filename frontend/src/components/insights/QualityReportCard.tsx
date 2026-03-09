@@ -1,4 +1,4 @@
-﻿import React, { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Card, Statistic, Row, Col, Typography } from 'antd';
 import ReactECharts from 'echarts-for-react';
 import type { DataQualityScore } from '../../types/insight';
@@ -22,14 +22,14 @@ const QualityReportCard: React.FC<QualityReportCardProps> = ({ data }) => {
     }
 
     const radarOption = useMemo(() => {
-        let indicators = [
+        const indicators = [
             { name: 'Completeness', max: 100 },
             { name: 'Uniqueness', max: 100 },
             { name: 'Validity', max: 100 },
             { name: 'Consistency', max: 100 },
         ];
 
-        let values = [data.completeness, data.uniqueness, data.validity, data.consistency];
+        const values = [data.completeness, data.uniqueness, data.validity, data.consistency];
 
         if (data.timeliness !== null && data.timeliness !== undefined) {
             indicators.push({ name: 'Timeliness', max: 100 });

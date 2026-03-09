@@ -251,7 +251,7 @@ const QueryWorkbench: React.FC<QueryWorkbenchProps> = ({ initialQuery }) => {
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                         height: 200, color: 'rgba(255,255,255,0.3)', fontSize: 14,
                                     }}>
-                                        <Space orientation="vertical" align="center">
+                                        <Space direction="vertical" align="center">
                                             <TableOutlined style={{ fontSize: 32 }} />
                                             <span>Select a table from the left panel to start building your query.</span>
                                         </Space>

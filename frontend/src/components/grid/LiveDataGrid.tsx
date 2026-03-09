@@ -385,7 +385,7 @@ const LiveDataGrid: React.FC<Props> = ({
                 onCancel={() => setShowRuleModal(false)}
                 width={500}
             >
-                <Space orientation="vertical" style={{ width: '100%' }}>
+                <Space direction="vertical" style={{ width: '100%' }}>
                     <Select
                         placeholder="Column"
                         style={{ width: '100%' }}

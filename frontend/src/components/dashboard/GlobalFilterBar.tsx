@@ -4,6 +4,7 @@
  */
 import React from 'react';
 import { DatePicker, Tag } from 'antd';
+import dayjs from 'dayjs';
 import { FilterOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import type { FilterCondition } from '../../types/dashboard';
 
@@ -17,17 +18,26 @@ interface Props {
 
 const GlobalFilterBar: React.FC<Props> = ({ filters, columns = [], onFiltersChange }) => {
 
+    const findDateColumn = () => {
+        return columns.find(c => c.toLowerCase().includes('date') || c.toLowerCase().includes('time')) || 'date';
+    };
+
     const handleDateChange = (_: any, dates: [string, string]) => {
-        const newFilters = filters.filter(f => f.operator !== 'between');
+        const dateCol = findDateColumn();
+        const newFilters = filters.filter(f => !(f.operator === 'between' && f.column === dateCol));
+
         if (dates[0] && dates[1]) {
-            // Find a date column from the schema
-            const dateCol = columns.find(c => c.toLowerCase().includes('date') || c.toLowerCase().includes('time'));
-            if (dateCol) {
-                newFilters.push({ column: dateCol, operator: 'between', values: [dates[0], dates[1]] });
-            }
+            newFilters.push({ column: dateCol, operator: 'between', values: [dates[0], dates[1]] });
         }
         onFiltersChange(newFilters);
     };
+
+    // Calculate controlled value for RangePicker based on existing filters
+    const dateCol = findDateColumn();
+    const dateFilter = filters.find(f => f.operator === 'between' && f.column === dateCol);
+    const dateRange: any = dateFilter && dateFilter.values?.length === 2
+        ? [dayjs(dateFilter.values[0]), dayjs(dateFilter.values[1])]
+        : null;
 
     const removeFilter = (idx: number) => {
         onFiltersChange(filters.filter((_, i) => i !== idx));
@@ -40,6 +50,7 @@ const GlobalFilterBar: React.FC<Props> = ({ filters, columns = [], onFiltersChan
         }}>
             <FilterOutlined style={{ color: '#64748b' }} />
             <RangePicker
+                value={dateRange}
                 onChange={handleDateChange}
                 size="small"
                 style={{ background: '#1e293b', borderRadius: 8 }}

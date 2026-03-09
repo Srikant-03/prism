@@ -200,7 +200,7 @@ const StoryBuilder: React.FC<Props> = ({ fileId }) => {
                 width={600}
             >
                 {editModal.slide && (
-                    <Space orientation="vertical" style={{ width: '100%' }}>
+                    <Space direction="vertical" style={{ width: '100%' }}>
                         <Input
                             value={editModal.slide.title}
                             onChange={e => setEditModal(prev => ({

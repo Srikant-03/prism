@@ -1,4 +1,4 @@
-﻿import React, { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Card } from 'antd';
 import ReactECharts from 'echarts-for-react';
 import type { FeatureImportance } from '../../types/insight';

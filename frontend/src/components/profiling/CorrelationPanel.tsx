@@ -1,4 +1,4 @@
-﻿import React, { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Card, Table, Typography, Alert, Space, Row, Col } from 'antd';
 import ReactECharts from 'echarts-for-react';
 import type { CorrelationAnalysis } from '../../types/profiling';
@@ -130,7 +130,7 @@ const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data }) => {
 
 
     return (
-        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
             {data.multicollinearity.has_multicollinearity && (
                 <Alert
                     message="High Multicollinearity Detected"

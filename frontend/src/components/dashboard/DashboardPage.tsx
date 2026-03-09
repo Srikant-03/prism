@@ -92,62 +92,64 @@ const DashboardPage: React.FC<Props> = ({ fileId, columns = [] }) => {
             }
 
             if (result.config) {
-                // Save snapshot for undo
-                setConfigSnapshots(prev => [...prev, state.widgets.map(w => ({ ...w }))]);
+                let newActiveId = activeWidgetId;
 
-                if (activeWidget) {
-                    // Update existing widget
-                    setState(prev => ({
-                        ...prev,
-                        widgets: prev.widgets.map(w =>
-                            w.id === activeWidgetId
-                                ? {
-                                    ...w,
-                                    config: result.config!,
-                                    data: result.data || w.data,
-                                    sql: result.sql || w.sql,
-                                    source_prompt: prompt,
-                                    prompt_history: [...w.prompt_history, prompt],
-                                    error: undefined,
-                                }
-                                : w
-                        ),
-                    }));
+                setState(prev => {
+                    // Save snapshot of current widgets before mutating
+                    setConfigSnapshots(snaps => [...snaps, prev.widgets.map(w => ({ ...w }))]);
 
-                    setPromptHistory(prev => [...prev, {
-                        prompt,
-                        timestamp: Date.now(),
-                        chartTypeBefore: activeWidget.config.chart_type,
-                        chartTypeAfter: result.config!.chart_type,
-                        widgetId: activeWidgetId || undefined,
-                    }]);
-                } else {
-                    // Create new widget
-                    const newWidget: Widget = {
-                        id: Math.random().toString(36).slice(2, 10),
-                        config: result.config,
-                        source_prompt: prompt,
-                        prompt_history: [prompt],
-                        layout: {
-                            x: (state.widgets.length * 6) % 12,
-                            y: Math.floor(state.widgets.length / 2) * 4,
-                            w: 6,
-                            h: 4,
-                        },
-                        data: result.data || [],
-                        sql: result.sql || undefined,
-                    };
+                    const activeWidgetExists = activeWidgetId && prev.widgets.some(w => w.id === activeWidgetId);
 
-                    setState(prev => ({ ...prev, widgets: [...prev.widgets, newWidget] }));
-                    setActiveWidgetId(newWidget.id);
+                    if (activeWidgetExists) {
+                        // Update existing widget
+                        return {
+                            ...prev,
+                            widgets: prev.widgets.map(w =>
+                                w.id === activeWidgetId
+                                    ? {
+                                        ...w,
+                                        config: result.config!,
+                                        data: result.data || w.data,
+                                        sql: result.sql || w.sql,
+                                        source_prompt: prompt,
+                                        prompt_history: [...w.prompt_history, prompt],
+                                        error: undefined,
+                                    }
+                                    : w
+                            ),
+                        };
+                    } else {
+                        // Create new widget
+                        const newWidget: Widget = {
+                            id: Math.random().toString(36).slice(2, 10),
+                            config: result.config!,
+                            source_prompt: prompt,
+                            prompt_history: [prompt],
+                            layout: {
+                                x: (prev.widgets.length * 6) % 12,
+                                y: Math.floor(prev.widgets.length / 2) * 4,
+                                w: 6,
+                                h: 4,
+                            },
+                            data: result.data || [],
+                            sql: result.sql || undefined,
+                        };
+                        newActiveId = newWidget.id;
+                        return { ...prev, widgets: [...prev.widgets, newWidget] };
+                    }
+                });
 
-                    setPromptHistory(prev => [...prev, {
-                        prompt,
-                        timestamp: Date.now(),
-                        chartTypeAfter: result.config!.chart_type,
-                        widgetId: newWidget.id,
-                    }]);
+                if (newActiveId !== activeWidgetId) {
+                    setActiveWidgetId(newActiveId);
                 }
+
+                setPromptHistory(prev => [...prev, {
+                    prompt,
+                    timestamp: Date.now(),
+                    chartTypeBefore: activeWidget?.config.chart_type,
+                    chartTypeAfter: result.config!.chart_type,
+                    widgetId: newActiveId || undefined,
+                }]);
 
                 // Fetch suggestions for the new config
                 fetchSuggestions(result.config);
@@ -360,7 +362,6 @@ const DashboardPage: React.FC<Props> = ({ fileId, columns = [] }) => {
                 title={state.title}
                 description={state.description}
                 onTitleChange={t => setState(s => ({ ...s, title: t }))}
-                onDescriptionChange={d => setState(s => ({ ...s, description: d }))}
                 onSave={handleSave}
                 onShare={handleShare}
                 onPresent={() => setPresenting(true)}

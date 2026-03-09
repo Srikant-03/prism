@@ -3,10 +3,11 @@
  */
 import React from 'react';
 import {
-    BarChart as RechartsBar, Bar, XAxis, YAxis, CartesianGrid,
-    Tooltip, Legend, ResponsiveContainer, ReferenceLine, LabelList,
+    ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
+    Tooltip, Legend, ResponsiveContainer, LabelList,
 } from 'recharts';
-import { ChartConfig, COLOR_PALETTES } from '../../types/dashboard';
+import type { ChartConfig } from '../../../types/dashboard';
+import { COLOR_PALETTES } from '../../../types/dashboard';
 
 interface Props {
     config: ChartConfig;
@@ -21,36 +22,37 @@ const DashboardBarChart: React.FC<Props> = ({ config, data }) => {
         ? [...new Set(data.map(d => d[config.group_by!]))]
         : [config.y_axis || 'value'];
 
-    // Pivot data for grouped bars
     let chartData = data;
     if (config.group_by && config.x_axis) {
-        const pivoted: Record<string, any> = {};
+        const map = new Map<any, any>();
         data.forEach(row => {
             const x = row[config.x_axis!];
-            if (!pivoted[x]) pivoted[x] = { [config.x_axis!]: x };
-            pivoted[x][row[config.group_by!]] = row[config.y_axis || 'value'];
+            if (!map.has(x)) map.set(x, { ...row });
+            map.get(x)[row[config.group_by!]] = row[config.y_axis || 'value'];
         });
-        chartData = Object.values(pivoted);
+        chartData = Array.from(map.values());
     }
 
-    // Compute trend line (simple linear regression on y values)
-    let trendSlope = 0, trendIntercept = 0;
-    if (config.trend_line && config.y_axis && !config.group_by) {
+    // Compute trend line
+    if (config.trend_line && config.y_axis && !config.group_by && chartData.length > 1) {
         const yVals = chartData.map((d, i) => ({ x: i, y: Number(d[config.y_axis!]) || 0 }));
         const n = yVals.length;
-        if (n > 1) {
-            const sumX = yVals.reduce((a, v) => a + v.x, 0);
-            const sumY = yVals.reduce((a, v) => a + v.y, 0);
-            const sumXY = yVals.reduce((a, v) => a + v.x * v.y, 0);
-            const sumX2 = yVals.reduce((a, v) => a + v.x * v.x, 0);
-            trendSlope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-            trendIntercept = (sumY - trendSlope * sumX) / n;
-        }
+        const sumX = yVals.reduce((a, v) => a + v.x, 0);
+        const sumY = yVals.reduce((a, v) => a + v.y, 0);
+        const sumXY = yVals.reduce((a, v) => a + v.x * v.y, 0);
+        const sumX2 = yVals.reduce((a, v) => a + v.x * v.x, 0);
+        const trendSlope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+        const trendIntercept = (sumY - trendSlope * sumX) / n;
+
+        chartData = chartData.map((d, i) => ({
+            ...d,
+            _trend: trendIntercept + trendSlope * i,
+        }));
     }
 
     return (
         <ResponsiveContainer width="100%" height="100%">
-            <RechartsBar data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 {config.show_grid && <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />}
                 <XAxis
                     dataKey={config.x_axis || undefined}
@@ -86,14 +88,16 @@ const DashboardBarChart: React.FC<Props> = ({ config, data }) => {
                 )}
 
                 {config.trend_line && !config.group_by && chartData.length > 1 && (
-                    <ReferenceLine
-                        y={trendIntercept + trendSlope * (chartData.length / 2)}
+                    <Line
+                        type="monotone"
+                        dataKey="_trend"
                         stroke="#fbbf24"
                         strokeDasharray="5 5"
-                        label={{ value: 'Trend', fill: '#fbbf24', fontSize: 11 }}
+                        dot={false}
+                        name="Trend"
                     />
                 )}
-            </RechartsBar>
+            </ComposedChart>
         </ResponsiveContainer>
     );
 };
