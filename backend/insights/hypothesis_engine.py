@@ -16,9 +16,9 @@ def generate_hypotheses(profile: dict, quality: dict = None) -> list[dict]:
     row_count = profile.get("row_count", 0)
 
     for col_name, col_info in columns_profile.items():
-        dtype = col_info.get("dtype", "")
-        null_pct = col_info.get("null_pct", 0)
-        unique_count = col_info.get("unique_count", 0)
+        dtype = col_info.get("inferred_dtype", col_info.get("dtype", ""))
+        null_pct = col_info.get("null_percentage", col_info.get("null_pct", 0))
+        unique_count = col_info.get("distinct_count", col_info.get("unique_count", 0))
         unique_ratio = unique_count / max(row_count, 1)
 
         # High null hypothesis
@@ -90,7 +90,10 @@ def generate_hypotheses(profile: dict, quality: dict = None) -> list[dict]:
             })
 
         # Skewed numeric
-        skewness = col_info.get("skewness")
+        numeric_profile = col_info.get("numeric") or {}
+        skewness = numeric_profile.get("skewness") if isinstance(numeric_profile, dict) else None
+        if skewness is None:
+             skewness = col_info.get("skewness")
         if skewness is not None and abs(skewness) > 2:
             direction = "right" if skewness > 0 else "left"
             hypotheses.append({
@@ -129,26 +132,28 @@ def generate_hypotheses(profile: dict, quality: dict = None) -> list[dict]:
 
     # Class imbalance detection
     for col_name, col_info in columns_profile.items():
-        value_counts = col_info.get("top_values", {})
-        if isinstance(value_counts, dict) and len(value_counts) >= 2:
-            values = list(value_counts.values())
-            if len(values) >= 2:
-                ratio = max(values) / max(min(values), 1)
-                if ratio > 10 and col_info.get("unique_count", 0) < 10:
-                    hypotheses.append({
-                        "id": str(uuid.uuid4())[:8],
-                        "observation": f"Column '{col_name}' appears heavily imbalanced (ratio {ratio:.0f}:1)",
-                        "evidence": f"The most common value appears {ratio:.0f}× more than the least common",
-                        "question": "If this is a target variable, standard models will struggle. Use balancing techniques?",
-                        "confidence": 0.8,
-                        "impact": "high",
-                        "action": {
-                            "label": "View distribution",
-                            "type": "navigate",
-                            "payload": f"profile/{col_name}",
-                        },
-                        "status": "unreviewed",
-                    })
+        categorical_profile = col_info.get("categorical") or {}
+        if isinstance(categorical_profile, dict):
+            top_values = categorical_profile.get("top_values", [])
+            if isinstance(top_values, list) and len(top_values) >= 2:
+                values = [v.get("count", 0) if isinstance(v, dict) else 0 for v in top_values]
+                if values and len(values) >= 2:
+                    ratio = max(values) / max(min(values), 1)
+                    if ratio > 10 and col_info.get("distinct_count", col_info.get("unique_count", 0)) < 10:
+                        hypotheses.append({
+                            "id": str(uuid.uuid4())[:8],
+                            "observation": f"Column '{col_name}' appears heavily imbalanced (ratio {ratio:.0f}:1)",
+                            "evidence": f"The most common value appears {ratio:.0f}× more than the least common",
+                            "question": "If this is a target variable, standard models will struggle. Use balancing techniques?",
+                            "confidence": 0.8,
+                            "impact": "high",
+                            "action": {
+                                "label": "View distribution",
+                                "type": "navigate",
+                                "payload": f"profile/{col_name}",
+                            },
+                            "status": "unreviewed",
+                        })
 
     # Sort by confidence × impact
     impact_weights = {"high": 3, "medium": 2, "low": 1}
