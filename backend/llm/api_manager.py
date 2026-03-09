@@ -6,6 +6,8 @@ import asyncio
 import time
 import functools
 import logging
+import threading
+import random
 from typing import List, Callable, Any
 
 try:
@@ -29,6 +31,7 @@ class APIKeyManager:
         self.rate_limited_keys = {}  # key -> timestamp when it got an actual 429
         self.last_used_keys = {}     # key -> timestamp of its last generative request
         self.current_index = 0
+        self._lock = threading.Lock()
         
         if not self.keys:
             logger.warning("No API keys provided to APIKeyManager!")
@@ -38,72 +41,76 @@ class APIKeyManager:
         if not self.keys:
             return None
             
-        required_cooldown = 60.0 / tier_rpm if tier_rpm > 0 else 0
-        start_index = self.current_index
+        required_cooldown = 60.0 / tier_rpm if tier_rpm and tier_rpm > 0 else 0
         now = time.time()
         
-        # First pass: try to find a key that is neither exhausted, nor on 429 cooldown, nor skipping its RPM bound
-        while True:
-            key = self.keys[self.current_index]
+        with self._lock:
+            start_index = self.current_index
             
-            if key not in self.exhausted_keys:
-                last_429 = self.rate_limited_keys.get(key, 0)
-                last_used = self.last_used_keys.get(key, 0)
+            # First pass: try to find a key that is neither exhausted, nor on 429 cooldown, nor skipping its RPM bound
+            while True:
+                key = self.keys[self.current_index]
                 
-                if (now - last_429 > 25) and (now - last_used >= required_cooldown):
-                    self.last_used_keys[key] = now
-                    return key
-                
-            self._advance_index()
-            
-            if self.current_index == start_index:
-                # All keys are currently busy or exhausted.
-                break
-                
-        # Second pass: calculate which valid key will be available first and wait for it
-        best_wait = float('inf')
-        best_key = None
-        
-        for key in self.keys[self.current_index:] + self.keys[:self.current_index]:
-            if key not in self.exhausted_keys:
-                wait_429 = max(0.0, 25 - (now - self.rate_limited_keys.get(key, 0)))
-                wait_rpm = max(0.0, required_cooldown - (now - self.last_used_keys.get(key, 0)))
-                wait_time = max(wait_429, wait_rpm, 0.1) # Minimum 100ms yield
-                
-                if wait_time < best_wait:
-                    best_wait = wait_time
-                    best_key = key
+                if key not in self.exhausted_keys:
+                    last_429 = self.rate_limited_keys.get(key, 0)
+                    last_used = self.last_used_keys.get(key, 0)
                     
+                    if (now - last_429 > 25) and (now - last_used >= required_cooldown):
+                        self.last_used_keys[key] = now
+                        return key
+                    
+                self._advance_index()
+                
+                if self.current_index == start_index:
+                    # All keys are currently busy or exhausted.
+                    break
+                    
+            # Second pass: calculate which valid key will be available first and wait for it
+            best_wait = float('inf')
+            best_key = None
+            
+            for key in self.keys:
+                if key not in self.exhausted_keys:
+                    wait_429 = max(0.0, 25 - (now - self.rate_limited_keys.get(key, 0)))
+                    wait_rpm = max(0.0, required_cooldown - (now - self.last_used_keys.get(key, 0)))
+                    wait_time = max(wait_429, wait_rpm, 0.1) # Minimum 100ms yield
+                    
+                    if wait_time < best_wait:
+                        best_wait = wait_time
+                        best_key = key
+                        
         if best_key:
             logger.info(f"Targeting {tier_rpm} RPM. Keys busy. Load-balancer waiting {best_wait:.1f}s...")
             await asyncio.sleep(best_wait)
-            self.last_used_keys[best_key] = time.time()
-            # Still advance index to distribute load evenly next time
-            if self.keys[self.current_index] == best_key:
-                self._advance_index()
+            with self._lock:
+                self.last_used_keys[best_key] = time.time()
+                # Still advance index to distribute load evenly next time
+                if self.keys and self.keys[self.current_index] == best_key:
+                    self._advance_index()
             return best_key
                 
         logger.error("ALL API KEYS EXHAUSTED!")
-        return self.keys[start_index]  # Return the last one anyway
+        return self.keys[0]  # Return the first one anyway
 
     def _advance_index(self):
-        self.current_index = (self.current_index + 1) % len(self.keys)
+        if self.keys:
+            self.current_index = (self.current_index + 1) % len(self.keys)
 
     def mark_exhausted(self, key: str):
         """Mark a key as completely out of quota (429)."""
         logger.warning(f"Key ending in ...{key[-4:] if key else 'None'} marked as EXHAUSTED.")
-        self.exhausted_keys.add(key)
-        
-        if self.keys and self.keys[self.current_index] == key:
-            self._advance_index()
+        with self._lock:
+            self.exhausted_keys.add(key)
+            if self.keys and self.keys[self.current_index] == key:
+                self._advance_index()
 
     def mark_rate_limited(self, key: str):
         """Mark a key as temporarily rate limited (e.g. per-minute limit)."""
         logger.warning(f"Key ending in ...{key[-4:] if key else 'None'} marked as RATE LIMITED.")
-        self.rate_limited_keys[key] = time.time()
-        
-        if self.keys and self.keys[self.current_index] == key:
-            self._advance_index()
+        with self._lock:
+            self.rate_limited_keys[key] = time.time()
+            if self.keys and self.keys[self.current_index] == key:
+                self._advance_index()
             
     def get_status(self) -> dict:
         """Get the health status of the API key pool."""
@@ -176,9 +183,16 @@ def with_llm_failover(max_retries: int = None, tier_rpm: int = 15):
                             logger.error(f"Max retries ({max_retries}) reached for LLM failover. Aborting.")
                             raise e
                             
-                        # Slight contextual backoff before switching to next key
-                        logger.info(f"Retrying with next key (Attempt {retries}/{max_retries})...")
-                        await asyncio.sleep(1.0)
+                        if is_quota:
+                            # Quota exhausted: failover to next key immediately without backoff
+                            logger.info(f"Failing over to next key immediately (Attempt {retries}/{max_retries})...")
+                            await asyncio.sleep(0.1)
+                            continue
+                            
+                        # Exponential backoff with jitter for generic rate limits
+                        backoff = min(2 ** (retries - 1), 60.0) + random.uniform(0, 1)
+                        logger.info(f"Retrying with next key (Attempt {retries}/{max_retries}) after {backoff:.2f}s backoff...")
+                        await asyncio.sleep(backoff)
                         continue
                         
                     # It's an unrelated error (e.g. 400 Bad Request, 500 Internal), re-raise immediately

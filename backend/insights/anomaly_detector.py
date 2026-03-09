@@ -52,19 +52,21 @@ class AnomalyDetector:
                 ))
             
             if col.categorical:
-                if len(col.categorical.case_inconsistencies) > 0:
+                inconsistencies = col.categorical.case_inconsistencies or []
+                if len(inconsistencies) > 0:
                     warnings.append(AnomalyWarning(
                         feature=col.name,
                         severity=AnomalySeverity.LOW,
                         category="Formatting",
-                        description=f"Found {len(col.categorical.case_inconsistencies)} casing inconsistencies (e.g. 'Apple' vs 'apple').",
+                        description=f"Found {len(inconsistencies)} casing inconsistencies (e.g. 'Apple' vs 'apple').",
                         recommendation="Apply a lowercase/uppercase transform to standardize."
                     ))
 
         # 4. Numeric Outliers
         for col in profile.columns:
             if col.numeric:
-                if len(col.numeric.box_outliers) > (profile.total_rows * 0.05):
+                outliers = col.numeric.box_outliers or []
+                if len(outliers) > (profile.total_rows * 0.05):
                     warnings.append(AnomalyWarning(
                         feature=col.name,
                         severity=AnomalySeverity.INFO,
@@ -93,7 +95,7 @@ class AnomalyDetector:
                 score = pair.get("score", 0.0)
                 col1 = pair.get("col1")
                 col2 = pair.get("col2")
-                if abs(score) >= 0.99 and col1 != col2:
+                if col1 is not None and col2 is not None and abs(score) >= 0.99 and col1 != col2:
                     warnings.append(AnomalyWarning(
                         feature=col1,
                         severity=AnomalySeverity.CRITICAL,
@@ -119,7 +121,8 @@ class AnomalyDetector:
         # 6. PII Risk
         for col in profile.columns:
             if col.text and col.text.has_pii_risk:
-                for risk in col.text.pii_risks:
+                risks = col.text.pii_risks or []
+                for risk in risks:
                     warnings.append(AnomalyWarning(
                         feature=col.name,
                         severity=AnomalySeverity.CRITICAL,

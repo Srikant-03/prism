@@ -10,14 +10,31 @@ import json
 import re
 from typing import Any, Optional
 
+from config import LLMConfig
+
 try:
     import google.generativeai as genai
     from llm.api_manager import with_llm_failover
-    from config import LLMConfig
     HAS_GENAI = True
 except ImportError:
     HAS_GENAI = False
+    
+    # Dummy async decorator for failover when not installed
+    def with_llm_failover(*args, **kwargs):
+        def decorator(func):
+            import asyncio
+            async def wrapper(*a, **kw):
+                if asyncio.iscoroutinefunction(func):
+                    return await func(*a, **kw)
+                return func(*a, **kw)
+            return wrapper
+        return decorator
 
+@with_llm_failover(tier_rpm=2)
+async def _execute_nl_query_prompt(model, contents) -> Any:
+    import asyncio
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, lambda: model.generate_content(contents))
 
 # ── Schema context builder ────────────────────────────────────────────
 
@@ -137,12 +154,8 @@ USER QUESTION:
 
             contents.append({"role": "user", "parts": [user_prompt]})
 
-            @with_llm_failover(tier_rpm=2)
-            def do_generate():
-                model = self._get_model()
-                return model.generate_content(contents)
-            
-            response = await do_generate()
+            model = self._get_model()
+            response = await _execute_nl_query_prompt(model, contents)
 
             # Parse the JSON response
             text = response.text.strip()

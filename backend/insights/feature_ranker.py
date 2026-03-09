@@ -18,9 +18,11 @@ class FeatureRanker:
         if profile.cross_analysis and profile.cross_analysis.get("target"):
             target = profile.cross_analysis["target"]
             target_col = target.get("target_column")
-            for predictor in target.get("top_predictors", []):
-                # predictor is a dict since it was model_dumped
-                target_correlations[predictor.get("feature")] = predictor.get("importance_score")
+            predictors = target.get("top_predictors") or []
+            for predictor in predictors:
+                val = predictor.get("importance_score")
+                if val is not None:
+                    target_correlations[predictor.get("feature")] = val
 
         # Collect Mutual Information scores (avg across all pairs for a given feature)
         mi_scores: Dict[str, float] = {}
