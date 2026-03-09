@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ConfigProvider, theme, Alert, Button, Result, Tabs, FloatButton } from 'antd';
-import { ReloadOutlined, CodeOutlined, TableOutlined, FileTextOutlined, AppstoreOutlined, RobotOutlined, BulbOutlined } from '@ant-design/icons';
+import { ReloadOutlined, CodeOutlined, TableOutlined, FileTextOutlined, AppstoreOutlined, RobotOutlined, BulbOutlined, DashboardOutlined } from '@ant-design/icons';
 import Layout from './components/common/Layout';
 import FileUploader from './components/upload/FileUploader';
 import UploadProgress from './components/upload/UploadProgress';
@@ -22,6 +22,7 @@ import ThemeToggle from './components/common/ThemeToggle';
 import OnboardingWalkthrough from './components/common/OnboardingWalkthrough';
 import RelationshipGraph from './components/insights/RelationshipGraph';
 import HypothesisCards from './components/insights/HypothesisCards';
+import DashboardPage from './components/dashboard/DashboardPage';
 import { ThemeProvider, useTheme } from './hooks/useTheme';
 import { fetchAuth, API_BASE } from './api/client';
 import { useUpload } from './hooks/useUpload';
@@ -235,6 +236,16 @@ const App: React.FC = () => {
                             setActiveTabKey('sql');
                           }
                         }}
+                      />
+                    ),
+                  },
+                  {
+                    key: 'dashboard',
+                    label: <span><DashboardOutlined /> AI Dashboard</span>,
+                    children: (
+                      <DashboardPage
+                        fileId={state.result.file_id}
+                        columns={state.result.metadata.columns?.map((c: any) => c.name) || []}
                       />
                     ),
                   },
