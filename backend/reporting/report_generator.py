@@ -112,6 +112,12 @@ class ReportGenerator:
             if corr:
                 report.add_section(corr)
 
+        # 4.7 Target variable analysis
+        if profile_data:
+            target_section = ReportGenerator._target_variable_analysis(profile_data)
+            if target_section:
+                report.add_section(target_section)
+
         # 5. Preprocessing decisions log
         if audit_log:
             report.add_section(ReportGenerator._preprocessing_log(audit_log))
@@ -504,6 +510,138 @@ class ReportGenerator:
                 return ReportSection("Correlation & Multicollinearity Analysis", content, tables=tables, charts=charts)
 
         return None
+
+    @staticmethod
+    def _target_variable_analysis(profile: dict) -> ReportSection | None:
+        """Analyze the detected target variable and its relationship with other features."""
+        cross = profile.get("cross_analysis") or {}
+        if isinstance(cross, dict):
+            target_info = cross.get("target_analysis") or {}
+        else:
+            try:
+                target_info = cross.target_analysis.__dict__ if hasattr(cross, "target_analysis") and cross.target_analysis else {}
+            except Exception:
+                target_info = {}
+
+        if not isinstance(target_info, dict):
+            try:
+                target_info = target_info.__dict__
+            except Exception:
+                return None
+
+        target_col = target_info.get("target_column")
+        if not target_col:
+            return None
+
+        is_detected = target_info.get("is_target_detected", False)
+        if not is_detected:
+            return None
+
+        confidence = target_info.get("confidence", 0)
+        problem_type = target_info.get("problem_type", "unknown")
+        justification = target_info.get("justification", "")
+        class_dist = target_info.get("class_distribution") or {}
+        imbalance = target_info.get("imbalance_ratio")
+        top_predictors = target_info.get("top_predictors") or []
+
+        # Format problem type for display
+        problem_display = problem_type.replace("_", " ").title()
+
+        content = (
+            f"The system has automatically identified **'{target_col}'** as the most likely target "
+            f"(dependent) variable for predictive modeling. "
+            f"The detected problem type is **{problem_display}** with a detection confidence "
+            f"of **{confidence:.0%}**.\n\n"
+        )
+
+        if justification:
+            content += f"**Rationale:** {justification}\n\n"
+
+        if problem_type == "regression":
+            content += (
+                f"Since '{target_col}' is a continuous numeric variable, this is a **regression** problem. "
+                f"Models like Linear Regression, Random Forest Regressor, or Gradient Boosting can be applied. "
+                f"Feature selection based on the predictors below will help improve model performance."
+            )
+        elif "classification" in problem_type:
+            n_classes = len(class_dist) if class_dist else "unknown"
+            content += (
+                f"This is a **classification** problem with {n_classes} distinct classes. "
+            )
+            if imbalance and imbalance > 3:
+                content += (
+                    f"The class imbalance ratio is **{imbalance:.1f}:1**, which may cause "
+                    f"the model to favor the majority class. Consider SMOTE, class weights, "
+                    f"or undersampling strategies."
+                )
+
+        tables = []
+        charts = []
+
+        # Top predictors table and chart
+        if top_predictors:
+            pred_rows = []
+            pred_chart = []
+            for p in top_predictors[:15]:
+                if isinstance(p, dict):
+                    feat = p.get("feature", "")
+                    score = p.get("importance_score", 0)
+                else:
+                    feat = getattr(p, "feature", "")
+                    score = getattr(p, "importance_score", 0)
+
+                # Interpret impact strength
+                if score > 0.7:
+                    strength = "Very Strong"
+                elif score > 0.4:
+                    strength = "Moderate"
+                elif score > 0.1:
+                    strength = "Weak"
+                else:
+                    strength = "Negligible"
+
+                pred_rows.append([feat, f"{score:.4f}", strength])
+                pred_chart.append({"label": feat, "value": round(float(score), 4)})
+
+            tables.append({
+                "title": f"Features Most Influencing '{target_col}'",
+                "headers": ["Feature", "Association Score", "Impact Strength"],
+                "rows": pred_rows,
+            })
+
+            pred_chart.sort(key=lambda x: x["value"], reverse=True)
+            charts.append({
+                "type": "bar",
+                "title": f"Top Predictors for '{target_col}' (by association strength)",
+                "data": pred_chart[:10]
+            })
+
+            # Add analytical narrative about top predictors
+            if pred_rows:
+                top_feat = pred_rows[0][0]
+                top_score = pred_rows[0][1]
+                content += (
+                    f"\n\n**Key Finding:** The strongest predictor of '{target_col}' is "
+                    f"**'{top_feat}'** with an association score of {top_score}. "
+                )
+                strong_features = [r[0] for r in pred_rows if r[2] in ("Very Strong", "Moderate")]
+                if len(strong_features) > 1:
+                    content += (
+                        f"Features with moderate-to-strong predictive power include: "
+                        f"**{', '.join(strong_features[:5])}**. "
+                        f"These should be prioritized in any feature engineering or model training pipeline."
+                    )
+
+        # Class distribution chart for classification
+        if class_dist and isinstance(class_dist, dict):
+            dist_chart = [{"label": str(k), "value": round(float(v) * 100, 1)} for k, v in class_dist.items()]
+            charts.append({
+                "type": "pie",
+                "title": f"Class Distribution of '{target_col}'",
+                "data": dist_chart[:10]
+            })
+
+        return ReportSection("Target Variable & Predictive Analysis", content, tables=tables, charts=charts)
 
     @staticmethod
     def _preprocessing_log(audit_log: list[dict]) -> ReportSection:

@@ -11,10 +11,39 @@ class TargetDetector:
     for machine learning or prediction in the dataset.
     """
 
-    TARGET_HINTS = [
-        'target', 'label', 'outcome', 'class', 'churn', 'fraud', 'status',
-        'is_', 'has_', 'revenue', 'price', 'diagnosis', 'survived', 'default'
+    # Strong target keywords (exact token match via word boundaries)
+    TARGET_HINTS_STRONG = [
+        'target', 'label', 'outcome', 'result', 'prediction', 'predicted',
+        'score', 'grade', 'rating', 'exam_score', 'final_score', 'test_score',
+        'survived', 'churn', 'fraud', 'diagnosis', 'default', 'response',
+        'y', 'dependent',
     ]
+
+    # Weaker prefix/suffix hints (matched as prefix or suffix tokens)
+    TARGET_HINTS_WEAK = [
+        'is_', 'has_', 'revenue', 'price', 'salary', 'amount', 'total',
+        'status', 'approved', 'accepted', 'rejected',
+    ]
+
+    # Anti-hints: partial strings that should NOT trigger target detection
+    # e.g. 'class' should not match 'online_classes_hours'
+    ANTI_HINTS = [
+        'id', 'index', 'name', 'date', 'time', 'timestamp', 'created',
+        'updated', 'url', 'email', 'phone', 'address',
+    ]
+
+    @staticmethod
+    def _token_match(col_name: str, hints: list) -> bool:
+        """Check if any hint appears as a full token in the column name.
+        Splits on underscores and checks for exact token equality."""
+        tokens = col_name.lower().replace('-', '_').split('_')
+        for hint in hints:
+            hint_tokens = hint.lower().replace('-', '_').split('_')
+            # Check if hint tokens appear as a contiguous subsequence
+            for i in range(len(tokens) - len(hint_tokens) + 1):
+                if tokens[i:i+len(hint_tokens)] == hint_tokens:
+                    return True
+        return False
 
     def analyze(self, df: pd.DataFrame, dataset_profile: DatasetProfile, correlations: CorrelationAnalysis) -> TargetAnalysis:
         if df.empty or len(dataset_profile.columns) < 2:
@@ -22,41 +51,58 @@ class TargetDetector:
 
         # 1. Score columns based on heuristics
         scores = {}
+        reasons_map = {}
         for col in dataset_profile.columns:
             if col.name not in df.columns:
                 continue
 
             name_lower = col.name.lower()
             score = 0.0
+            col_reasons = []
 
-            # Name match
-            if any(hint in name_lower for hint in TargetDetector.TARGET_HINTS):
-                score += 3.0
+            # Strong name match (token-based, not substring)
+            if TargetDetector._token_match(col.name, TargetDetector.TARGET_HINTS_STRONG):
+                score += 4.0
+                col_reasons.append("Column name strongly suggests a target variable")
+
+            # Weak prefix/suffix match
+            if any(name_lower.startswith(h) or name_lower.endswith(h.rstrip('_')) for h in TargetDetector.TARGET_HINTS_WEAK):
+                score += 1.5
+                col_reasons.append("Column name contains a weak target indicator")
 
             # Binary or Categorical with low cardinality are good class targets
             if col.semantic_type == 'boolean':
                 score += 2.0
+                col_reasons.append("Boolean feature is a natural classification target")
             elif col.semantic_type in ('categorical_nominal', 'categorical_ordinal'):
-                # Ideal classification targets have 2-10 classes
-                # Need to look up cardinality from profile if we parsed it properly,
-                # but we can also just check unique values directly
                 try:
                     n_unique = df[col.name].nunique()
                     if 2 <= n_unique <= 10:
                         score += 1.5
+                        col_reasons.append(f"Low cardinality categorical ({n_unique} classes)")
                 except Exception:
                     pass
 
             # ID columns or free text are terrible targets
             if col.semantic_type in ('id_key', 'free_text', 'url', 'hashed', 'email', 'phone'):
-                score -= 5.0
+                score -= 10.0
 
-            # Structural location (often last column or first column)
+            # Anti-hints: if column name is purely an anti-hint, penalize
+            if TargetDetector._token_match(col.name, TargetDetector.ANTI_HINTS):
+                score -= 3.0
+
+            # Structural location (last column is traditionally the target)
             if col.name == df.columns[-1]:
-                score += 1.0
+                score += 1.5
+                col_reasons.append("Positioned as the last column in the dataset")
+
+            # Numeric continuous targets with many unique values are good regression targets
+            if col.semantic_type in ('numeric_continuous',) and score > 0:
+                score += 0.5
 
             if score > 0:
                 scores[col.name] = score
+                reasons_map[col.name] = col_reasons
 
         if not scores:
             return TargetAnalysis(is_target_detected=False)
@@ -144,13 +190,11 @@ class TargetDetector:
             top_predictors.append(FeatureImportance(feature=f, importance_score=abs(float(score))))
 
         # Build justification
-        reasons = []
-        if any(h in target_name.lower() for h in TargetDetector.TARGET_HINTS):
-            reasons.append(f"Header name contains strong hints.")
-        if target_name == df.columns[-1]:
-            reasons.append(f"Positioned as the last column.")
+        reasons = reasons_map.get(target_name, [])
+        if not reasons:
+            reasons = ["Statistical heuristic scoring"]
         
-        justification = "Detected as target candidate because: " + " ".join(reasons)
+        justification = "Detected as target candidate because: " + "; ".join(reasons) + "."
 
         return TargetAnalysis(
             is_target_detected=True,
