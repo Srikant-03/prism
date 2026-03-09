@@ -11,39 +11,83 @@ class TargetDetector:
     for machine learning or prediction in the dataset.
     """
 
-    # Strong target keywords (exact token match via word boundaries)
+    # ── Strong target keywords (exact token match via word boundaries) ──
+    # These cover the most common target variable naming conventions across
+    # healthcare, finance, retail, IoT, HR, education, and general ML.
     TARGET_HINTS_STRONG = [
+        # General ML
         'target', 'label', 'outcome', 'result', 'prediction', 'predicted',
-        'score', 'grade', 'rating', 'exam_score', 'final_score', 'test_score',
-        'survived', 'churn', 'fraud', 'diagnosis', 'default', 'response',
-        'y', 'dependent',
+        'class', 'y', 'dependent', 'response', 'output',
+        # Scores / Ratings
+        'score', 'grade', 'rating', 'rank',
+        # Healthcare
+        'diagnosis', 'disease', 'mortality', 'readmission', 'severity',
+        'positive', 'negative', 'malignant', 'benign', 'survival',
+        # Finance
+        'default', 'bankrupt', 'risk', 'fraud', 'anomaly',
+        'return', 'profit', 'loss', 'credit',
+        # Retail / Marketing
+        'churn', 'purchase', 'conversion', 'revenue', 'demand',
+        'satisfaction', 'sentiment', 'recommend',
+        # HR
+        'attrition', 'turnover', 'performance', 'promotion',
+        'hired', 'fired', 'left', 'resigned',
+        # IoT / Manufacturing
+        'failure', 'defect', 'quality', 'downtime', 'rul',
+        # Education
+        'exam_score', 'final_score', 'test_score', 'passed', 'failed',
+        # Survival analysis
+        'survived', 'event', 'censored',
     ]
 
-    # Weaker prefix/suffix hints (matched as prefix or suffix tokens)
+    # ── Weaker prefix/suffix hints ──
     TARGET_HINTS_WEAK = [
-        'is_', 'has_', 'revenue', 'price', 'salary', 'amount', 'total',
-        'status', 'approved', 'accepted', 'rejected',
+        'is_', 'has_', 'was_', 'will_',
+        'price', 'salary', 'amount', 'total', 'count',
+        'status', 'approved', 'accepted', 'rejected', 'flag',
+        'forecast', 'predicted', 'expected', 'estimated',
+        'click', 'engagement', 'nps', 'ltv', 'value',
     ]
 
-    # Anti-hints: partial strings that should NOT trigger target detection
-    # e.g. 'class' should not match 'online_classes_hours'
+    # ── Anti-hints: columns that should NEVER be targets ──
     ANTI_HINTS = [
-        'id', 'index', 'name', 'date', 'time', 'timestamp', 'created',
-        'updated', 'url', 'email', 'phone', 'address',
+        'id', 'index', 'idx', 'key', 'pk',
+        'name', 'first_name', 'last_name', 'username',
+        'date', 'time', 'timestamp', 'created', 'updated', 'modified',
+        'url', 'uri', 'link', 'path',
+        'email', 'phone', 'address', 'city', 'state', 'zip', 'country',
+        'description', 'comment', 'note', 'text', 'body',
+        'file', 'image', 'photo', 'avatar',
     ]
 
     @staticmethod
     def _token_match(col_name: str, hints: list) -> bool:
         """Check if any hint appears as a full token in the column name.
-        Splits on underscores and checks for exact token equality."""
+        Splits on underscores/hyphens and checks for exact token equality."""
         tokens = col_name.lower().replace('-', '_').split('_')
         for hint in hints:
-            hint_tokens = hint.lower().replace('-', '_').split('_')
-            # Check if hint tokens appear as a contiguous subsequence
+            hint_tokens = hint.lower().replace('-', '_').rstrip('_').split('_')
             for i in range(len(tokens) - len(hint_tokens) + 1):
                 if tokens[i:i+len(hint_tokens)] == hint_tokens:
                     return True
         return False
+
+    @staticmethod
+    def _is_sequential_counter(s: pd.Series) -> bool:
+        """Detect if a numeric series is a monotonically increasing counter (e.g. row index)."""
+        if not pd.api.types.is_numeric_dtype(s):
+            return False
+        try:
+            s_clean = s.dropna()
+            if len(s_clean) < 10:
+                return False
+            diffs = s_clean.diff().dropna()
+            if len(diffs) == 0:
+                return False
+            # If >95% of diffs are exactly 1, it's a sequential counter
+            return (diffs == 1).mean() > 0.95
+        except Exception:
+            return False
 
     def analyze(self, df: pd.DataFrame, dataset_profile: DatasetProfile, correlations: CorrelationAnalysis) -> TargetAnalysis:
         if df.empty or len(dataset_profile.columns) < 2:
@@ -87,9 +131,16 @@ class TargetDetector:
             if col.semantic_type in ('id_key', 'free_text', 'url', 'hashed', 'email', 'phone'):
                 score -= 10.0
 
-            # Anti-hints: if column name is purely an anti-hint, penalize
+            # Anti-hints: columns whose names indicate metadata, not targets
             if TargetDetector._token_match(col.name, TargetDetector.ANTI_HINTS):
                 score -= 3.0
+
+            # Sequential counter penalty (row index, auto-increment IDs)
+            try:
+                if pd.api.types.is_numeric_dtype(df[col.name]) and TargetDetector._is_sequential_counter(df[col.name]):
+                    score -= 5.0
+            except Exception:
+                pass
 
             # Structural location (last column is traditionally the target)
             if col.name == df.columns[-1]:

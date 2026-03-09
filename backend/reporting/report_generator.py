@@ -185,6 +185,28 @@ class ReportGenerator:
                 f"{applied} of {total} recommended preprocessing steps were applied."
             )
 
+        # Dataset readiness assessment
+        if profile:
+            readiness_issues = []
+            columns = profile.get("columns", [])
+            if isinstance(columns, dict):
+                columns = list(columns.values())
+            high_null_cols = sum(1 for c in columns if isinstance(c, dict) and c.get("null_percentage", 0) > 30)
+            if high_null_cols:
+                readiness_issues.append(f"{high_null_cols} feature(s) with >30% missing values")
+            if profile.get("duplicate_row_count", 0) > 0:
+                readiness_issues.append(f"{profile['duplicate_row_count']:,} duplicate rows")
+
+            if readiness_issues:
+                parts.append(
+                    f"\n\n**Dataset Readiness:** The dataset requires preprocessing before modeling. "
+                    f"Key issues: {'; '.join(readiness_issues)}."
+                )
+            else:
+                parts.append(
+                    "\n\n**Dataset Readiness:** The dataset appears clean and well-structured for immediate exploratory analysis and modeling."
+                )
+
         content = " ".join(parts) if parts else "No data available for summary."
         return ReportSection("Executive Summary", content)
 
@@ -211,6 +233,8 @@ class ReportGenerator:
         for c in columns:
             if isinstance(c, dict):
                 t = c.get("semantic_type", c.get("ui_type", "unknown"))
+                # Strip 'SemanticType.' prefix for clean display
+                t = str(t).replace("SemanticType.", "").lower()
                 type_counts[t] = type_counts.get(t, 0) + 1
 
         # Compute summary stats for intro
@@ -789,9 +813,10 @@ class ReportGenerator:
     @staticmethod
     def _recommendations(profile: dict = None, insights: dict = None,
                          cleaning: dict = None) -> ReportSection:
-        """Recommended next steps."""
+        """Domain-aware, algorithm-aware recommended next steps."""
         recs = []
 
+        # Pull analyst briefing recommendations if available
         if insights and "analyst_briefing" in insights:
             brief = insights["analyst_briefing"]
             if isinstance(brief, dict):
@@ -799,24 +824,118 @@ class ReportGenerator:
                     recs.append(action)
 
         if profile:
-            cols = profile.get("columns", [])
-            high_null = [c["name"] for c in cols if c.get("null_percentage", 0) > 50]
+            columns = profile.get("columns", [])
+            if isinstance(columns, dict):
+                columns = list(columns.values())
+            total_rows = profile.get("total_rows", 0)
+            total_cols = profile.get("total_columns", 0)
+
+            # ── Missing value handling ──
+            high_null = [c.get("name", "") for c in columns if isinstance(c, dict) and c.get("null_percentage", 0) > 50]
+            moderate_null = [c.get("name", "") for c in columns if isinstance(c, dict) and 5 < c.get("null_percentage", 0) <= 50]
             if high_null:
                 recs.append(
-                    f"Consider dropping columns with >50% nulls: {', '.join(high_null[:5])}"
+                    f"Features with >50% missingness ({', '.join(high_null[:5])}) should be evaluated for removal. "
+                    f"If they contain critical domain signals, consider advanced imputation (KNN Imputer, IterativeImputer/MICE)."
+                )
+            if moderate_null:
+                recs.append(
+                    f"Features with 5-50% missingness ({', '.join(moderate_null[:5])}) can be imputed using "
+                    f"median (numeric) or mode (categorical) strategies, or more sophisticated methods like KNNImputer."
                 )
 
+            # ── Skewness handling ──
+            skewed_cols = []
+            for c in columns:
+                if not isinstance(c, dict):
+                    continue
+                num = c.get("numeric") or {}
+                if isinstance(num, dict) and num.get("skewness") is not None and abs(num["skewness"]) > 2:
+                    skewed_cols.append(c.get("name", ""))
+            if skewed_cols:
+                recs.append(
+                    f"Highly skewed features ({', '.join(skewed_cols[:5])}) should be transformed using "
+                    f"log, sqrt, or Box-Cox transforms before training linear models, SVMs, or KNN."
+                )
+
+            # ── High cardinality categoricals ──
+            high_card = [c.get("name", "") for c in columns 
+                         if isinstance(c, dict) and c.get("inferred_dtype", c.get("dtype", "")) in ("object", "string", "category")
+                         and c.get("distinct_count", c.get("unique_count", 0)) > 50]
+            if high_card:
+                recs.append(
+                    f"High-cardinality categorical features ({', '.join(high_card[:5])}) will cause dimensionality explosion with one-hot encoding. "
+                    f"Consider Target Encoding, Frequency Encoding, or native handling via CatBoost/LightGBM."
+                )
+
+            # ── Dimensionality concerns ──
+            if total_cols > 50:
+                recs.append(
+                    f"With {total_cols} features, consider dimensionality reduction: PCA for numeric features, "
+                    f"feature selection via mutual information or L1 regularization, or tree-based feature importance filtering."
+                )
+
+            # ── Small dataset warning ──
+            if total_rows < 1000:
+                recs.append(
+                    f"With only {total_rows:,} observations, overfitting risk is high. Use stratified k-fold cross-validation (k=5 or 10), "
+                    f"avoid complex models without regularization, and consider data augmentation if applicable."
+                )
+
+            # ── Target-specific ML algorithm recommendations ──
             cross = profile.get("cross_analysis", {})
             if isinstance(cross, dict):
                 target = cross.get("target_analysis", {})
                 if isinstance(target, dict) and target.get("target_column"):
-                    recs.append(
-                        f"Suggested modeling target: '{target['target_column']}' "
-                        f"for {target.get('problem_type', 'classification')}"
-                    )
+                    target_col = target["target_column"]
+                    problem_type = target.get("problem_type", "")
+                    imbalance = target.get("imbalance_ratio")
+
+                    if "regression" in problem_type:
+                        recs.append(
+                            f"For predicting '{target_col}' (regression), recommended algorithms: "
+                            f"Linear Regression / Ridge / Lasso (baseline), Random Forest Regressor, "
+                            f"XGBoost / LightGBM / CatBoost (gradient boosting), and SVR for non-linear patterns. "
+                            f"Evaluate using RMSE, MAE, and R-squared."
+                        )
+                    elif "binary" in problem_type:
+                        recs.append(
+                            f"For predicting '{target_col}' (binary classification), recommended algorithms: "
+                            f"Logistic Regression (baseline), Random Forest, XGBoost / LightGBM, SVM, "
+                            f"and Neural Networks for complex feature interactions. "
+                            f"Evaluate using AUC-ROC, F1-Score, Precision, and Recall."
+                        )
+                    elif "multiclass" in problem_type:
+                        recs.append(
+                            f"For predicting '{target_col}' (multiclass classification), recommended algorithms: "
+                            f"Multinomial Logistic Regression (baseline), Random Forest, XGBoost with multi:softmax, "
+                            f"CatBoost (handles categoricals natively), and Neural Networks. "
+                            f"Evaluate using macro/weighted F1-Score and confusion matrix."
+                        )
+
+                    # Imbalance-specific advice
+                    if imbalance and imbalance > 3:
+                        recs.append(
+                            f"Class imbalance ratio is {imbalance:.1f}:1. Apply SMOTE / ADASYN for oversampling, "
+                            f"or use class_weight='balanced' in sklearn models. For gradient boosting, "
+                            f"use scale_pos_weight (XGBoost) or is_unbalance (LightGBM)."
+                        )
+
+            # ── Correlation-based recommendations ──
+            if isinstance(cross, dict):
+                corrs = cross.get("correlations") or {}
+                if isinstance(corrs, dict):
+                    strong_corrs = corrs.get("strongest_pairs") or []
+                    very_strong = [p for p in strong_corrs if isinstance(p, dict) and abs(p.get("score", 0)) > 0.9]
+                    if very_strong:
+                        recs.append(
+                            f"{len(very_strong)} feature pair(s) exhibit near-perfect correlation (|r| > 0.9). "
+                            f"Use VIF (Variance Inflation Factor) analysis to identify and remove redundant features "
+                            f"before training regression or gradient-based models."
+                        )
 
         if not recs:
-            recs.append("Dataset is ready for downstream analysis or modeling.")
+            recs.append("Dataset appears analysis-ready. Proceed with exploratory data analysis, feature engineering, and model selection.")
 
         content = "\n".join(f"- {r}" for r in recs)
         return ReportSection("Recommended Next Steps", content)
