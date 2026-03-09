@@ -76,7 +76,7 @@ const DataPreview: React.FC<DataPreviewProps> = ({ result }) => {
                     </div>
                 }
             >
-                <Space direction="vertical" size={0} align="center">
+                <Space orientation="vertical" size={0} align="center">
                     <Text strong style={{ fontSize: 12 }}>{col.name}</Text>
                     <Tag
                         icon={getDtypeIcon(col.dtype)}

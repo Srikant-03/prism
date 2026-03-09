@@ -202,7 +202,7 @@ const SchemaOverride: React.FC<Props> = ({
                 onCancel={() => setImpactModal({ visible: false, column: '', fromType: '', toType: '' })}
                 okText="Confirm Override"
             >
-                <Space direction="vertical" style={{ width: '100%' }}>
+                <Space orientation="vertical" style={{ width: '100%' }}>
                     <div>
                         <strong>{impactModal.column}</strong>:{' '}
                         <Tag>{impactModal.fromType}</Tag>

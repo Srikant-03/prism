@@ -130,7 +130,7 @@ const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data }) => {
 
 
     return (
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
             {data.multicollinearity.has_multicollinearity && (
                 <Alert
                     message="High Multicollinearity Detected"

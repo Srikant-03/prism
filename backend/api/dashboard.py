@@ -63,11 +63,23 @@ def _get_schema_for_file(file_id: str) -> dict:
 
 
 def _get_table_name(file_id: str) -> str:
-    """Get the DuckDB table name for a file_id."""
+    """Get the DuckDB table name for a file_id by querying the SQL engine registry."""
+    try:
+        from api.sql import get_engine
+        engine = get_engine()
+        # Search the engine's table registry for a table with this file_id
+        for tbl_name, meta in engine._tables.items():
+            if meta.get("file_id") == file_id:
+                return tbl_name
+    except Exception as e:
+        logger.warning("Could not query SQL engine for table name: %s", e)
+
+    # Fallback: check state store
     stored = get_stored_data(file_id)
-    if stored and "table_name" in stored:
+    if stored and isinstance(stored, dict) and "table_name" in stored:
         return stored["table_name"]
-    # Fallback — use file_id as table name (DuckDB may register it this way)
+
+    # Last resort: use file_id as table name
     return f"upload_{file_id}"
 
 

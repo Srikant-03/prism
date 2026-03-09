@@ -638,6 +638,119 @@ def generate_hypotheses(profile: dict, quality: dict = None) -> list[dict]:
             })
 
     # ═══════════════════════════════════════════════════════════════
+    # FALLBACK: Per-column hypotheses when cross_analysis is sparse
+    # These fire from per-column stats alone, ensuring all datasets
+    # get some hypotheses even without correlation/MI/target data.
+    # ═══════════════════════════════════════════════════════════════
+    if len(hypotheses) < 3:
+        for col_name, col_info in col_items:
+            if not isinstance(col_info, dict):
+                continue
+            sem_type = col_info.get("semantic_type", col_info.get("inferred_dtype", ""))
+
+            # Skewed numeric features (lower threshold when no cross-analysis)
+            numeric_profile = col_info.get("numeric") or {}
+            if isinstance(numeric_profile, dict):
+                skewness = numeric_profile.get("skewness")
+                if skewness is not None and abs(skewness) > 1.5:
+                    direction = "right" if skewness > 0 else "left"
+                    # Avoid duplicating existing skewness hypotheses
+                    already_present = any(
+                        col_name in h.get("observation", "")
+                        and "skew" in h.get("observation", "").lower()
+                        for h in hypotheses
+                    )
+                    if not already_present:
+                        hypotheses.append({
+                            "id": str(uuid.uuid4())[:8],
+                            "observation": (
+                                f"Skewed distribution in '{col_name}' "
+                                f"(skewness = {skewness:.2f})"
+                            ),
+                            "layman": (
+                                f"'{col_name}' has most values clustered on one side with a long "
+                                f"tail of extreme values. A log or square-root transformation "
+                                f"can make the distribution more balanced for modeling."
+                            ),
+                            "evidence": (
+                                f"Skewness of {skewness:.2f} ({direction}-skewed). "
+                                f"Values beyond ~1.0 are considered meaningfully skewed."
+                            ),
+                            "question": (
+                                "Consider log or Box-Cox transforms for this feature "
+                                "before feeding it to distance-based or linear models."
+                            ),
+                            "confidence": min(0.8, 0.4 + abs(skewness) / 5),
+                            "impact": "medium",
+                            "action": {"label": f"View '{col_name}'", "type": "navigate",
+                                       "payload": f"profile/{col_name}"},
+                            "status": "unreviewed",
+                        })
+
+            # High-cardinality categoricals
+            if sem_type in ("categorical_nominal", "categorical_ordinal", "object"):
+                cardinality = col_info.get("distinct_count") or col_info.get("unique_count", 0)
+                null_pct = col_info.get("null_percentage", 0)
+                if cardinality > 50 and row_count > 0:
+                    ratio = cardinality / max(row_count, 1)
+                    if ratio > 0.5:
+                        hypotheses.append({
+                            "id": str(uuid.uuid4())[:8],
+                            "observation": (
+                                f"Very high cardinality in categorical feature '{col_name}' "
+                                f"({cardinality:,} unique values out of {row_count:,} rows)"
+                            ),
+                            "layman": (
+                                f"'{col_name}' has too many unique categories — almost as many as "
+                                f"there are rows. One-hot encoding it would explode the feature space. "
+                                f"Consider grouping rare categories into an 'Other' bucket or using "
+                                f"target encoding."
+                            ),
+                            "evidence": (
+                                f"{cardinality:,} unique values / {row_count:,} rows = {ratio:.1%} ratio. "
+                                f"Standard one-hot encoding would create {cardinality} new columns."
+                            ),
+                            "question": (
+                                "Use frequency encoding, target encoding, or group rare categories "
+                                "into 'Other'. Tree models handle high cardinality better than linear ones."
+                            ),
+                            "confidence": min(0.85, 0.5 + ratio / 2),
+                            "impact": "medium",
+                            "action": {"label": f"View '{col_name}'", "type": "navigate",
+                                       "payload": f"profile/{col_name}"},
+                            "status": "unreviewed",
+                        })
+
+        # If still zero hypotheses, add a generic dataset-level one
+        if len(hypotheses) == 0 and row_count > 0:
+            hypotheses.append({
+                "id": str(uuid.uuid4())[:8],
+                "observation": (
+                    f"Dataset overview: {row_count:,} rows × {total_cols} features — "
+                    f"cross-column analysis required for deeper hypotheses"
+                ),
+                "layman": (
+                    f"This dataset has {row_count:,} rows and {total_cols} features. "
+                    f"To generate richer insights about feature relationships, interactions, "
+                    f"and modeling strategies, run the full cross-column profiling step."
+                ),
+                "evidence": (
+                    "Initial per-column analysis found no extreme distributional anomalies. "
+                    "Advanced hypotheses (non-linear relationships, latent factors, leakage) "
+                    "require correlation matrix and mutual information data."
+                ),
+                "question": (
+                    "Run cross-column analysis (correlations, MI, target detection) to unlock "
+                    "hypotheses about feature interactions and modeling strategy."
+                ),
+                "confidence": 0.5,
+                "impact": "low",
+                "action": {"label": "Run full profiling", "type": "navigate",
+                           "payload": "profiling"},
+                "status": "unreviewed",
+            })
+
+    # ═══════════════════════════════════════════════════════════════
     # Sort by confidence × impact weight
     # ═══════════════════════════════════════════════════════════════
     impact_weights = {"high": 3, "medium": 2, "low": 1}

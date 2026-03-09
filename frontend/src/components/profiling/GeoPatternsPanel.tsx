@@ -46,7 +46,7 @@ const GeoPatternsPanel: React.FC<GeoPatternsPanelProps> = ({ data }) => {
     }, [data.geo_distribution]);
 
     return (
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
             <Card variant="borderless" className="glass-panel">
                 <Title level={4} style={{ color: '#fff' }}>Geospatial Distribution</Title>
                 <Paragraph style={{ color: 'rgba(255,255,255,0.7)' }}>

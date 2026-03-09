@@ -170,7 +170,7 @@ const ActionCard: React.FC<ActionCardProps> = ({ action, onApply, onSkip, loadin
                                         columns={previewColumns}
                                         size="small"
                                         pagination={false}
-                                        rowKey={(_, index) => `before-${index}`}
+                                        rowKey={(record: any) => `before-${JSON.stringify(record)}`}
                                         style={{ marginTop: 4 }}
                                         scroll={{ x: true }}
                                     />
@@ -183,7 +183,7 @@ const ActionCard: React.FC<ActionCardProps> = ({ action, onApply, onSkip, loadin
                                             columns={previewColumns}
                                             size="small"
                                             pagination={false}
-                                            rowKey={(_, index) => `after-${index}`}
+                                            rowKey={(record: any) => `after-${JSON.stringify(record)}`}
                                             style={{ marginTop: 4 }}
                                             scroll={{ x: true }}
                                         />

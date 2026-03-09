@@ -239,7 +239,7 @@ const RecipeBrowser: React.FC<Props> = ({ onApply }) => {
                 onOk={() => saveAsRecipe([])}
                 okText="Save Recipe"
             >
-                <Space direction="vertical" style={{ width: '100%' }}>
+                <Space orientation="vertical" style={{ width: '100%' }}>
                     <Input
                         value={newName}
                         onChange={e => setNewName(e.target.value)}
