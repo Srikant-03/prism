@@ -32,9 +32,9 @@ def generate_hypotheses(profile: dict, quality: dict = None) -> list[dict]:
         if null_pct > 30:
             hypotheses.append({
                 "id": str(uuid.uuid4())[:8],
-                "observation": f"Column '{col_name}' has {null_pct:.0f}% missing values",
-                "evidence": f"{null_pct:.1f}% of values are NULL ({int(null_pct * row_count / 100)} rows)",
-                "question": f"Is '{col_name}' important enough to keep, or can it be dropped?",
+                "observation": f"Severe data sparsity in feature '{col_name}'",
+                "evidence": f"Feature is missing {null_pct:.1f}% of its contiguous values ({int(null_pct * row_count / 100)} missing records)",
+                "question": f"Is '{col_name}' critical for the target objective? Consider eliminating the feature to reduce background noise.",
                 "confidence": min(0.9, null_pct / 100 + 0.3),
                 "impact": "high" if null_pct > 50 else "medium",
                 "action": {
@@ -49,9 +49,9 @@ def generate_hypotheses(profile: dict, quality: dict = None) -> list[dict]:
         if unique_ratio > 0.95 and dtype in ("int64", "object", "string"):
             hypotheses.append({
                 "id": str(uuid.uuid4())[:8],
-                "observation": f"Column '{col_name}' appears to be a unique identifier",
-                "evidence": f"{unique_ratio:.0%} unique values — likely a primary key or ID",
-                "question": "Should this column be excluded from modeling?",
+                "observation": f"Feature '{col_name}' exhibits near-perfect cardinality",
+                "evidence": f"{unique_ratio:.1%} of values are strictly unique — strongly indicating an index or surrogate key",
+                "question": "Should this feature be excluded from predictive modeling to prevent severe overfitting?",
                 "confidence": unique_ratio,
                 "impact": "medium",
                 "action": {
@@ -66,9 +66,9 @@ def generate_hypotheses(profile: dict, quality: dict = None) -> list[dict]:
         if unique_count <= 1:
             hypotheses.append({
                 "id": str(uuid.uuid4())[:8],
-                "observation": f"Column '{col_name}' has only {unique_count} unique value(s) — it's constant",
-                "evidence": "A constant column provides no information for analysis or modeling",
-                "question": "Drop this column?",
+                "observation": f"Feature '{col_name}' has zero to near-zero variance",
+                "evidence": f"Contains only {unique_count} distinct scalar value(s) across the entire dataset",
+                "question": "A constant feature inherently provides zero information gain. Should it be dropped?",
                 "confidence": 0.95,
                 "impact": "low",
                 "action": {
@@ -83,9 +83,9 @@ def generate_hypotheses(profile: dict, quality: dict = None) -> list[dict]:
         if dtype in ("object", "string", "category") and unique_count > 100:
             hypotheses.append({
                 "id": str(uuid.uuid4())[:8],
-                "observation": f"Column '{col_name}' has {unique_count} unique categories — very high cardinality",
-                "evidence": "High-cardinality categoricals are difficult to encode and may not generalize well",
-                "question": "Should we group rare categories or use a different encoding?",
+                "observation": f"High cardinality detected in categorical feature '{col_name}'",
+                "evidence": f"Contains {unique_count} unique categorical levels, risking extreme dimensionality if strictly one-hot encoded",
+                "question": "Are these highly granular categories truly necessary, or can rare levels be binned/grouped?",
                 "confidence": 0.75,
                 "impact": "medium",
                 "action": {
@@ -105,9 +105,9 @@ def generate_hypotheses(profile: dict, quality: dict = None) -> list[dict]:
             direction = "right" if skewness > 0 else "left"
             hypotheses.append({
                 "id": str(uuid.uuid4())[:8],
-                "observation": f"Column '{col_name}' is heavily {direction}-skewed (skewness={skewness:.2f})",
-                "evidence": f"Skewness of {skewness:.2f} is far from 0 — distribution is asymmetric",
-                "question": "Apply log transform to normalize the distribution?",
+                "observation": f"Distribution of '{col_name}' is severely {direction}-skewed (skew = {skewness:.2f})",
+                "evidence": f"A skewness of {skewness:.2f} significantly deviates from a normal distribution curve",
+                "question": "Would applying a log or Box-Cox transformation stabilize variance for linear models?",
                 "confidence": 0.7,
                 "impact": "medium",
                 "action": {
@@ -124,9 +124,9 @@ def generate_hypotheses(profile: dict, quality: dict = None) -> list[dict]:
         if isinstance(corr_val, (int, float)) and abs(corr_val) > 0.9:
             hypotheses.append({
                 "id": str(uuid.uuid4())[:8],
-                "observation": f"Columns {pair} are highly correlated (r={corr_val:.3f})",
-                "evidence": f"Correlation of {corr_val:.3f} suggests one column may be redundant",
-                "question": "Should one of these columns be dropped to reduce multicollinearity?",
+                "observation": f"High collinearity between features {pair}",
+                "evidence": f"Pearson correlation coefficient of {corr_val:.3f} indicates significant redundant variance",
+                "question": "To avoid multicollinearity and coefficient instability, should one of these features be removed?",
                 "confidence": abs(corr_val),
                 "impact": "high",
                 "action": {
@@ -149,9 +149,9 @@ def generate_hypotheses(profile: dict, quality: dict = None) -> list[dict]:
                     if ratio > 10 and col_info.get("distinct_count", col_info.get("unique_count", 0)) < 10:
                         hypotheses.append({
                             "id": str(uuid.uuid4())[:8],
-                            "observation": f"Column '{col_name}' appears heavily imbalanced (ratio {ratio:.0f}:1)",
-                            "evidence": f"The most common value appears {ratio:.0f}× more than the least common",
-                            "question": "If this is a target variable, standard models will struggle. Use balancing techniques?",
+                            "observation": f"Extreme class imbalance observed in '{col_name}'",
+                            "evidence": f"The majority class frequency is {ratio:.1f}x higher than the minority class",
+                            "question": "If this is a target variable, should oversampling (e.g. SMOTE) or class weights be applied to prevent minority-class vanishing?",
                             "confidence": 0.8,
                             "impact": "high",
                             "action": {

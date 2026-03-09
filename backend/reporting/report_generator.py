@@ -135,8 +135,9 @@ class ReportGenerator:
             cols = profile.get("total_columns", 0)
             domain = profile.get("estimated_domain", "Unknown")
             parts.append(
-                f"This analysis covers a dataset of {rows:,} records across {cols} "
-                f"attributes, classified as a **{domain}** domain dataset."
+                f"This report presents a comprehensive statistical profile, data quality assessment, and exploratory analysis "
+                f"for the provided dataset. The underlying data consists of {rows:,} observations across {cols} distinct features, "
+                f"and has been algorithmically classified as belonging to the **{domain}** domain."
             )
 
         if insights and "quality_score" in insights:
@@ -144,7 +145,8 @@ class ReportGenerator:
             grade = qs.get("grade", "N/A")
             score = qs.get("overall_score", 0)
             parts.append(
-                f"Overall data quality is rated **{grade}** ({score}/100)."
+                f"\n\nBased on evaluating completeness, uniqueness, consistency, and validity dimensions, the overall data quality "
+                f"is scored at **{score}/100** (Grade: **{grade}**)."
             )
 
         if insights and "analyst_briefing" in insights:
@@ -172,10 +174,9 @@ class ReportGenerator:
         dup = profile.get("duplicate_row_count", 0)
 
         content = (
-            f"The dataset contains **{rows:,}** rows and **{cols}** columns, "
-            f"using approximately **{mem:.2f} MB** of memory. "
-            f"Estimated domain: **{domain}**. "
-            f"Duplicate rows detected: **{dup:,}**."
+            f"The dataset's memory footprint is approximately **{mem:.2f} MB**. "
+            f"It contains **{rows:,}** total observations and **{cols}** distinct features. "
+            f"An initial structural scan detected **{dup:,}** completely duplicated rows."
         )
 
         # Column type breakdown table
@@ -257,8 +258,8 @@ class ReportGenerator:
                 "data": null_data[:15]
             })
 
-        content = f"Profiling analysis for {len(columns)} columns."
-        return ReportSection("Profiling Findings", content, tables=tables, charts=charts)
+        content = f"The following table summarizes the structural data types, sparsity (missing value percentages), and cardinality (distinct values) for the top {len(columns)} features."
+        return ReportSection("Statistical Profiling & Feature Distributions", content, tables=tables, charts=charts)
 
     @staticmethod
     def _preprocessing_log(audit_log: list[dict]) -> ReportSection:
@@ -395,7 +396,7 @@ class ReportGenerator:
                 ])
 
         tables = [{
-            "title": "Data-Driven Hypotheses & Actionable Insights",
+            "title": "Key Analytical Observations & Strategic Hypotheses",
             "headers": ["Observation", "Evidence", "Impact", "Confidence", "Strategic Question"],
             "rows": rows_data,
         }]
