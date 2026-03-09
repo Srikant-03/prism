@@ -70,6 +70,13 @@ def _gather_report_data(file_id: str) -> dict:
         except Exception:
             pass
 
+    # Gather hypotheses
+    from insights.hypothesis_engine import generate_hypotheses
+    hypotheses = generate_hypotheses(profile_data or {})
+    if insights_data is None:
+         insights_data = {}
+    insights_data["hypotheses"] = hypotheses
+
     audit_log = None
     cleaning_data = None
     if file_id in _cleaning_store:

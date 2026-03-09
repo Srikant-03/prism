@@ -29,6 +29,11 @@ interface ReportData {
             headers: string[];
             rows: string[][];
         }>;
+        charts: Array<{
+            type: string;
+            title: string;
+            data: Array<{ label: string; value: number }>;
+        }>;
     }>;
 }
 
@@ -251,6 +256,71 @@ const ReportPanel: React.FC<Props> = ({ fileId }) => {
                                             </div>
                                         </div>
                                     ))}
+
+                                    {section.charts?.length > 0 && (
+                                        <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+                                            {section.charts.map((chart, j) => (
+                                                <div key={j} style={{
+                                                    flex: '1 1 300px',
+                                                    padding: 12,
+                                                    background: 'rgba(255,255,255,0.02)',
+                                                    border: '1px solid rgba(255,255,255,0.05)',
+                                                    borderRadius: 6
+                                                }}>
+                                                    <div style={{ fontSize: 11, fontWeight: 600, color: '#a5b4fc', marginBottom: 8 }}>
+                                                        {chart.title}
+                                                    </div>
+                                                    {chart.type === 'bar' && chart.data?.map((d, i) => {
+                                                        const maxVal = Math.max(...chart.data.map(d => Math.abs(d.value)), 1);
+                                                        const pct = Math.min(Math.abs(d.value) / maxVal * 100, 100);
+                                                        const colors = ['#56B4E9', '#E69F00', '#009E73', '#CC79A7', '#0072B2', '#D55E00'];
+                                                        const color = colors[i % colors.length];
+                                                        return (
+                                                            <div key={i} style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
+                                                                <div style={{ width: 100, fontSize: 10, color: '#8b949e', textAlign: 'right', paddingRight: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                    {d.label}
+                                                                </div>
+                                                                <div style={{ flex: 1, height: 16, background: 'rgba(0,0,0,0.3)', borderRadius: 4, overflow: 'hidden' }}>
+                                                                    <div style={{ width: `${pct}%`, height: '100%', background: color, display: 'flex', alignItems: 'center', paddingLeft: 4, fontSize: 9, color: '#fff', fontWeight: 600 }}>
+                                                                        {d.value}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {chart.type === 'pie' && chart.data && (
+                                                        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                                                            {(() => {
+                                                                const colors = ['#56B4E9', '#E69F00', '#009E73', '#CC79A7', '#0072B2', '#D55E00'];
+                                                                const total = chart.data.reduce((sum, d) => sum + d.value, 0) || 1;
+                                                                let cum = 0;
+                                                                const gradient = chart.data.map((d, i) => {
+                                                                    const cur = (d.value / total) * 100;
+                                                                    const str = `${colors[i % colors.length]} ${cum}% ${cum + cur}%`;
+                                                                    cum += cur;
+                                                                    return str;
+                                                                }).join(', ');
+                                                                return (
+                                                                    <>
+                                                                        <div style={{ width: 80, height: 80, borderRadius: '50%', background: `conic-gradient(${gradient})` }} />
+                                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                                                            {chart.data.map((d, i) => (
+                                                                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10 }}>
+                                                                                    <div style={{ width: 8, height: 8, borderRadius: 2, background: colors[i % colors.length] }} />
+                                                                                    <span style={{ color: '#8b949e' }}>{d.label}</span>
+                                                                                    <span>({((d.value / total) * 100).toFixed(1)}%)</span>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    </>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>

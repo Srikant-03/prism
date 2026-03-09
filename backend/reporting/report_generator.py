@@ -112,6 +112,11 @@ class ReportGenerator:
             report.add_section(ReportGenerator._anomaly_summary(
                 insights_data["anomalies"]))
 
+        # 8.5 Data-Driven Hypotheses
+        if insights_data and "hypotheses" in insights_data and insights_data["hypotheses"]:
+            report.add_section(ReportGenerator._hypotheses_insights(
+                insights_data["hypotheses"]))
+
         # 9. Recommendations
         report.add_section(ReportGenerator._recommendations(
             profile_data, insights_data, cleaning_data))
@@ -186,7 +191,13 @@ class ReportGenerator:
             "rows": [[t, str(c)] for t, c in sorted(type_counts.items())],
         }]
 
-        return ReportSection("Dataset Overview", content, tables=tables)
+        charts = [{
+            "type": "pie",
+            "title": "Column Types Breakdown",
+            "data": [{"label": str(t), "value": c} for t, c in sorted(type_counts.items())]
+        }]
+
+        return ReportSection("Dataset Overview", content, tables=tables, charts=charts)
 
     @staticmethod
     def _quality_assessment(quality: dict) -> ReportSection:
@@ -218,23 +229,36 @@ class ReportGenerator:
         columns = profile.get("columns", [])
 
         rows_data = []
+        null_data = []
         for c in columns[:50]:  # Limit to 50 columns
+            null_pct = c.get('null_percentage', c.get('null_pct', 0))
             rows_data.append([
                 c.get("name", ""),
-                c.get("dtype", ""),
-                f"{c.get('null_percentage', 0):.1f}%",
-                str(c.get("unique_count", 0)),
+                c.get("inferred_dtype", c.get("dtype", "")),
+                f"{null_pct:.1f}%",
+                str(c.get("distinct_count", c.get("unique_count", 0))),
                 c.get("semantic_type", ""),
             ])
+            if null_pct > 0:
+                null_data.append({"label": c.get("name", ""), "value": float(null_pct)})
 
         tables = [{
             "title": "Column Statistics",
             "headers": ["Column", "Type", "Nulls %", "Unique", "Semantic Type"],
             "rows": rows_data,
         }]
+        
+        charts = []
+        if null_data:
+            null_data.sort(key=lambda x: x["value"], reverse=True)
+            charts.append({
+                "type": "bar",
+                "title": "Missing Values (%) by Column",
+                "data": null_data[:15]
+            })
 
         content = f"Profiling analysis for {len(columns)} columns."
-        return ReportSection("Profiling Findings", content, tables=tables)
+        return ReportSection("Profiling Findings", content, tables=tables, charts=charts)
 
     @staticmethod
     def _preprocessing_log(audit_log: list[dict]) -> ReportSection:
@@ -299,23 +323,33 @@ class ReportGenerator:
     def _feature_importance(rankings: list) -> ReportSection:
         """Feature importance table."""
         rows_data = []
+        chart_data = []
         for r in rankings[:20]:
             if isinstance(r, dict):
+                score = r.get("importance_score", 0)
+                feat = r.get("feature", "")
                 rows_data.append([
-                    r.get("feature", ""),
-                    f"{r.get('importance_score', 0):.1f}",
+                    feat,
+                    f"{score:.1f}",
                     r.get("method", ""),
                     r.get("rationale", "")[:80],
                 ])
+                chart_data.append({"label": feat, "value": float(score)})
 
         tables = [{
             "title": "Feature Rankings",
             "headers": ["Feature", "Score", "Method", "Rationale"],
             "rows": rows_data,
         }]
+        
+        charts = [{
+            "type": "bar",
+            "title": "Top Feature Importance Scores",
+            "data": chart_data[:10]
+        }] if chart_data else []
 
         content = f"Top {len(rows_data)} features by predictive importance."
-        return ReportSection("Feature Importance", content, tables=tables)
+        return ReportSection("Feature Importance", content, tables=tables, charts=charts)
 
     @staticmethod
     def _anomaly_summary(anomalies: list) -> ReportSection:
@@ -345,6 +379,29 @@ class ReportGenerator:
             f"{len(anomalies)} anomalies detected ({critical} critical/high severity)."
         )
         return ReportSection("Anomaly Summary", content, tables=tables)
+
+    @staticmethod
+    def _hypotheses_insights(hypotheses: list) -> ReportSection:
+        """Deep insights derived from hypotheses."""
+        rows_data = []
+        for h in hypotheses[:15]:
+            if isinstance(h, dict):
+                rows_data.append([
+                    h.get("observation", ""),
+                    h.get("evidence", ""),
+                    h.get("impact", "").capitalize(),
+                    f"{h.get('confidence', 0):.2f}",
+                    h.get("question", "")
+                ])
+
+        tables = [{
+            "title": "Data-Driven Hypotheses & Actionable Insights",
+            "headers": ["Observation", "Evidence", "Impact", "Confidence", "Strategic Question"],
+            "rows": rows_data,
+        }]
+
+        content = "The following strategic insights and hypotheses were automatically derived from the dataset's statistical properties. These represent potential hidden patterns, anomalies, or structural properties that can deeply inform downstream analysis."
+        return ReportSection("Deep Dataset Insights", content, tables=tables)
 
     @staticmethod
     def _recommendations(profile: dict = None, insights: dict = None,
