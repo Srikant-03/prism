@@ -45,7 +45,7 @@ class DataExportRequest(BaseModel):
 def _gather_report_data(file_id: str) -> dict:
     """Gather profiling, cleaning, and insights data for a file."""
     from api.profiling import get_stored_profile
-    from api.cleaning import _cleaning_store
+    from state import cleaning_store as _cleaning_store
 
     profile_data = None
     stored_profile = get_stored_profile(file_id)
