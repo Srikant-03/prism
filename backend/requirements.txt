@@ -38,6 +38,7 @@ google-generativeai
 
 # Reporting
 python-docx
+python-pptx
 fpdf2
 
 # Rate Limiting
