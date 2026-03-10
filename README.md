@@ -1,7 +1,12 @@
 <div align="center">
 
-<h1>🔷 Prism</h1>
-<p><strong>One file in. A full spectrum of intelligence out.</strong></p>
+<img src="https://img.shields.io/badge/Status-Active-success?style=for-the-badge" alt="Status" />
+<img src="https://img.shields.io/badge/AI_Powered-Data_Intelligence-8A2BE2?style=for-the-badge" alt="AI Powered" />
+
+# 🔷 Prism: The Future of Data Intelligence
+
+**One file in. A full spectrum of AI-driven intelligence out.** 
+Turn raw, messy data into interactive dashboards, deep statistical insights, and executive reports—instantly, effortlessly, and entirely on your local machine.
 
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB?style=flat-square&logo=react)](https://react.dev/)
@@ -13,538 +18,146 @@
 
 ---
 
-## What is Prism?
+## ⚡ Why You Need Prism Right Now
+Are you tired of spending hours writing Pandas scripts just to figure out what's inside a CSV? Have you ever struggled to clean a messy dataset or build a chart for an executive presentation?
 
-**Prism** is a full-stack, AI-augmented data intelligence platform. Upload any dataset — CSV, Excel, JSON, Parquet, XML, SQL dumps, or compressed archives — and Prism autonomously profiles it, detects anomalies, cleans it, lets you query it with SQL or plain English, and generates exportable reports. No configuration, no code, no setup wizards.
+**Prism is a complete, cutting-edge AI data analyst that lives on your laptop.**
 
-The entire platform runs locally on your laptop. Your data never leaves your machine (AI features send only column metadata, never raw rows, unless you explicitly opt in).
+Upload literally *any* data file—CSV, Excel, JSON, Parquet, or SQL dumps—and Prism instantly takes over. It automatically detects patterns, flags anomalies, scores your data quality, generates SQL queries from plain English, builds force-directed correlation graphs, and even proposes high-level strategic hypotheses that human analysts might miss.
 
----
-
-## Table of Contents
-
-- [How It Works](#how-it-works)
-- [Quick Start (Run It in 2 Minutes)](#quick-start)
-- [Manual Setup](#manual-setup)
-- [Environment Variables](#environment-variables)
-- [All Features](#all-features)
-- [Project Structure](#project-structure)
-- [API Reference](#api-reference)
-- [Stopping Prism](#stopping-prism)
-- [Troubleshooting](#troubleshooting)
-- [License](#license)
+No coding required. No cloud subscription needed. Your data never leaves your laptop.
 
 ---
 
-## How It Works
+## 🔥 Phenomenal Features
 
-Prism has two parts: a **Python backend** (FastAPI) and a **React frontend** (Vite). They communicate via REST API on `localhost`.
+Prism is packed with every tool a data scientist, business analyst, or curious developer could ever want:
 
-Here is the complete user journey, from launch to insight:
-
-```
-┌────────────────────────────────────────────────────────────────────────────────┐
-│                              PRISM WORKFLOW                                    │
-│                                                                                │
-│  1. LAUNCH                                                                     │
-│     Double-click start.bat (Windows)                                           │
-│     → Creates Python venv + installs backend deps (pip)                        │
-│     → Installs frontend deps (npm)                                             │
-│     → Starts FastAPI server on :8000                                           │
-│     → Starts Vite dev server on :5173                                          │
-│     → Auto-opens your browser                                                  │
-│                                                                                │
-│  2. UPLOAD                                                                     │
-│     Drag-and-drop or click to upload any supported file                        │
-│     → Backend auto-detects format, encoding, delimiter                         │
-│     → If Excel: prompts you to pick which sheets to import                     │
-│     → If malformed rows found: shows them for review (accept/drop/reject)      │
-│     → If multiple files: asks to merge (same schema) or keep separate          │
-│     → Displays real-time upload progress bar                                   │
-│                                                                                │
-│  3. AUTO-PROFILE                                                               │
-│     Immediately after upload, the backend generates a full dataset profile:    │
-│     → Row/column counts, memory usage, duplicate detection                     │
-│     → Per-column: type, nulls, cardinality, stats, distribution histograms    │
-│     → Data quality score (0–100) across 5 dimensions                           │
-│     → Primary key detection, foreign key candidates, ID column flagging        │
-│     → Anomaly detection (Z-score + Isolation Forest)                           │
-│     → Feature importance ranking                                               │
-│     → Auto-generated analyst briefing                                          │
-│                                                                                │
-│  4. INTERACT                                                                   │
-│     The main dashboard opens with these tabs:                                  │
-│                                                                                │
-│     📊 Data Preview     — Paginated table of your raw data                     │
-│     📋 Data Grid        — Full AG Grid with sort, filter, search, pin, resize  │
-│     💻 SQL Engine       — Monaco editor + DuckDB + auto-visualization          │
-│     📄 Reporting        — Export reports (PDF/DOCX/HTML/Notebook) + data        │
-│     🔗 Relationship     — Force-directed column correlation graph              │
-│                                                                                │
-│     Plus floating buttons:                                                     │
-│     🤖 AI Chat (Gemini) — Ask questions, get SQL, receive action cards         │
-│     🎨 Theme Toggle     — Switch between Dark / Light mode                     │
-│                                                                                │
-│  5. CLEAN                                                                      │
-│     Inside the profiling dashboard, a Cleaning tab lets you:                   │
-│     → Apply no-code transformations (fill nulls, drop cols, scale, etc.)       │
-│     → Preview impact before applying (What-If Simulator)                       │
-│     → Use AI Cell Repair for corrupt values                                    │
-│     → Override inferred column types (Schema Override panel)                   │
-│                                                                                │
-│  6. EXPORT                                                                     │
-│     → Full analysis report: PDF, DOCX, HTML, Jupyter Notebook                 │
-│     → Pipeline code: Python script, Notebook, JSON, SQL                        │
-│     → Cleaned data: CSV, Excel, JSON, Parquet, Feather, SQL INSERT             │
-└────────────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-<h2 id="quick-start">🚀 Quick Start (Run It in 2 Minutes)</h2>
-
-### Prerequisites
-
-You need these installed on your machine:
-
-| Tool | Minimum Version | Download |
-|------|----------------|----------|
-| **Python** | 3.10+ | [python.org/downloads](https://www.python.org/downloads/) |
-| **Node.js** | 18+ | [nodejs.org](https://nodejs.org/) |
-| **Git** | Any | [git-scm.com](https://git-scm.com/) |
-
-> **Verify installations:** Open a terminal and run `python --version` and `node --version`. Both should print a version number.
-
-### Step 1: Clone
-
-```bash
-git clone https://github.com/Srikant-03/prism.git
-cd prism
-```
-
-### Step 2: Get a Gemini API Key (Free)
-
-1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
-2. Click **"Create API Key"**
-3. Copy the key (starts with `AIza...`)
-
-### Step 3: Configure Environment
-
-```bash
-# Windows
-copy backend\.env.example backend\.env
-
-# Mac / Linux
-cp backend/.env.example backend/.env
-```
-
-Open `backend/.env` in any text editor and paste your Gemini key:
-```
-GEMINI_API_KEY=AIzaSy...your_key_here
-```
-
-> **Note:** The `DATA_INTEL_API_KEY` is used for internal API auth. For local use, the default value works fine. Change it if you plan to expose the backend to a network.
-
-### Step 4: Launch
-
-**Windows:**
-```
-Double-click start.bat
-```
-That's it. The script will:
-1. Create a Python virtual environment in `backend/venv/`
-2. Install all Python dependencies from `backend/requirements.txt`
-3. Install all Node.js dependencies from `frontend/package.json`
-4. Start the backend server (http://localhost:8000)
-5. Start the frontend dev server (http://localhost:5173)
-6. Open your browser automatically
-
-**Mac / Linux:**
-You need two terminal windows.
-
-*Terminal 1 — Backend:*
-```bash
-cd backend
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python main.py
-```
-
-*Terminal 2 — Frontend:*
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Then open http://localhost:5173 in your browser.
-
----
-
-## Manual Setup
-
-If the quick start doesn't work, here's a detailed breakdown:
-
-### Backend
-
-```bash
-cd backend
-
-# 1. Create virtual environment
-python -m venv venv
-
-# 2. Activate it
-# Windows:
-venv\Scripts\activate
-# Mac/Linux:
-source venv/bin/activate
-
-# 3. Install dependencies
-pip install -r requirements.txt
-
-# 4. Set up environment variables
-# Windows: copy .env.example .env
-# Mac/Linux: cp .env.example .env
-# Then edit .env and add your GEMINI_API_KEY
-
-# 5. Start the server
-python main.py
-```
-
-The backend starts at **http://localhost:8000**. You can verify by visiting:
-- http://localhost:8000 → JSON status response
-- http://localhost:8000/health → `{"status": "healthy"}`
-- http://localhost:8000/docs → Interactive Swagger API docs
-
-### Frontend
-
-```bash
-cd frontend
-
-# 1. Install dependencies
-npm install
-
-# 2. Start dev server
-npm run dev
-```
-
-The frontend starts at **http://localhost:5173**.
-
----
-
-## Environment Variables
-
-All configuration is in `backend/.env`. Copy from `backend/.env.example` to get started.
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `GEMINI_API_KEY` | **Yes** (for AI features) | *(empty)* | Your Google Gemini API key. Get one free at [aistudio.google.com](https://aistudio.google.com/app/apikey) |
-| `GEMINI_API_KEYS` | No | *(falls back to single key)* | Comma-separated list of keys for automatic rotation |
-| `DATA_INTEL_API_KEY` | No | `dev-secret-key-123` | API key for backend request authentication |
-| `HOST` | No | `0.0.0.0` | Backend server bind address |
-| `PORT` | No | `8000` | Backend server port |
-| `DEBUG` | No | `false` | Enable debug mode (auto-reload, stack traces) |
-| `CORS_ORIGINS` | No | `http://localhost:5173,http://localhost:3000` | Allowed frontend origins |
-| `LLM_TEMPERATURE` | No | `0.1` | AI response temperature (0 = deterministic, 1 = creative) |
-| `LLM_MAX_TOKENS` | No | `4096` | Maximum tokens per AI response |
-
-> **Without a Gemini key**: The AI Chat, Column Explainer, Hypothesis Generator, and Natural Language SQL features will not work. Every other feature (profiling, cleaning, SQL, reporting, grid, etc.) works perfectly without any API key.
-
----
-
-## All Features
-
-### 📥 File Ingestion & Format Handling
-
-| Format | Details |
-|--------|---------|
-| `.csv` | Auto-detects delimiter: comma, semicolon, pipe, tab, space |
-| `.xlsx / .xls / .xlsm` | Multi-sheet support with interactive sheet selector |
-| `.parquet / .feather` | Columnar formats read natively via PyArrow |
-| `.json` | Flat and nested — auto-flattens with path-based column naming (`address.city`) |
-| `.tsv / .txt` | Tab-separated and fixed-width tabular formats |
-| `.xml` | Auto schema detection |
-| `.sql` | Parses SQL dump files |
-| `.zip / .gz` | Auto-decompresses on the fly |
-
-- **Auto Encoding Detection**: UTF-8, UTF-16, Latin-1, ISO-8859-1, Windows-1252
-- **Chunked Reading**: Files over 50MB are processed in 5MB chunks — never loads the entire file into memory
-- **Multi-file Upload**: Same schema → auto-merge; different schema → separate tables; mixed → user decision dialog
-- **Malformed Row Handler**: Detects and reports malformed rows — accept best-effort, drop bad rows, or reject the file
-
----
+### 🧠 The AI Brain (Powered by Gemini)
+- **Natural Language SQL:** Type "Show me sales by region" and watch Prism write the complex DuckDB SQL query and instantly graph the result!
+- **Deep Hypothesis Engine:** Prism scans your dataset for hidden non-linear relationships, multi-collinear clusters, and data leakage risks, providing you with strategic, testable hypotheses.
+- **Explain This Column:** Don't understand what `cust_id_rev_v2` means? Prism's AI will deduce the business meaning and use-cases for any column instantly.
+- **AI Data Storyteller:** Generates a 10-slide executive presentation summarizing the most critical insights in your data, ready for export.
+- **Intelligent Cell Repair:** Got corrupt data? Prism uses AI to suggest the most statistically probable replacement values.
 
 ### 📊 Autonomous Data Profiling
+- **Zero-Config Ingestion:** Drop in an Excel file with multiple sheets or a massive nested JSON. Prism auto-detects encodings, delimiters, and schemas.
+- **Gamified Data Quality Score:** Get a score from 0-100 indicating how clean your data is, backed by an Anomaly Detector that spots outliers using Z-scores and Isolation Forests.
+- **Interactive Histograms & Stats:** Every single column gets a beautiful, interactive breakdown of its distribution, skewness, missing values, and cardinality.
+- **ML Readiness Report Card:** Instantly know if your dataset is ready to train a machine learning model, tracking class imbalances and target prediction confidence.
 
-Generates a complete dataset profile with zero configuration:
+### 🧹 No-Code Data Cleaning & Engineering
+- **Visual Pipeline:** Drop rows, fill nulls, scale data, and standardize formats with a few clicks.
+- **What-If Simulator:** Before you hit "apply," Prism shows you the exact volumetric and statistical impact of your cleaning operation. 
+- **Recipe Library:** Save your cleaning steps and apply them instantly to the next dataset that comes in.
 
-**Dataset-level:**
-- Row count, column count, total memory usage, duplicate row detection
-- Schema classification and type inference
-- Gamified **Data Quality Score** (0–100) with trophy tiers (Bronze → Platinum)
-- Scored across 5 dimensions: Completeness, Consistency, Uniqueness, Validity, Timeliness
+### 💻 The Workings
+- **Monaco SQL Editor:** A full VS Code-style SQL editor built right into your browser, powered by an ultra-fast DuckDB in-memory engine.
+- **AG Grid Integration:** Sort, filter, group, and search thousands of rows in milliseconds using our enterprise-grade data grid.
+- **Multi-Dataset Joins:** Merge multiple files visually with AI-suggested join keys and foreign key detection.
 
-**Column-level (for every column):**
-- Inferred data type (with manual override capability)
-- Null count and percentage
-- Cardinality (unique value count)
-- Statistics: Min, Max, Mean, Median, Mode, Std Dev, Variance, Skewness, Kurtosis
-- Top-N most frequent values
-- Interactive value distribution histograms
-- Primary key candidate detection (with intelligent heuristics — excludes floats, validates against dataset size)
-- Foreign key candidate detection
-- ID column flagging (for exclusion from analysis)
-
-**AI-Powered Insights (requires Gemini key):**
-- Anomaly detection (Z-score + Isolation Forest)
-- Feature importance ranking
-- Auto-generated analyst briefing
+### 📤 Instant Exporting
+- Export your cleaned data to Parquet, Feather, JSON, or SQL inserts.
+- Export beautiful PDF or DOCX analysis reports.
+- Export the exact Python code or Jupyter Notebook required to reproduce your entire cleaning pipeline!
 
 ---
 
-### 📋 Live Data Grid (AG Grid)
+## 🚀 The Ultimate Beginner's Setup Guide
 
-A full Excel-like interactive grid:
+Want to run Prism on your own computer? It's incredibly easy! Even if you have never coded before in your life, just follow these simple steps.
 
-| Capability | Details |
-|------------|---------|
-| **Sort** | Click column header to cycle asc / desc / none |
-| **Multi-sort** | Hold `Shift` + click for multi-column sort |
-| **Filter** | Per-column filters: text search, numeric range, date range, categorical multi-select |
-| **Global Search** | Highlights matching cells across all columns |
-| **Pin Columns** | Freeze columns to left or right |
-| **Resize / Reorder** | Drag column borders or headers |
-| **Hide / Show** | Column visibility panel with toggles |
-| **Row Selection** | Single and multi-row selection with checkboxes |
-| **Context Menu** | Right-click for quick actions |
-| **Conditional Formatting** | Heatmap backgrounds for numeric columns |
+### Step 1: Install the Required Tools
+Prism needs three basic programs to run. If you don't have them, download and install them now:
 
----
+1. **Python (The Engine):** 
+   - Go to [Python's official website](https://www.python.org/downloads/).
+   - Click the big "Download Python 3.x" button.
+   - **CRITICAL:** When running the installer, make sure you check the box that says **"Add python.exe to PATH"** before clicking Install!
+2. **Node.js (The User Interface):** 
+   - Go to [Node.js](https://nodejs.org/).
+   - Download the **"LTS" (Long Term Support)** version.
+   - Run the installer and click "Next" through all the default options.
+3. **VS Code (The Editor) & Git:**
+   - Go to [Visual Studio Code](https://code.visualstudio.com/) and install it. This is where you'll view the code.
+   - Go to [Git](https://git-scm.com/downloads) and install it. This lets you download Prism to your computer.
 
-### 🧹 Data Cleaning Engine
+*To check if they installed correctly, open a terminal (Search for "Command Prompt" on Windows or "Terminal" on Mac) and type `python --version` and `node --version`.*
 
-A visual, no-code pipeline:
+### Step 2: Download Prism
+1. Open your terminal (Command Prompt or Mac Terminal).
+2. Type this exact command and press Enter:
+   ```bash
+   git clone https://github.com/Srikant-03/prism.git
+   ```
+3. Once it finishes downloading, move into the new folded by typing:
+   ```bash
+   cd prism
+   ```
 
-- Drop columns by name or pattern
-- Fill null values (mean, median, mode, constant, forward-fill, back-fill)
-- Clip outliers (Z-score or IQR based)
-- Normalize / standardize (Min-Max, Z-score)
-- Parse and standardize datetime columns
-- Convert data types
-- Rename columns
-- Deduplicate rows
-- Drop rows where any/all values are null
+### Step 3: Get Your Free AI Key
+Prism uses Google's incredible Gemini AI to power its smart features. 
+1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey).
+2. Sign in with your Google account.
+3. Click **"Create API Key"** and copy the long string of text (it starts with `AIza...`). Keep this secret!
 
-**Schema Override Panel:** Manually correct inferred types per column.
+### Step 4: Add Your AI Key to Prism
+1. Open the `prism` folder in **VS Code**. (You can drag and drop the folder into the VS Code window).
+2. On the left side, open the `backend` folder.
+3. Find the file named `.env.example`.
+4. Right-click that file and select **Rename**. Change its name to exactly: `.env` (Just dot env, nothing before the dot).
+5. Open your new `.env` file and find the line that says `GEMINI_API_KEY=`.
+6. Paste your key right after the equals sign so it looks like this: 
+   ```text
+   GEMINI_API_KEY=AIzaSy...your_secret_key_here
+   ```
+7. Save the file (Ctrl+S or Cmd+S).
 
-**Intelligent Cell Repair (AI):** Scans for corrupt or illogical cell values and suggests replacements based on column distribution and context.
+### Step 5: Start Prism!
 
-**What-If Simulator:** Preview the exact impact of any transformation (rows affected, distribution before/after, memory delta, quality score change) before committing.
+**If you are on Windows:**
+Simply go to the `prism` folder on your computer and double-click the file named **`start.bat`**.
+- *That's it!* A black window will pop up, install everything automatically, and seamlessly open Prism in your web browser!
 
----
-
-### 💻 SQL Workbench
-
-- **Monaco Editor** — VS Code's editor with SQL syntax highlighting and autocompletion
-- **DuckDB Engine** — Lightning-fast, in-memory analytical SQL processing
-- **Natural Language → SQL** — Type "show me the top 5 cities by revenue" and the AI writes the query
-- **Visual Query Builder** — Point-and-click interface for SELECT, JOIN, WHERE, GROUP BY
-- **Schema Sidebar** — Always-visible column browser with types and sample values
-- **Paginated Results** — Sortable, filterable result table with execution time and row count
-- **Auto-Visualization** — After every query, Prism charts the result automatically:
-  - Single numeric → KPI card
-  - 1 dimension + 1 measure → Bar chart
-  - 1 datetime + 1 measure → Line chart
-  - 2 numeric → Scatter plot
-  - Low-cardinality categorical → Pie/Donut
-  - Many columns → Heatmap table
-- **Query History** — Full history with timestamps, re-runnable with one click
-
----
-
-### 🤖 AI Chat Assistant (Gemini)
-
-- Understands your full dataset schema, profiling results, and every cleaning step applied
-- Multi-turn conversation with persistent history
-- Generates SQL from natural language
-- Produces clickable **action cards** (run SQL, navigate to tab, apply fix)
-- **Privacy-first**: Only metadata is sent to the AI. Raw data rows are never transmitted unless you explicitly approve via the **Privacy Disclosure Gate**.
-
----
-
-### 📈 Statistical Testing Suite
-
-| Test | Use Case |
-|------|----------|
-| **T-Test** | Compare means between two groups |
-| **One-way ANOVA** | Compare means across 3+ groups |
-| **Chi-Square** | Test independence between categorical variables |
-| **Pearson / Spearman** | Measure linear and rank-based relationships |
-| **Shapiro-Wilk** | Test for normality |
-
-Every result includes a **plain English interpretation**.
+**If you are on Mac or Linux:**
+You just need to run a few quick commands in your terminal.
+1. Open a terminal and start the backend:
+   ```bash
+   cd backend
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   python main.py
+   ```
+2. Open a **second, new terminal window** and start the frontend:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+3. Open your web browser and go to: **http://localhost:5173**
 
 ---
 
-### 🔍 Additional Intelligence Features
-
-- **Hypothesis Generator** — Automatically surfaces interesting statistical relationships across column pairs with insight cards
-- **Column Relationship Graph** — Force-directed network visualization of correlations (zoom, pan, drag, threshold slider)
-- **Explain This Column (AI)** — Natural language description of any column's likely meaning, quality risks, and downstream use cases
-- **Schema Drift Detector** — Compare two versions of a dataset side-by-side. Highlights new/removed columns, type changes, distribution shifts (Population Stability Index & KS-test), and quality score deltas.
-- **Multi-Dataset Join Workbench** — Visual builder to merge datasets. Uses foreign key detection to suggest optimal join conditions, warns on N:M cardinality explosions, and saves the merged result as a new working table.
-- **ML Readiness Report Card** — After cleaning, generates a scorecard assessing class imbalance, target prediction confidence, missing value ceilings, and overall readiness for machine learning.
-- **Scheduled Data Freshness Monitor** — Register a URL/path to poll on a schedule. Prism re-ingests, diffs against the baseline profile, and alerts on schema changes or quality drops on your Watchlist.
-- **Data Story Generator (AI)** — Auto-generates a 10-slide narrative presentation (title, KPIs, insights, executive summary, recommendations) using Gemini, exportable as an HTML deck.
-- **Data Recipe Library** — Save your visual cleaning pipelines as reusable recipes. One-click apply recipes to new datasets with intelligent cross-dataset column mapping.
-- **Anomaly Watchlist** — Bookmark and track specific data quality issues across sessions
-- **Collaborative Annotations** — Attach notes to cells, columns, or rows; persisted per dataset
-- **Zero-Config Persistence** — All uploads, profiles, annotations, recipes, and cleaning sessions are persisted automatically using lightweight local `diskcache`. Close the app and resume exactly where you left off.
+## 🛑 How to Stop Prism
+When you are done analyzing your data:
+- **Windows:** Double-click the `stop.bat` file in the main folder to cleanly shut everything down.
+- **Mac/Linux:** Go to your terminal windows and press `Ctrl + C` in both of them.
 
 ---
 
-### 📄 Reporting & Export
+## 🛠️ Troubleshooting
 
-**Analysis Reports:** PDF, DOCX, HTML, Jupyter Notebook — includes executive summary, profiling findings, quality assessment, preprocessing log, before/after stats, feature importance, and recommendations.
-
-**Code Export:** Export the entire preprocessing pipeline as:
-- `pipeline.py` — Documented Python script
-- `pipeline.ipynb` — Jupyter Notebook with markdown
-- `pipeline.json` — Machine-readable pipeline
-- `pipeline.sql` — SQL reproduction
-
-**Data Export:** CSV, Excel, JSON, Parquet, Feather, SQL INSERT statements
+- **The frontend shows a blank page?** Check your backend terminal window. Make sure it says the server is running on `http://localhost:8000`.
+- **The AI Chat isn't answering?** You likely forgot to save your `.env` file or you pasted the `GEMINI_API_KEY` incorrectly.
+- **"python is not recognized as an internal or external command"** You forgot to check the "Add to PATH" box when installing Python! Re-run the Python installer and choose 'Modify' to fix it.
+- **"npm is not recognized"** Restart your computer after installing Node.js so that your terminal recognizes the new commands.
 
 ---
 
-### 🎨 UI & Workspace
+## 📜 License
+This massively powerful tool is licensed under **MIT**. Built with passion by Srikant.
 
-| Feature | Details |
-|---------|---------|
-| **Themes** | Dark and Light modes, persisted across sessions |
-| **Onboarding Tour** | Step-by-step walkthrough for first-time users |
-| **Session Persistence** | IndexedDB-powered — reload the browser and never lose your place |
-| **Privacy Disclosure** | Explicit consent gate before any AI feature is used |
-| **Accessibility** | Semantic HTML, ARIA labels, keyboard navigation |
-| **Responsive Design** | Optimized for desktop and tablet (≥768px) |
-
----
-
-## Project Structure
-
-```
-prism/
-├── start.bat                     # One-click launcher (Windows)
-├── stop.bat                      # Kill both servers (Windows)
-├── .gitignore
-├── README.md
-│
-├── backend/
-│   ├── main.py                   # FastAPI entry point (16 routers, CORS, rate limiter)
-│   ├── config.py                 # All settings (IngestionConfig, CleaningConfig, LLMConfig, AppConfig)
-│   ├── requirements.txt          # Python dependencies
-│   ├── .env.example              # Environment variable template
-│   │
-│   ├── api/                      # REST API routers
-│   │   ├── upload.py             # POST /api/upload — file ingestion & format detection
-│   │   ├── profiling.py          # GET /api/profile/{file_id} — full dataset profiling
-│   │   ├── cleaning.py           # POST /api/clean — apply transformations
-│   │   ├── sql.py                # POST /api/sql — execute SQL queries (DuckDB)
-│   │   ├── reporting.py          # POST /api/reporting — generate & export reports
-│   │   ├── chat.py               # POST /api/chat — AI assistant messages
-│   │   ├── grid.py               # GET /api/grid — live data grid data source
-│   │   ├── watchlist.py          # Anomaly watchlist CRUD
-│   │   ├── simulate.py           # What-If impact simulation
-│   │   ├── stats.py              # Statistical test execution
-│   │   ├── explain.py            # AI column explanation
-│   │   ├── graph.py              # Column relationship graph data
-│   │   ├── story.py              # Data story generation
-│   │   ├── recipe.py             # Cleaning recipe management
-│   │   ├── metadata.py           # Column tagging
-│   │   ├── collab.py             # Collaborative annotations
-│   │   └── dependencies.py       # Shared auth middleware (API key verification)
-│   │
-│   ├── ingestion/                # File format detection, parsing, chunked reading
-│   ├── profiling/                # Statistical profiling, correlation, key detection
-│   ├── cleaning/                 # Decision engine, handlers (missing, outlier, type, text...)
-│   ├── insights/                 # Quality scoring, anomaly detection, feature ranking
-│   ├── sql/                      # DuckDB engine, NL→SQL, query builder, templates
-│   ├── llm/                      # Gemini API key rotation & rate limiting
-│   ├── reporting/                # Report generation (PDF/DOCX/HTML), code & data export
-│   └── tests/                    # pytest test suites
-│
-└── frontend/
-    ├── package.json              # Node.js dependencies
-    ├── index.html                # SPA entry point
-    └── src/
-        ├── App.tsx               # Root component (upload state machine → dashboard tabs)
-        ├── index.css             # Global design system (dark mode, glassmorphism, animations)
-        ├── components/
-        │   ├── upload/           # FileUploader, UploadProgress, SheetSelector, MalformedViewer
-        │   ├── profiling/        # ProfileDashboard, ColumnExplainer, SchemaOverride
-        │   ├── grid/             # LiveDataGrid (AG Grid)
-        │   ├── cleaning/         # CleaningDashboard, CellRepairPanel, RecipeBrowser
-        │   ├── sql/              # QueryWorkbench, VisualQueryBuilder, Monaco Editor
-        │   ├── insights/         # HypothesisCards, StatTestPanel, RelationshipGraph
-        │   ├── comparison/       # DatasetDiff
-        │   ├── reporting/        # ReportPanel, StoryBuilder
-        │   ├── chat/             # ChatSidebar, PrivacyDisclosure
-        │   ├── collab/           # CollabPanel
-        │   └── common/           # Layout, ThemeToggle, OnboardingWalkthrough
-        ├── hooks/                # React hooks (useUpload, useTheme, useSession, useCleaning, useSQL)
-        ├── api/                  # Axios API client functions (ingestion.ts, cleaning.ts, etc.)
-        └── types/                # TypeScript type definitions
-```
-
----
-
-## API Reference
-
-All endpoints are prefixed with `/api/`. Full interactive documentation is available at **http://localhost:8000/docs** after starting the backend.
-
-| Router | Base Path | Key Endpoints |
-|--------|-----------|---------------|
-| Upload | `/api/upload` | `POST /` — upload files, `POST /select-sheets`, `POST /confirm-malformed` |
-| Profiling | `/api/profile` | `GET /{file_id}` — full profile with insights |
-| Cleaning | `/api/clean` | `POST /analyze`, `POST /apply`, `POST /cell-repair` |
-| SQL | `/api/sql` | `POST /execute`, `POST /nl-query`, `GET /schema`, `POST /visual-query` |
-| Reporting | `/api/reporting` | `POST /report`, `POST /export/code`, `POST /export/data` |
-| Chat | `/api/chat` | `POST /message` |
-| Grid | `/api/grid` | `GET /{file_id}` |
-| Watchlist | `/api/watchlist` | CRUD operations |
-| Simulate | `/api/simulate` | `POST /` — preview impact |
-| Statistics | `/api/stats` | `POST /test` — run statistical tests |
-| Explain | `/api/explain` | `POST /{column}` — AI column explanation |
-| Graph | `/api/graph` | `GET /{file_id}` — correlation graph |
-| Story | `/api/story` | `POST /generate` — data story slides |
-| Recipe | `/api/recipe` | CRUD operations |
-| Metadata | `/api/metadata` | `POST /{file_id}/tag` |
-| Collab | `/api/collab` | Annotation CRUD |
-
----
-
-## Stopping Prism
-
-**Windows:** Double-click `stop.bat` — it kills both server windows automatically.
-
-**Mac / Linux:** Press `Ctrl+C` in each terminal window.
-
----
-
-## Troubleshooting
-
-| Problem | Solution |
-|---------|----------|
-| `ModuleNotFoundError: No module named 'X'` | Re-run `pip install -r requirements.txt` inside the activated `backend/venv` |
-| Frontend shows blank page | Check that the backend is running on :8000 (`http://localhost:8000/health`) |
-| AI features don't work | Verify `GEMINI_API_KEY` is set in `backend/.env`. Get a key from [aistudio.google.com](https://aistudio.google.com/app/apikey) |
-| `python` command not found | Use `python3` instead (common on Mac/Linux), or add Python to your PATH |
-| Port 8000 or 5173 already in use | Change `PORT` in `.env` for backend, or edit `vite.config.ts` for frontend |
-| `npm install` fails | Delete `frontend/node_modules` and `frontend/package-lock.json`, then re-run `npm install` |
-
----
-
-## License
-
-MIT — Designed and built by **Srikant**.
+<div align="center">
+  <i>Stop guessing. Start knowing. Drop your data into Prism today.</i>
+</div>
