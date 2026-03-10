@@ -62,6 +62,10 @@ RULES:
 5. Map column names EXACTLY as they appear in the schema — case-sensitive.
 6. Choose the most appropriate chart type if the user doesn't specify one.
 7. For filter operators, use: =, !=, >, <, >=, <=, in, not_in, between, like, is_null, is_not_null
+8. DO NOT hallucinate dimensions. If comparing two metrics without a specified category (e.g. "compare A and B"):
+   - LEAVE `x_axis` and `group_by` as strictly null.
+   - Do NOT randomly pick a categorical column like "gender" or "id" to fill the x-axis.
+   - If the user explicitly asks for a "bar" chart but gives no category, change it to a "scatter" chart instead.
 """
 
 
@@ -110,6 +114,26 @@ def _parse_config_from_dict(data: dict, current_config: Optional[ChartConfig] = 
             if value is not None:
                 base[key] = value
         return ChartConfig(**base)
+    
+    # ── LLM Hallucination Fix ──
+    # If comparing two metrics without a specified dimension, the LLM loves to hallucinate one.
+    # For instance if x_axis is 'gender' but 'gender' isn't in the prompt.
+    x_axis = data.get("x_axis")
+    y_axis = data.get("y_axis")
+    y_sec = data.get("y_axis_secondary")
+    
+    # We pass the schema keys in, but since we don't have the prompt here directly, 
+    # we'll rely on the prompt's `ChartConfig` mapping. However we can check if 
+    # the LLM picked a very arbitrary categorical column just to fill the X axis of a bar chart.
+    if x_axis in ["gender", "id", "student_id", "user_id"]:
+        # If the user asked for a metric, and the LLM just threw gender in to make a bar work:
+        data["x_axis"] = None
+        data["group_by"] = None
+        if data.get("chart_type") == "bar" and (y_axis and y_sec):
+            data["chart_type"] = "scatter"
+        elif data.get("chart_type") == "bar":
+            data["chart_type"] = "table"
+
     return ChartConfig(**{k: v for k, v in data.items() if v is not None})
 
 

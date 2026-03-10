@@ -636,9 +636,179 @@ def generate_hypotheses(profile: dict, quality: dict = None) -> list[dict]:
                            "payload": f"compare/{pair}"},
                 "status": "unreviewed",
             })
+    # ═══════════════════════════════════════════════════════════════
+    # BROAD 1: Strong Predictor Hierarchy (from top_predictors)
+    # ═══════════════════════════════════════════════════════════════
+    if target_detected and target_col and len(top_predictors) >= 2:
+        # Highlight the strongest predictor
+        top = top_predictors[0]
+        if isinstance(top, dict):
+            top_feat = top.get("feature", "")
+            top_score = top.get("importance_score", 0)
+        else:
+            top_feat = getattr(top, "feature", "")
+            top_score = getattr(top, "importance_score", 0)
+
+        if top_feat and isinstance(top_score, (int, float)) and top_score > 0.3:
+            strong_count = sum(
+                1 for p in top_predictors
+                if (p.get("importance_score", 0) if isinstance(p, dict)
+                    else getattr(p, "importance_score", 0)) > 0.5
+            )
+            hypotheses.append({
+                "id": str(uuid.uuid4())[:8],
+                "observation": (
+                    f"'{top_feat}' is the dominant predictor of '{target_col}' "
+                    f"(score: {top_score:.3f}), with {strong_count} strong predictors total"
+                ),
+                "layman": (
+                    f"Of all {len(top_predictors)} features analyzed, '{top_feat}' has the "
+                    f"strongest influence on '{target_col}'. "
+                    f"There are {strong_count} features with notable predictive power. "
+                    f"This means your dataset has clear signal — a well-tuned model should "
+                    f"achieve good accuracy."
+                ),
+                "evidence": (
+                    f"Top predictor '{top_feat}' has an association score of {top_score:.3f} "
+                    f"with the target. {strong_count} of {len(top_predictors)} analyzed features "
+                    f"exceed the 0.5 importance threshold."
+                ),
+                "question": (
+                    f"Start with '{top_feat}' as the primary feature. Consider building a baseline "
+                    f"model with just the top {min(strong_count, 5)} predictors before adding more."
+                ),
+                "confidence": min(0.9, top_score),
+                "impact": "high",
+                "action": {"label": "View feature ranking", "type": "navigate",
+                           "payload": "feature_ranking"},
+                "status": "unreviewed",
+            })
 
     # ═══════════════════════════════════════════════════════════════
-    # FALLBACK: Per-column hypotheses when cross_analysis is sparse
+    # BROAD 2: High VIF Multicollinearity Warning
+    # ═══════════════════════════════════════════════════════════════
+    if vif_scores:
+        high_vif = [(col, v) for col, v in vif_scores.items()
+                    if isinstance(v, (int, float)) and v > 5 and col != target_col]
+        if high_vif:
+            high_vif.sort(key=lambda x: x[1], reverse=True)
+            worst_col, worst_vif = high_vif[0]
+            vif_list = ", ".join(f"'{c}' (VIF={v:.1f})" for c, v in high_vif[:4])
+            hypotheses.append({
+                "id": str(uuid.uuid4())[:8],
+                "observation": (
+                    f"High multicollinearity: {len(high_vif)} features have VIF > 5 "
+                    f"(worst: '{worst_col}' at VIF={worst_vif:.1f})"
+                ),
+                "layman": (
+                    f"Several features are so correlated with each other that they confuse "
+                    f"linear models. It's like having multiple witnesses who all tell the exact "
+                    f"same story — you can't tell who's actually providing new information. "
+                    f"The feature '{worst_col}' is the most redundant."
+                ),
+                "evidence": (
+                    f"VIF (Variance Inflation Factor) measures how much a feature's information "
+                    f"is duplicated by others. VIF > 5 = concerning, > 10 = severe. "
+                    f"Affected: {vif_list}"
+                ),
+                "question": (
+                    f"For linear models: drop '{worst_col}' or use PCA/ridge regression. "
+                    f"Tree-based models (XGBoost, RF) are immune to multicollinearity."
+                ),
+                "confidence": min(0.9, 0.6 + worst_vif / 20),
+                "impact": "high",
+                "action": {"label": "View correlation matrix", "type": "navigate",
+                           "payload": "correlations"},
+                "status": "unreviewed",
+            })
+
+    # ═══════════════════════════════════════════════════════════════
+    # BROAD 3: Strongest Correlated Pairs (from strongest_pairs)
+    # ═══════════════════════════════════════════════════════════════
+    if strongest_pairs:
+        for pair in strongest_pairs[:3]:
+            if not isinstance(pair, dict):
+                continue
+            col1 = pair.get("col1") or pair.get("feature_1", "")
+            col2 = pair.get("col2") or pair.get("feature_2", "")
+            score_val = pair.get("score") or pair.get("correlation", 0)
+            metric = pair.get("metric", "Pearson")
+            if not col1 or not col2 or not isinstance(score_val, (int, float)):
+                continue
+            if abs(score_val) < 0.7:
+                continue
+            if target_col and (col1 == target_col or col2 == target_col):
+                continue
+            hypotheses.append({
+                "id": str(uuid.uuid4())[:8],
+                "observation": (
+                    f"Strong {metric} correlation between '{col1}' and '{col2}' "
+                    f"(r = {score_val:.3f})"
+                ),
+                "layman": (
+                    f"'{col1}' and '{col2}' move closely together — when one goes up, "
+                    f"the other tends to follow. Using both in a model adds "
+                    f"redundancy without adding predictive value."
+                ),
+                "evidence": (
+                    f"{metric} correlation of {score_val:.3f} means these features share "
+                    f"~{abs(score_val)**2 * 100:.0f}% of their variance."
+                ),
+                "question": (
+                    f"Keep the one with higher target association, or create a composite feature."
+                ),
+                "confidence": abs(score_val),
+                "impact": "medium",
+                "action": {"label": f"Compare '{col1}' vs '{col2}'", "type": "navigate",
+                           "payload": f"compare/{col1}/{col2}"},
+                "status": "unreviewed",
+            })
+
+    # ═══════════════════════════════════════════════════════════════
+    # BROAD 4: Feature Importance Gap
+    # ═══════════════════════════════════════════════════════════════
+    if target_detected and top_predictors and len(top_predictors) >= 3:
+        scores_list = []
+        for p in top_predictors:
+            s = p.get("importance_score", 0) if isinstance(p, dict) else getattr(p, "importance_score", 0)
+            if isinstance(s, (int, float)):
+                scores_list.append(s)
+        if len(scores_list) >= 3:
+            max_gap = 0
+            gap_idx = 0
+            for idx_g in range(len(scores_list) - 1):
+                gap = scores_list[idx_g] - scores_list[idx_g + 1]
+                if gap > max_gap:
+                    max_gap = gap
+                    gap_idx = idx_g + 1
+            if max_gap > 0.1 and gap_idx > 0:
+                hypotheses.append({
+                    "id": str(uuid.uuid4())[:8],
+                    "observation": (
+                        f"Feature importance cliff: top {gap_idx} features are significantly "
+                        f"stronger than the remaining {len(scores_list) - gap_idx} (gap: {max_gap:.3f})"
+                    ),
+                    "layman": (
+                        f"There's a clear dividing line in feature importance. The top {gap_idx} "
+                        f"features are much more useful than the rest. Adding the weaker features "
+                        f"mostly adds noise. Start with a lean model using just the top {gap_idx}."
+                    ),
+                    "evidence": (
+                        f"The largest importance drop ({max_gap:.3f}) occurs between rank "
+                        f"{gap_idx} and {gap_idx + 1}."
+                    ),
+                    "question": (
+                        f"Build a baseline with top {gap_idx} features. Only add weaker "
+                        f"features if cross-validated performance improves."
+                    ),
+                    "confidence": min(0.8, 0.5 + max_gap),
+                    "impact": "medium",
+                    "action": {"label": "View feature ranking", "type": "navigate",
+                               "payload": "feature_ranking"},
+                    "status": "unreviewed",
+                })
+
+
     # These fire from per-column stats alone, ensuring all datasets
     # get some hypotheses even without correlation/MI/target data.
     # ═══════════════════════════════════════════════════════════════

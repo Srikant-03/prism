@@ -81,26 +81,26 @@ def config_to_sql(
             if agg_fn:
                 columns.append({"expression": f"{agg_fn}({value_col})", "alias": "value"})
             else:
-                columns.append({"name": value_col, "alias": "value"})
+                columns.append({"column": value_col, "alias": "value"})
         else:
             columns.append({"expression": "COUNT(*)", "alias": "value"})
 
         # Optional comparison
         if config.kpi_comparison_column:
-            columns.append({"name": config.kpi_comparison_column, "alias": "comparison"})
+            columns.append({"column": config.kpi_comparison_column, "alias": "comparison"})
 
     # ── Table type: all columns ──
     elif config.chart_type == ChartType.TABLE:
         if config.x_axis:
-            columns.append({"name": config.x_axis})
+            columns.append({"column": config.x_axis})
         if config.y_axis:
             if needs_aggregation:
                 agg_fn = _agg_to_sql(config.aggregation)
                 columns.append({"expression": f"{agg_fn}({config.y_axis})", "alias": config.y_axis})
             else:
-                columns.append({"name": config.y_axis})
+                columns.append({"column": config.y_axis})
         if config.group_by and config.group_by not in [config.x_axis]:
-            columns.append({"name": config.group_by})
+            columns.append({"column": config.group_by})
 
         if config.x_axis and needs_aggregation:
             group_by_cols.append(config.x_axis)
@@ -114,13 +114,13 @@ def config_to_sql(
     else:
         # X-axis (category/dimension)
         if config.x_axis:
-            columns.append({"name": config.x_axis})
+            columns.append({"column": config.x_axis})
             if needs_aggregation:
                 group_by_cols.append(config.x_axis)
 
         # Group-by (series/segment)
         if config.group_by:
-            columns.append({"name": config.group_by})
+            columns.append({"column": config.group_by})
             if needs_aggregation:
                 group_by_cols.append(config.group_by)
 
@@ -130,7 +130,7 @@ def config_to_sql(
                 agg_fn = _agg_to_sql(config.aggregation)
                 columns.append({"expression": f"{agg_fn}({config.y_axis})", "alias": config.y_axis})
             else:
-                columns.append({"name": config.y_axis})
+                columns.append({"column": config.y_axis})
 
         # Secondary Y-axis
         if config.y_axis_secondary:
@@ -138,7 +138,7 @@ def config_to_sql(
                 agg_fn = _agg_to_sql(config.aggregation)
                 columns.append({"expression": f"{agg_fn}({config.y_axis_secondary})", "alias": config.y_axis_secondary})
             else:
-                columns.append({"name": config.y_axis_secondary})
+                columns.append({"column": config.y_axis_secondary})
 
         # Size-by for scatter/treemap
         if config.size_by and config.chart_type in (ChartType.SCATTER, ChartType.TREEMAP):
@@ -146,7 +146,7 @@ def config_to_sql(
                 agg_fn = _agg_to_sql(config.aggregation)
                 columns.append({"expression": f"{agg_fn}({config.size_by})", "alias": config.size_by})
             else:
-                columns.append({"name": config.size_by})
+                columns.append({"column": config.size_by})
 
     if columns:
         spec["columns"] = columns
