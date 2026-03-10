@@ -23,6 +23,25 @@ if errorlevel 1 (
     exit /b 1
 )
 
+REM ── Check Backend Environment ──
+if not exist "backend\.env" (
+    if exist "backend\.env.example" (
+        echo  [SETUP] Creating backend\.env from example...
+        copy "backend\.env.example" "backend\.env" >nul
+        echo  [INFO] Please open backend\.env to set GEMINI_API_KEY when you have a moment.
+    ) else (
+        echo  [WARN] No backend\.env or .env.example found. The app may use defaults.
+    )
+)
+
+REM ── Check Frontend Environment ──
+if not exist "frontend\.env" (
+    if exist "frontend\.env.example" (
+        echo  [SETUP] Creating frontend\.env from example...
+        copy "frontend\.env.example" "frontend\.env" >nul
+    )
+)
+
 REM ── Install backend deps if venv missing ──
 if not exist "backend\venv" (
     echo  [SETUP] Creating Python virtual environment...

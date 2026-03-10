@@ -1,163 +1,135 @@
 <div align="center">
-
-<img src="https://img.shields.io/badge/Status-Active-success?style=for-the-badge" alt="Status" />
-<img src="https://img.shields.io/badge/AI_Powered-Data_Intelligence-8A2BE2?style=for-the-badge" alt="AI Powered" />
-
-# 🔷 Prism: The Future of Data Intelligence
-
-**One file in. A full spectrum of AI-driven intelligence out.** 
-Turn raw, messy data into interactive dashboards, deep statistical insights, and executive reports—instantly, effortlessly, and entirely on your local machine.
-
-[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB?style=flat-square&logo=react)](https://react.dev/)
-[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python)](https://python.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript)](https://typescriptlang.org)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
-
+  <img src="https://raw.githubusercontent.com/ant-design/ant-design/master/components/style/color/bezierEasing.less" width="100" height="0" />
 </div>
 
----
+<h1 align="center" style="border-bottom: none">⚡ Data Intelligence Platform (PRISM)</h1>
+<h3 align="center">Your Autonomous, Zero-Setup AI Data Analyst</h3>
 
-## ⚡ Why You Need Prism Right Now
-Are you tired of spending hours writing Pandas scripts just to figure out what's inside a CSV? Have you ever struggled to clean a messy dataset or build a chart for an executive presentation?
-
-**Prism is a complete, cutting-edge AI data analyst that lives on your laptop.**
-
-Upload literally *any* data file—CSV, Excel, JSON, Parquet, or SQL dumps—and Prism instantly takes over. It automatically detects patterns, flags anomalies, scores your data quality, generates SQL queries from plain English, builds force-directed correlation graphs, and even proposes high-level strategic hypotheses that human analysts might miss.
-
-No coding required. No cloud subscription needed. Your data never leaves your laptop.
+<p align="center">
+  <b>Just drop in your data. It does the rest.</b><br>
+  No coding. No struggling with Pandas. No massive cloud bills.
+</p>
 
 ---
 
-## 🔥 Phenomenal Features
+## 🚀 What is Prism?
 
-Prism is packed with every tool a data scientist, business analyst, or curious developer could ever want:
+**Prism** is a local-first, blazing-fast Data Intelligence Platform designed to automate the most tedious parts of data science: ingestion, cleaning, profiling, and analysis. It combines a robust Python backend with a stunning, highly-interactive React frontend to give you a truly autonomous AI Data Analyst living right on your machine.
 
-### 🧠 The AI Brain (Powered by Gemini)
-- **Natural Language SQL:** Type "Show me sales by region" and watch Prism write the complex DuckDB SQL query and instantly graph the result!
-- **Deep Hypothesis Engine:** Prism scans your dataset for hidden non-linear relationships, multi-collinear clusters, and data leakage risks, providing you with strategic, testable hypotheses.
-- **Explain This Column:** Don't understand what `cust_id_rev_v2` means? Prism's AI will deduce the business meaning and use-cases for any column instantly.
-- **AI Data Storyteller:** Generates a 10-slide executive presentation summarizing the most critical insights in your data, ready for export.
-- **Intelligent Cell Repair:** Got corrupt data? Prism uses AI to suggest the most statistically probable replacement values.
-
-### 📊 Autonomous Data Profiling
-- **Zero-Config Ingestion:** Drop in an Excel file with multiple sheets or a massive nested JSON. Prism auto-detects encodings, delimiters, and schemas.
-- **Gamified Data Quality Score:** Get a score from 0-100 indicating how clean your data is, backed by an Anomaly Detector that spots outliers using Z-scores and Isolation Forests.
-- **Interactive Histograms & Stats:** Every single column gets a beautiful, interactive breakdown of its distribution, skewness, missing values, and cardinality.
-- **ML Readiness Report Card:** Instantly know if your dataset is ready to train a machine learning model, tracking class imbalances and target prediction confidence.
-
-### 🧹 No-Code Data Cleaning & Engineering
-- **Visual Pipeline:** Drop rows, fill nulls, scale data, and standardize formats with a few clicks.
-- **What-If Simulator:** Before you hit "apply," Prism shows you the exact volumetric and statistical impact of your cleaning operation. 
-- **Recipe Library:** Save your cleaning steps and apply them instantly to the next dataset that comes in.
-
-### 💻 The Workings
-- **Monaco SQL Editor:** A full VS Code-style SQL editor built right into your browser, powered by an ultra-fast DuckDB in-memory engine.
-- **AG Grid Integration:** Sort, filter, group, and search thousands of rows in milliseconds using our enterprise-grade data grid.
-- **Multi-Dataset Joins:** Merge multiple files visually with AI-suggested join keys and foreign key detection.
-
-### 📤 Instant Exporting
-- Export your cleaned data to Parquet, Feather, JSON, or SQL inserts.
-- Export beautiful PDF or DOCX analysis reports.
-- Export the exact Python code or Jupyter Notebook required to reproduce your entire cleaning pipeline!
+**Upload a completely messed up dataset**, and Prism will automatically detect the format, guess the encoding, handle missing values, map exactly how the columns relate, generate specific hypotheses, create auto-visualizations, and let you query the data in **plain English**.
 
 ---
 
-## 🚀 The Ultimate Beginner's Setup Guide
+## 🔥 Unrivaled Features
 
-Want to run Prism on your own computer? It's incredibly easy! Even if you have never coded before in your life, just follow these simple steps.
+Prism isn't just a dashboard. It's an entire data engineering pipeline wrapped in a seamless UI.
 
-### Step 1: Install the Required Tools
-Prism needs three basic programs to run. If you don't have them, download and install them now:
+### 🧠 The AI Brain
+* **Natural Language to SQL:** Ask your data questions in plain English (e.g., *"Show me the top 5 products by revenue last quarter"*). The AI translates this into hyper-optimized DuckDB SQL.
+* **Autonomous Hypotheses:** The moment you upload data, Prism starts generating testable theories about causality and correlations without you lifting a finger.
+* **AI-Powered Data Dashboard:** It instantly calculates exactly which graph tells the best story based solely on column types. No configuration required.
 
-1. **Python (The Engine):** 
-   - Go to [Python's official website](https://www.python.org/downloads/).
-   - Click the big "Download Python 3.x" button.
-   - **CRITICAL:** When running the installer, make sure you check the box that says **"Add python.exe to PATH"** before clicking Install!
-2. **Node.js (The User Interface):** 
-   - Go to [Node.js](https://nodejs.org/).
-   - Download the **"LTS" (Long Term Support)** version.
-   - Run the installer and click "Next" through all the default options.
-3. **VS Code (The Editor) & Git:**
-   - Go to [Visual Studio Code](https://code.visualstudio.com/) and install it. This is where you'll view the code.
-   - Go to [Git](https://git-scm.com/downloads) and install it. This lets you download Prism to your computer.
+### 🌪️ The "Upload Anything" Engine
+* **Universal File Support:** Throw `.csv`, `.xlsx`, `.json`, `.parquet`, `.xml`, or even raw `.sql` dumps at it. 
+* **Seamless ZIP Extraction:** Upload a `.zip` archive full of CSVs—Prism automatically unzips it in the background and processes every file simultaneously.
+* **Mid-Session Multi-File Append:** Missing a dataset? Just click the **Floating Add Button** inside the workspace to inject new tables directly into the SQL engine *without* losing your current progress.
+* **Chunked Large File Ingestion:** Have a 5GB CSV? Prism handles it smoothly without crashing your browser or eating all your RAM. 
 
-*To check if they installed correctly, open a terminal (Search for "Command Prompt" on Windows or "Terminal" on Mac) and type `python --version` and `node --version`.*
+### 🧹 No-Code Data Cleaning & Profiling
+* **Instant Deep Profiling:** See null distributions, unique counts, inferred semantic types, and out-of-bounds data points the second your file finishes uploading.
+* **Auto-Correction Engine:** Prism suggests how to handle duplicates or massive null gaps. Let it drop missing rows, fill with medians, or flag anomalies intelligently.
+* **Malformed Data Side-by-Side:** When data is profoundly broken, Prism shows you the exact rows causing issues and lets you configure salvage strategies visually.
 
-### Step 2: Download Prism
-1. Open your terminal (Command Prompt or Mac Terminal).
-2. Type this exact command and press Enter:
+### 🛠️ The SQL Workbench
+* **Zero-Setup DuckDB:** An in-memory, insanely fast analytical database is spun up automatically for every session.
+* **Visual Query Builder:** Don't know SQL? Use the drag-and-drop Visual Builder to join tables, filter data, and apply complex aggregations.
+* **Instant Auto-Viz Engine:** Every time you run a query, the results are instantly graphed out.
+
+### 📄 Instant Exporting
+* **One-Click Reports:** Generate breathtaking Analyst Briefs detailing all findings directly to **PDF** or **DOCX**.
+* **Export Anything:** Download your cleaned data to Parquet, JSON, or CSV instantly.
+
+---
+
+## ⚡ The Ultimate 1-Click Setup Guide
+
+We’ve engineered Prism to be incredibly easy to start, even if you have absolutely **zero programming experience**. 
+
+### Step 1: Install the Bare Essentials
+If you don't already have these, install them first:
+1. **[Python 3.10+](https://www.python.org/downloads/)**
+   - *⚠️ CRITICAL:* During the Python installation, you **MUST** check the box that says **"Add Python to PATH"** at the very bottom of the installer window.
+2. **[Node.js (18+)](https://nodejs.org/en/download/)**
+   - Download the LTS version and install it with default settings.
+3. **[Git](https://git-scm.com/downloads)**
+   - So you can clone the repository.
+4. *(Optional but Highly Recommended)* **[Visual Studio Code](https://code.visualstudio.com/)** to view the code.
+
+### Step 2: Get Your Free AI Brain (API Key)
+Prism uses Google's Gemini AI to power its incredible reasoning engine.
+1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey).
+2. Sign in with any Google account.
+3. Click **"Create API Key"** and copy the long string of letters and numbers it gives you.
+
+### Step 3: Magic 1-Click Startup
+You don't need to manually install dependencies, configure virtual environments, or worry about environment variables. **Our `start.bat` script handles *literally everything*.**
+
+1. Open your terminal (Command Prompt or PowerShell) and run:
    ```bash
-   git clone https://github.com/Srikant-03/prism.git
-   ```
-3. Once it finishes downloading, move into the new folded by typing:
-   ```bash
+   git clone https://github.com/YourUsername/prism.git
    cd prism
    ```
+2. Double click the **`start.bat`** file in the folder (or run `start.bat` in the terminal).
 
-### Step 3: Get Your Free AI Key
-Prism uses Google's incredible Gemini AI to power its smart features. 
-1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey).
-2. Sign in with your Google account.
-3. Click **"Create API Key"** and copy the long string of text (it starts with `AIza...`). Keep this secret!
+**What the script does autonomously:**
+- ✅ Verifies you have Python and Node.js installed correctly.
+- ✅ Creates an isolated Python virtual environment safely.
+- ✅ Installs complex backend Data Science libraries (`pandas`, `duckdb`, `fastapi`, etc.).
+- ✅ Installs frontend React dependencies seamlessly.
+- ✅ Creates your `.env` configuration files completely automatically. 
+- ✅ Boots the backend server and frontend client simultaneously.
+- ✅ Automatically opens your browser to `http://localhost:5173`.
 
-### Step 4: Add Your AI Key to Prism
-1. Open the `prism` folder in **VS Code**. (You can drag and drop the folder into the VS Code window).
-2. On the left side, open the `backend` folder.
-3. Find the file named `.env.example`.
-4. Right-click that file and select **Rename**. Change its name to exactly: `.env` (Just dot env, nothing before the dot).
-5. Open your new `.env` file and find the line that says `GEMINI_API_KEY=`.
-6. Paste your key right after the equals sign so it looks like this: 
-   ```text
-   GEMINI_API_KEY=AIzaSy...your_secret_key_here
-   ```
-7. Save the file (Ctrl+S or Cmd+S).
+### Step 4: Paste Your Key
+The **first time** the script runs, it will create a `backend/.env` file for you automatically. 
+1. Open the `prism/backend/.env` file in Notepad or VS Code.
+2. Find the line that says `GEMINI_API_KEY=""`.
+3. Paste the key you got from Step 2 inside the quotes (e.g., `GEMINI_API_KEY="AIzaSyYourSecretKey..."`).
+4. Save the file. (You never have to do this again).
 
-### Step 5: Start Prism!
-
-**If you are on Windows:**
-Simply go to the `prism` folder on your computer and double-click the file named **`start.bat`**.
-- *That's it!* A black window will pop up, install everything automatically, and seamlessly open Prism in your web browser!
-
-**If you are on Mac or Linux:**
-You just need to run a few quick commands in your terminal.
-1. Open a terminal and start the backend:
-   ```bash
-   cd backend
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   python main.py
-   ```
-2. Open a **second, new terminal window** and start the frontend:
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
-3. Open your web browser and go to: **http://localhost:5173**
+**That's it. You're completely done.** Your autonomous AI analyst is alive. Drop in a dataset and watch the magic happen.
 
 ---
 
-## 🛑 How to Stop Prism
-When you are done analyzing your data:
-- **Windows:** Double-click the `stop.bat` file in the main folder to cleanly shut everything down.
-- **Mac/Linux:** Go to your terminal windows and press `Ctrl + C` in both of them.
+## 📸 Navigating the Interface
+
+### The Workspace
+- **Data Grid:** An Excel-style endless-scroll view into your datasets.
+- **SQL Query Engine:** Let the AI write queries for you, or build them visually.
+- **AI Dashboard:** Look for the dashboard tab—Prism will generate bar, line, and scatter plots comparing the most vital columns automatically.
+- **Add Dataset Button:** See that little `+` button floating in the bottom right? At any point during your analysis, click it to upload a completely new table (or ZIP file!), and it will be silently injected into your SQL engine so you can instantly `JOIN` it with your existing data!
 
 ---
 
-## 🛠️ Troubleshooting
+## 🛠️ Tech Stack Architecture
+**Frontend:**
+- React 18 / TypeScript
+- Vite
+- Ant Design (Custom Themed Glassmorphism UI)
+- Recharts (Interactive Visualizations)
+- React Flow (Relationship Graphs)
 
-- **The frontend shows a blank page?** Check your backend terminal window. Make sure it says the server is running on `http://localhost:8000`.
-- **The AI Chat isn't answering?** You likely forgot to save your `.env` file or you pasted the `GEMINI_API_KEY` incorrectly.
-- **"python is not recognized as an internal or external command"** You forgot to check the "Add to PATH" box when installing Python! Re-run the Python installer and choose 'Modify' to fix it.
-- **"npm is not recognized"** Restart your computer after installing Node.js so that your terminal recognizes the new commands.
+**Backend:**
+- Python 3.10+
+- FastAPI (High-performance async server)
+- Pandas & DuckDB (Core analytics and SQL engine)
+- Uvicorn (ASGI Server)
+- Python-Magic (Magic-byte threat detection)
+- Google GenAI SDK (LLM integration)
 
 ---
 
-## 📜 License
-This massively powerful tool is licensed under **MIT**. Built with passion by Srikant.
+## 🛡️ License & Privacy
+Prism is built to be a privacy-first local powerhouse. Your actual dataset rows **never** leave your machine. The only data sent to the AI API are schema structures (column names and types) for reasoning purposes. 
 
-<div align="center">
-  <i>Stop guessing. Start knowing. Drop your data into Prism today.</i>
-</div>
+### Built with ❤️ for data people.

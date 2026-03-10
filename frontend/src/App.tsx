@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { ConfigProvider, theme, Alert, Button, Result, Tabs, FloatButton } from 'antd';
-import { ReloadOutlined, CodeOutlined, TableOutlined, FileTextOutlined, AppstoreOutlined, RobotOutlined, BulbOutlined, DashboardOutlined } from '@ant-design/icons';
+import { ConfigProvider, theme, Alert, Button, Result, Tabs, FloatButton, Modal, message } from 'antd';
+import { ReloadOutlined, CodeOutlined, TableOutlined, FileTextOutlined, AppstoreOutlined, RobotOutlined, BulbOutlined, DashboardOutlined, PlusOutlined } from '@ant-design/icons';
 import Layout from './components/common/Layout';
 import FileUploader from './components/upload/FileUploader';
 import UploadProgress from './components/upload/UploadProgress';
@@ -26,6 +26,7 @@ import DashboardPage from './components/dashboard/DashboardPage';
 import { ThemeProvider, useTheme } from './hooks/useTheme';
 import { fetchAuth, API_BASE } from './api/client';
 import { useUpload } from './hooks/useUpload';
+import { uploadFiles } from './api/ingestion';
 
 const App: React.FC = () => {
   const {
@@ -40,6 +41,10 @@ const App: React.FC = () => {
   const [chatOpen, setChatOpen] = useState(false);
   const [activeTabKey, setActiveTabKey] = useState('preview');
   const [pendingSqlQuery, setPendingSqlQuery] = useState<string | undefined>(undefined);
+
+  // Secondary upload state
+  const [secondaryModalOpen, setSecondaryModalOpen] = useState(false);
+  const [secondaryUploading, setSecondaryUploading] = useState(false);
 
   // Graph and hypothesis state
   const [graphData, setGraphData] = useState<any>(null);
@@ -78,6 +83,19 @@ const App: React.FC = () => {
       setActiveTabKey('grid');
     } else if (action.type === 'navigate' && action.payload) {
       setActiveTabKey(action.payload);
+    }
+  };
+
+  const handleSecondaryUpload = async (files: File[]) => {
+    setSecondaryUploading(true);
+    try {
+      await uploadFiles(files);
+      message.success('Datasets have been loaded into the SQL Engine automatically!');
+      setSecondaryModalOpen(false);
+    } catch (err: any) {
+      message.error(err?.response?.data?.detail || err.message || 'Failed to upload additional files');
+    } finally {
+      setSecondaryUploading(false);
     }
   };
 
@@ -255,6 +273,12 @@ const App: React.FC = () => {
               <div style={{ position: 'fixed', right: 24, bottom: 140, display: 'flex', flexDirection: 'column', gap: 12, zIndex: 1000 }}>
                 <ThemeToggle />
                 <FloatButton
+                  icon={<PlusOutlined />}
+                  tooltip="Add Another Dataset"
+                  onClick={() => setSecondaryModalOpen(true)}
+                  style={{ position: 'static' }}
+                />
+                <FloatButton
                   icon={<RobotOutlined />}
                   type="primary"
                   tooltip="Talk to your data"
@@ -262,6 +286,27 @@ const App: React.FC = () => {
                   style={{ position: 'static' }}
                 />
               </div>
+
+              <Modal
+                title="Add Another Dataset"
+                open={secondaryModalOpen}
+                onCancel={() => !secondaryUploading && setSecondaryModalOpen(false)}
+                footer={null}
+                width={600}
+                centered
+              >
+                <div style={{ padding: '20px 0' }}>
+                  {secondaryUploading ? (
+                    <UploadProgress
+                      uploadPct={100}
+                      stage="uploading"
+                      message="Uploading and ingesting new datasets into SQL Engine..."
+                    />
+                  ) : (
+                    <FileUploader onUpload={handleSecondaryUpload} disabled={secondaryUploading} />
+                  )}
+                </div>
+              </Modal>
 
               <OnboardingWalkthrough />
               <ChatSidebar

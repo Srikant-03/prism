@@ -118,7 +118,22 @@ async def upload_file(request: Request, files: List[UploadFile] = File(...)) -> 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
 
-        saved_files.append((save_path, upload_file.filename or "unknown"))
+        if ext == ".zip":
+            # Direct intercept: Extract ZIP here to handle multi-file instantly
+            import zipfile
+            import tempfile
+            temp_dir = Path(tempfile.mkdtemp(dir=str(config.TEMP_DIR)))
+            try:
+                with zipfile.ZipFile(str(save_path), "r") as zf:
+                    zf.extractall(str(temp_dir))
+                for f in temp_dir.rglob("*"):
+                    if f.is_file() and not f.name.startswith("._") and not f.name.startswith(".DS_Store"):
+                        saved_files.append((f, f.name))
+            except Exception as e:
+                logger.error("ZIP inline extraction failed: %s", e)
+                saved_files.append((save_path, upload_file.filename or "unknown"))
+        else:
+            saved_files.append((save_path, upload_file.filename or "unknown"))
 
     # Build a progress callback that pushes updates to any connected WebSocket
     def _make_ws_callback(fid: str):
@@ -141,6 +156,7 @@ async def upload_file(request: Request, files: List[UploadFile] = File(...)) -> 
     # Create orchestrator with WebSocket progress callback
     progress_cb = _make_ws_callback(file_id) if saved_files else None
     orchestrator = IngestionOrchestrator(progress_callback=progress_cb)
+
 
     if len(saved_files) == 1:
         # Single file ingestion
