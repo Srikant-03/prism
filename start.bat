@@ -42,7 +42,7 @@ if not exist "frontend\.env" (
     ) else (
         echo  [SETUP] Creating frontend\.env...
         echo VITE_API_URL=http://localhost:8000> "frontend\.env"
-        echo VITE_API_KEY=dev-secret-key-123>> "frontend\.env"
+        echo VITE_API_KEY=change-me-to-a-secure-secret>> "frontend\.env"
     )
 )
 
