@@ -39,6 +39,10 @@ if not exist "frontend\.env" (
     if exist "frontend\.env.example" (
         echo  [SETUP] Creating frontend\.env from example...
         copy "frontend\.env.example" "frontend\.env" >nul
+    ) else (
+        echo  [SETUP] Creating frontend\.env...
+        echo VITE_API_URL=http://localhost:8000> "frontend\.env"
+        echo VITE_API_KEY=dev-secret-key-123>> "frontend\.env"
     )
 )
 
