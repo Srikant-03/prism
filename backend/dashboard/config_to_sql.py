@@ -38,12 +38,12 @@ def _filter_to_condition(f: FilterCondition) -> dict:
     """Convert a FilterCondition to a QueryBuilder condition dict."""
     cond: dict = {
         "column": f.column,
-        "operator": f.operator,
+        "op": f.operator,
     }
     if f.operator in ("in", "not_in") and f.values:
-        cond["value"] = f.values
+        cond["values"] = f.values
     elif f.operator == "between" and f.values and len(f.values) >= 2:
-        cond["value"] = f.values[:2]
+        cond["values"] = f.values[:2]
     elif f.operator not in ("is_null", "is_not_null"):
         cond["value"] = f.value
     return cond
