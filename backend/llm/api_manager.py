@@ -11,7 +11,7 @@ import random
 from typing import List, Callable, Any
 
 try:
-    import google.generativeai as genai
+    from google import genai
     from google.api_core.exceptions import ResourceExhausted, TooManyRequests
     HAS_GENAI = True
 except ImportError:
@@ -20,6 +20,15 @@ except ImportError:
 from config import AppConfig
 
 logger = logging.getLogger(__name__)
+
+
+# Module-level active client, set by the failover decorator before each API call.
+_active_client = None
+
+
+def get_active_client():
+    """Return the currently active genai Client (set by the failover decorator)."""
+    return _active_client
 
 
 class APIKeyManager:
@@ -139,6 +148,7 @@ def with_llm_failover(max_retries: int = None, tier_rpm: int = 15):
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def wrapper(*args, **kwargs) -> Any:
+            global _active_client
             if not HAS_GENAI:
                 return await func(*args, **kwargs)
                 
@@ -146,9 +156,9 @@ def with_llm_failover(max_retries: int = None, tier_rpm: int = 15):
             while retries <= max_retries:
                 current_key = await key_manager.get_current_key(tier_rpm=tier_rpm)
                 
-                # Configure the genai library with the active key right before the call
+                # Create a genai Client with the active key right before the call
                 if current_key:
-                    genai.configure(api_key=current_key)
+                    _active_client = genai.Client(api_key=current_key)
                     
                 try:
                     return await func(*args, **kwargs)

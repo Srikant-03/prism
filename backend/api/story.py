@@ -16,8 +16,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import json
 
-from llm.api_manager import with_llm_failover, HAS_GENAI
-import google.generativeai as genai
+from llm.api_manager import with_llm_failover, HAS_GENAI, get_active_client
 
 router = APIRouter(prefix="/api/story", tags=["story"])
 
@@ -244,7 +243,7 @@ async def generate_story(request: StoryRequest):
                 async def _get_gemini_story():
                     from config import AppConfig
                     model_name = AppConfig.llm.MODEL_WORKHORSE if hasattr(AppConfig, "llm") else "gemini-1.5-flash"
-                    model = genai.GenerativeModel(model_name)
+                    client = get_active_client()
                     
                     profile_dump = profile.model_dump() if hasattr(profile, "model_dump") else (profile.dict() if hasattr(profile, "dict") else profile)
                     # Strip heavy sample values to save tokens
@@ -261,7 +260,9 @@ async def generate_story(request: StoryRequest):
                         f"Profile JSON:\n{json.dumps(profile_dump)[:15000]}"
                     )
                     
-                    response = model.generate_content(prompt)
+                    response = await client.aio.models.generate_content(
+                        model=model_name, contents=prompt
+                    )
                     text = response.text.replace("```json", "").replace("```", "").strip()
                     return json.loads(text)
                 

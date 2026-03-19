@@ -10,16 +10,15 @@ import logging
 import asyncio # Added for _execute_chat_prompt
 from typing import Any, Optional
 
-import google.generativeai as genai
 from config import LLMConfig
-from llm.api_manager import with_llm_failover
+from llm.api_manager import with_llm_failover, get_active_client
 
 logger = logging.getLogger(__name__)
 
 @with_llm_failover(tier_rpm=10)
-async def _execute_chat_prompt(model, contents) -> Any:
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, lambda: model.generate_content(contents))
+async def _execute_chat_prompt(model_name, contents) -> Any:
+    client = get_active_client()
+    return await client.aio.models.generate_content(model=model_name, contents=contents)
 
 
 # ── Context builder ──────────────────────────────────────────────────
@@ -105,10 +104,7 @@ class ChatEngine:
 
     def __init__(self, context: ChatContextBuilder | None = None):
         self.context = context or ChatContextBuilder()
-        try:
-            self.model = genai.GenerativeModel(LLMConfig.MODEL_WORKHORSE)
-        except Exception:
-            self.model = None
+        self.model_name = LLMConfig.MODEL_WORKHORSE
 
     async def chat(
         self,
@@ -116,7 +112,7 @@ class ChatEngine:
         conversation_history: list[dict] | None = None,
     ) -> dict:
         """Process a chat message and return AI response with actions."""
-        if not self.model:
+        if not self.model_name:
             return {
                 "response": "⚠️ AI service not configured. Please set your Gemini API key.",
                 "actions": [],
@@ -136,7 +132,7 @@ class ChatEngine:
         contents.append({"role": "user", "parts": [{"text": message}]})
 
         try:
-            response = await _execute_chat_prompt(self.model, contents)
+            response = await _execute_chat_prompt(self.model_name, contents)
             text = response.text
 
             # Parse action blocks from response

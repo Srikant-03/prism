@@ -16,7 +16,8 @@ import asyncio
 logger = logging.getLogger(__name__)
 
 try:
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types
     HAS_GENAI = True
 except ImportError:
     HAS_GENAI = False
@@ -29,7 +30,7 @@ from dashboard.chart_config_models import (
     FilterCondition,
     ClarificationRequest,
 )
-from llm.api_manager import with_llm_failover
+from llm.api_manager import with_llm_failover, get_active_client
 
 
 # ── System Prompt ──
@@ -138,36 +139,30 @@ def _parse_config_from_dict(data: dict, current_config: Optional[ChartConfig] = 
 
 
 @with_llm_failover(tier_rpm=5)
-async def _execute_interpretation_prompt(full_prompt: str, system_prompt: str) -> genai.types.GenerateContentResponse:
-    model = genai.GenerativeModel("gemini-2.0-flash")
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(
-        None,
-        lambda: model.generate_content(
-            [
-                {"role": "user", "parts": [system_prompt]},
-                {"role": "model", "parts": ["I understand. I will return only valid JSON chart configurations."]},
-                {"role": "user", "parts": [full_prompt]},
-            ],
-            generation_config=genai.GenerationConfig(
-                temperature=0.1,
-                response_mime_type="application/json",
-            )
+async def _execute_interpretation_prompt(full_prompt: str, system_prompt: str):
+    client = get_active_client()
+    return await client.aio.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=[
+            {"role": "user", "parts": [{"text": system_prompt}]},
+            {"role": "model", "parts": [{"text": "I understand. I will return only valid JSON chart configurations."}]},
+            {"role": "user", "parts": [{"text": full_prompt}]},
+        ],
+        config=types.GenerateContentConfig(
+            temperature=0.1,
+            response_mime_type="application/json",
         )
     )
 
 @with_llm_failover(tier_rpm=2)
-async def _execute_followup_prompt(prompt: str) -> genai.types.GenerateContentResponse:
-    model = genai.GenerativeModel("gemini-2.0-flash")
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(
-        None,
-        lambda: model.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(
-                temperature=0.7,
-                response_mime_type="application/json",
-            )
+async def _execute_followup_prompt(prompt: str):
+    client = get_active_client()
+    return await client.aio.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            temperature=0.7,
+            response_mime_type="application/json",
         )
     )
 

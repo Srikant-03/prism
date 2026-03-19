@@ -13,8 +13,9 @@ from typing import Any, Optional
 from config import LLMConfig
 
 try:
-    import google.generativeai as genai
-    from llm.api_manager import with_llm_failover
+    from google import genai
+    from google.genai import types
+    from llm.api_manager import with_llm_failover, get_active_client
     HAS_GENAI = True
 except ImportError:
     HAS_GENAI = False
@@ -31,10 +32,11 @@ except ImportError:
         return decorator
 
 @with_llm_failover(tier_rpm=2)
-async def _execute_nl_query_prompt(model, contents) -> Any:
-    import asyncio
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, lambda: model.generate_content(contents))
+async def _execute_nl_query_prompt(model_name, contents, config=None) -> Any:
+    client = get_active_client()
+    return await client.aio.models.generate_content(
+        model=model_name, contents=contents, config=config
+    )
 
 # ── Schema context builder ────────────────────────────────────────────
 
@@ -102,18 +104,6 @@ class NLQueryTranslator:
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
         self.api_key = api_key or os.getenv("GEMINI_API_KEY", "")
         self.model_name = model or LLMConfig.MODEL_HEAVY
-        self._model = None
-
-    def _get_model(self):
-        """Lazy-init the Gemini model."""
-        if self._model is None:
-            if not HAS_GENAI:
-                raise RuntimeError("google-generativeai package is not installed.")
-            self._model = genai.GenerativeModel(
-                model_name=self.model_name,
-                system_instruction=SYSTEM_PROMPT,
-            )
-        return self._model
 
     async def translate(
         self,
@@ -154,8 +144,10 @@ USER QUESTION:
 
             contents.append({"role": "user", "parts": [user_prompt]})
 
-            model = self._get_model()
-            response = await _execute_nl_query_prompt(model, contents)
+            if not HAS_GENAI:
+                raise RuntimeError("google-genai package is not installed.")
+            config = types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT)
+            response = await _execute_nl_query_prompt(self.model_name, contents, config=config)
 
             # Parse the JSON response
             text = response.text.strip()
