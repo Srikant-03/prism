@@ -121,6 +121,20 @@ class APIKeyManager:
             if self.keys and self.keys[self.current_index] == key:
                 self._advance_index()
             
+    def all_keys_exhausted(self) -> bool:
+        """Check if every key in the pool is permanently exhausted."""
+        if not self.keys:
+            return True
+        with self._lock:
+            return len(self.exhausted_keys) >= len(self.keys)
+
+    def reset_exhausted(self):
+        """Clear all exhausted/rate-limited state (e.g. after daily quota resets)."""
+        with self._lock:
+            self.exhausted_keys.clear()
+            self.rate_limited_keys.clear()
+            logger.info("API key exhaustion state reset.")
+
     def get_status(self) -> dict:
         """Get the health status of the API key pool."""
         return {
@@ -128,6 +142,7 @@ class APIKeyManager:
             "exhausted_keys": len(self.exhausted_keys),
             "rate_limited_keys": len(self.rate_limited_keys),
             "active_key_index": self.current_index,
+            "all_exhausted": self.all_keys_exhausted(),
             "has_available_keys": len(self.exhausted_keys) < len(self.keys) if self.keys else False
         }
 
@@ -151,7 +166,12 @@ def with_llm_failover(max_retries: int = None, tier_rpm: int = 15):
             global _active_client
             if not HAS_GENAI:
                 return await func(*args, **kwargs)
-                
+
+            # Fast path: if all keys are already permanently exhausted, don't waste time retrying
+            if key_manager.all_keys_exhausted():
+                logger.warning("All API keys exhausted — skipping LLM call, raising immediately.")
+                raise ResourceExhausted("All API keys are exhausted. Falling back to offline mode.")
+
             retries = 0
             while retries <= max_retries:
                 current_key = await key_manager.get_current_key(tier_rpm=tier_rpm)
