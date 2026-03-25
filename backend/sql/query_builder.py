@@ -332,6 +332,7 @@ class QueryBuilder:
             "≥": ">=", "≤": "<=",
             "LIKE": "LIKE", "NOT LIKE": "NOT LIKE",
             "IS NULL": "IS NULL", "IS NOT NULL": "IS NOT NULL",
+            "IS_NULL": "IS NULL", "IS_NOT_NULL": "IS NOT NULL",
             "IS TRUE": "= TRUE", "IS FALSE": "= FALSE",
             "STARTS WITH": "LIKE",
             "ENDS WITH": "LIKE",
@@ -339,7 +340,7 @@ class QueryBuilder:
             "DOES NOT CONTAIN": "NOT LIKE",
             "MATCHES REGEX": "~",
             "BEFORE": "<", "AFTER": ">",
-            "IN": "IN", "NOT IN": "NOT IN",
+            "IN": "IN", "NOT IN": "NOT IN", "NOT_IN": "NOT IN",
             "BETWEEN": "BETWEEN",
             "IN LAST N DAYS": ">=",
             "IN LAST N MONTHS": ">=",
@@ -351,7 +352,7 @@ class QueryBuilder:
         sql_op = op_map.get(op, op)
 
         # Handle special operators
-        if op in ("IS NULL", "IS NOT NULL"):
+        if op in ("IS NULL", "IS NOT NULL", "IS_NULL", "IS_NOT_NULL"):
             return f"{col} {sql_op}"
 
         if op in ("IS TRUE", "IS FALSE"):
@@ -362,7 +363,7 @@ class QueryBuilder:
             high = _escape_value(values[1]) if len(values) > 1 else "NULL"
             return f"{col} BETWEEN {low} AND {high}"
 
-        if op in ("IN", "NOT IN"):
+        if op in ("IN", "NOT IN", "NOT_IN"):
             escaped = ", ".join(_escape_value(v) for v in values)
             return f"{col} {sql_op} ({escaped})"
 
