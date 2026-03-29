@@ -15,7 +15,7 @@ from llm.api_manager import with_llm_failover, get_active_client
 
 logger = logging.getLogger(__name__)
 
-@with_llm_failover(tier_rpm=10)
+@with_llm_failover(tier_rpm=5)
 async def _execute_chat_prompt(model_name, contents) -> Any:
     client = get_active_client()
     return await client.aio.models.generate_content(model=model_name, contents=contents)

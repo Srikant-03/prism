@@ -239,7 +239,7 @@ async def generate_story(request: StoryRequest):
         # Attempt to upgrade to real Gemini LLM if available
         if HAS_GENAI and profile:
             try:
-                @with_llm_failover(max_retries=2, tier_rpm=15)
+                @with_llm_failover(max_retries=2, tier_rpm=5)
                 async def _get_gemini_story():
                     from config import AppConfig
                     model_name = AppConfig.llm.MODEL_WORKHORSE if hasattr(AppConfig, "llm") else "gemini-1.5-flash"

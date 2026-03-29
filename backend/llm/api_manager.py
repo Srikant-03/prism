@@ -45,7 +45,7 @@ class APIKeyManager:
         if not self.keys:
             logger.warning("No API keys provided to APIKeyManager!")
 
-    async def get_current_key(self, tier_rpm: int = 15) -> str | None:
+    async def get_current_key(self, tier_rpm: int = 5) -> str | None:
         """Get the currently active API key, rotating if necessary to find one that satisfies the RPM."""
         if not self.keys:
             return None
@@ -64,7 +64,7 @@ class APIKeyManager:
                     last_429 = self.rate_limited_keys.get(key, 0)
                     last_used = self.last_used_keys.get(key, 0)
                     
-                    if (now - last_429 > 25) and (now - last_used >= required_cooldown):
+                    if (now - last_429 > 65) and (now - last_used >= required_cooldown):
                         self.last_used_keys[key] = now
                         return key
                     
@@ -80,7 +80,7 @@ class APIKeyManager:
             
             for key in self.keys:
                 if key not in self.exhausted_keys:
-                    wait_429 = max(0.0, 25 - (now - self.rate_limited_keys.get(key, 0)))
+                    wait_429 = max(0.0, 65 - (now - self.rate_limited_keys.get(key, 0)))
                     wait_rpm = max(0.0, required_cooldown - (now - self.last_used_keys.get(key, 0)))
                     wait_time = max(wait_429, wait_rpm, 0.1) # Minimum 100ms yield
                     
@@ -150,7 +150,7 @@ class APIKeyManager:
 key_manager = APIKeyManager(AppConfig.llm.GEMINI_API_KEYS)
 
 
-def with_llm_failover(max_retries: int = None, tier_rpm: int = 15):
+def with_llm_failover(max_retries: int = None, tier_rpm: int = 5):
     """
     Decorator to wrap any function calling the Gemini API.
     Catches 429 errors (Quota Exhausted / Too Many Requests) and automatically
