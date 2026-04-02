@@ -150,7 +150,11 @@ async def suggest(request: SuggestPromptsRequest):
 
 
 def _execute_sql(file_id: str, sql: str) -> list[dict]:
-    """Execute SQL against the DuckDB engine and return rows as dicts."""
+    """Execute SQL against the DuckDB engine and return rows as dicts.
+    
+    Raises RuntimeError with the SQL error message if execution fails,
+    allowing callers to surface the error properly.
+    """
     try:
         from api.sql import get_engine
         engine = get_engine()
@@ -159,9 +163,12 @@ def _execute_sql(file_id: str, sql: str) -> list[dict]:
             if result.get("success"):
                 return result.get("rows", [])
             else:
-                logger.warning("SQL execution error: %s", result.get("error", "unknown"))
-                return []
+                error_msg = result.get("error", "SQL execution failed")
+                logger.warning("SQL execution error: %s", error_msg)
+                raise RuntimeError(f"SQL error: {error_msg}")
         return []
+    except RuntimeError:
+        raise  # Re-raise our own errors
     except Exception as e:
         logger.error("Dashboard SQL execution failed: %s", e)
         # Fallback: try direct DuckDB with DataFrame registration
@@ -169,7 +176,7 @@ def _execute_sql(file_id: str, sql: str) -> list[dict]:
             import duckdb
             df = get_stored_dataframe(file_id)
             if df is None:
-                return []
+                raise RuntimeError("Dataset not found for SQL fallback execution")
             table_name = _get_table_name(file_id)
             conn = duckdb.connect()
             conn.register(table_name, df)
@@ -177,7 +184,7 @@ def _execute_sql(file_id: str, sql: str) -> list[dict]:
             return result_df.to_dict(orient="records")
         except Exception as fallback_err:
             logger.error("Dashboard fallback SQL also failed: %s", fallback_err)
-            return []
+            raise RuntimeError(f"SQL execution failed: {fallback_err}")
 
 
 # ──────────────────────────────────────────
