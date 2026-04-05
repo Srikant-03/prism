@@ -228,92 +228,229 @@ def _fallback_interpret(
     current_config: Optional[ChartConfig] = None,
 ) -> ChartConfig:
     """
-    Regex-based fallback when Gemini is unavailable.
-    Detects chart type and basic column mapping from the prompt.
+    Enhanced regex-based fallback when Gemini is unavailable.
+    Detects chart type, column mapping, aggregation, filters, sorting,
+    grouping, and limit from the prompt using pattern matching.
     """
-    msg_lower = message.lower()
+    msg_lower = message.lower().strip()
 
-    # Detect chart type
+    # ── Detect chart type ──
     chart_type = ChartType.BAR  # default
     type_map = {
-        "line": ChartType.LINE,
-        "area": ChartType.AREA,
-        "pie": ChartType.PIE,
-        "donut": ChartType.DONUT,
-        "scatter": ChartType.SCATTER,
-        "heatmap": ChartType.HEATMAP,
-        "heat map": ChartType.HEATMAP,
-        "treemap": ChartType.TREEMAP,
-        "tree map": ChartType.TREEMAP,
-        "funnel": ChartType.FUNNEL,
-        "kpi": ChartType.KPI,
-        "metric": ChartType.KPI,
-        "table": ChartType.TABLE,
-        "bar": ChartType.BAR,
+        "line chart": ChartType.LINE, "line graph": ChartType.LINE, "line": ChartType.LINE,
+        "area chart": ChartType.AREA, "area": ChartType.AREA,
+        "pie chart": ChartType.PIE, "pie": ChartType.PIE,
+        "donut chart": ChartType.DONUT, "donut": ChartType.DONUT,
+        "scatter plot": ChartType.SCATTER, "scatter chart": ChartType.SCATTER, "scatter": ChartType.SCATTER,
+        "heatmap": ChartType.HEATMAP, "heat map": ChartType.HEATMAP,
+        "treemap": ChartType.TREEMAP, "tree map": ChartType.TREEMAP,
+        "funnel chart": ChartType.FUNNEL, "funnel": ChartType.FUNNEL,
+        "kpi": ChartType.KPI, "metric": ChartType.KPI, "scorecard": ChartType.KPI,
+        "total": ChartType.KPI, "overall": ChartType.KPI,
+        "table": ChartType.TABLE, "data table": ChartType.TABLE, "grid": ChartType.TABLE,
+        "bar chart": ChartType.BAR, "bar graph": ChartType.BAR, "bar": ChartType.BAR,
+        "histogram": ChartType.BAR, "column chart": ChartType.BAR,
     }
-    for keyword, ct in type_map.items():
+    # Check longer patterns first for accuracy
+    for keyword, ct in sorted(type_map.items(), key=lambda x: -len(x[0])):
         if keyword in msg_lower:
             chart_type = ct
             break
 
-    # Detect columns mentioned in the prompt
+    # ── Classify schema columns ──
     columns = list(schema.keys())
-    mentioned_cols = [col for col in columns if col.lower() in msg_lower]
+    col_lower_map = {col.lower(): col for col in columns}
 
-    # Detect aggregation
+    numeric_cols = [c for c in columns if schema[c].get("dtype", "") in
+                    ("int64", "float64", "int", "float", "number", "numeric", "int32", "float32")]
+    categorical_cols = [c for c in columns if schema[c].get("dtype", "") in
+                        ("object", "category", "string", "str", "bool")]
+    datetime_cols = [c for c in columns if schema[c].get("dtype", "") in
+                     ("datetime64[ns]", "datetime", "date", "datetime64") or
+                     "date" in c.lower() or "time" in c.lower()]
+
+    # ── Find columns mentioned in the prompt ──
+    mentioned_cols = []
+    for col in columns:
+        # Match exact column name (case-insensitive, word-boundary)
+        pattern = re.compile(r'\b' + re.escape(col.lower()) + r'\b')
+        if pattern.search(msg_lower):
+            mentioned_cols.append(col)
+        else:
+            # Also try matching with spaces instead of underscores
+            col_readable = col.lower().replace("_", " ")
+            if len(col_readable) > 2 and col_readable in msg_lower:
+                mentioned_cols.append(col)
+
+    # ── Detect "X by Y" pattern (e.g. "revenue by category") ──
+    by_match = re.search(r'(\w[\w\s]*?)\s+by\s+(\w[\w\s]*?)(?:\s+and\s+|\s*$|\s+(?:as|in|for|with|where|show|using|group|top|bottom|limit))', msg_lower)
+    by_y_col = None
+    by_x_col = None
+    by_group_col = None
+    if by_match:
+        y_phrase = by_match.group(1).strip()
+        x_phrase = by_match.group(2).strip()
+        # Match phrases to columns
+        for col in columns:
+            cl = col.lower().replace("_", " ")
+            if cl in y_phrase or y_phrase in cl:
+                by_y_col = col
+            if cl in x_phrase or x_phrase in cl:
+                by_x_col = col
+
+    # ── Detect "group by" / "break down by" / "split by" ──
+    group_match = re.search(r'(?:group\s*by|break\s*(?:down\s*)?by|split\s*by|per)\s+(\w[\w\s]*?)(?:\s*$|\s+(?:and|where|show|for|with|top|bottom))', msg_lower)
+    if group_match:
+        g_phrase = group_match.group(1).strip()
+        for col in columns:
+            cl = col.lower().replace("_", " ")
+            if cl in g_phrase or g_phrase in cl:
+                by_group_col = col
+                break
+
+    # ── Detect aggregation ──
     aggregation = AggregationType.SUM
     agg_map = {
-        "average": AggregationType.AVG,
-        "avg": AggregationType.AVG,
-        "mean": AggregationType.AVG,
-        "count": AggregationType.COUNT,
-        "minimum": AggregationType.MIN,
-        "min": AggregationType.MIN,
-        "maximum": AggregationType.MAX,
-        "max": AggregationType.MAX,
+        "average": AggregationType.AVG, "avg": AggregationType.AVG, "mean": AggregationType.AVG,
+        "count": AggregationType.COUNT, "number of": AggregationType.COUNT, "how many": AggregationType.COUNT,
+        "minimum": AggregationType.MIN, "min": AggregationType.MIN, "lowest": AggregationType.MIN,
+        "maximum": AggregationType.MAX, "max": AggregationType.MAX, "highest": AggregationType.MAX,
         "median": AggregationType.MEDIAN,
+        "sum": AggregationType.SUM, "total": AggregationType.SUM,
     }
-    for keyword, agg in agg_map.items():
+    for keyword, agg in sorted(agg_map.items(), key=lambda x: -len(x[0])):
         if keyword in msg_lower:
             aggregation = agg
             break
 
-    # Detect modifiers
+    # ── Detect "top N" / "bottom N" ──
+    limit = None
+    sort_direction = None
+    top_match = re.search(r'(?:top|best|highest|largest)\s+(\d+)', msg_lower)
+    bottom_match = re.search(r'(?:bottom|worst|lowest|smallest)\s+(\d+)', msg_lower)
+    if top_match:
+        limit = int(top_match.group(1))
+        sort_direction = SortDirection.DESC
+    elif bottom_match:
+        limit = int(bottom_match.group(1))
+        sort_direction = SortDirection.ASC
+
+    # ── Detect filters (e.g. "where age > 30", "for region = East") ──
+    filters: list[FilterCondition] = []
+    filter_patterns = [
+        r'(?:where|filter|for|when|if)\s+(\w[\w\s]*?)\s*(=|!=|>|<|>=|<=)\s*["\']?(\w[\w\s]*?)["\']?\s*(?:$|and\b|or\b|,)',
+        r'(\w+)\s*(?:equals?|is)\s+["\']?(\w[\w\s]*?)["\']?\s*(?:$|and\b|,)',
+    ]
+    for pat in filter_patterns:
+        for m in re.finditer(pat, msg_lower):
+            groups = m.groups()
+            if len(groups) == 3:
+                col_phrase, op, val = groups
+            elif len(groups) == 2:
+                col_phrase, val = groups
+                op = "="
+            else:
+                continue
+            # Match the column phrase to an actual column
+            matched_col = None
+            for col in columns:
+                cl = col.lower().replace("_", " ")
+                if cl in col_phrase.strip() or col_phrase.strip() in cl:
+                    matched_col = col
+                    break
+            if matched_col:
+                # Try to parse numeric values
+                try:
+                    parsed_val: any = int(val.strip())
+                except ValueError:
+                    try:
+                        parsed_val = float(val.strip())
+                    except ValueError:
+                        parsed_val = val.strip()
+                filters.append(FilterCondition(column=matched_col, operator=op.strip(), value=parsed_val))
+
+    # ── Detect modifiers ──
     trend_line = any(w in msg_lower for w in ["trend", "trendline", "trend line", "regression"])
     stacked = "stack" in msg_lower
-    dark_mode = "dark" in msg_lower
+    smooth = any(w in msg_lower for w in ["smooth", "curved"])
+    show_values = any(w in msg_lower for w in ["show values", "show numbers", "data labels", "label"])
+    show_legend = "legend" not in msg_lower or "show legend" in msg_lower  # default True unless "no legend"
+    show_grid = "no grid" not in msg_lower  # default True
 
-    # Build config
-    x_axis = None
-    y_axis = None
-    group_by = None
+    # ── Build axis assignments ──
+    x_axis = by_x_col
+    y_axis = by_y_col
+    group_by = by_group_col
 
-    if len(mentioned_cols) >= 2:
-        # Heuristic: first mentioned is x, second is y
-        x_axis = mentioned_cols[0]
-        y_axis = mentioned_cols[1]
-        if len(mentioned_cols) >= 3:
-            group_by = mentioned_cols[2]
-    elif len(mentioned_cols) == 1:
+    if not x_axis and not y_axis:
+        # Use explicitly mentioned columns
+        if len(mentioned_cols) >= 2:
+            # Heuristic: if first is categorical/datetime → x, if second is numeric → y
+            if mentioned_cols[0] in categorical_cols or mentioned_cols[0] in datetime_cols:
+                x_axis = mentioned_cols[0]
+                y_axis = mentioned_cols[1]
+            elif mentioned_cols[1] in categorical_cols or mentioned_cols[1] in datetime_cols:
+                x_axis = mentioned_cols[1]
+                y_axis = mentioned_cols[0]
+            else:
+                x_axis = mentioned_cols[0]
+                y_axis = mentioned_cols[1]
+            if len(mentioned_cols) >= 3:
+                group_by = mentioned_cols[2]
+        elif len(mentioned_cols) == 1:
+            if mentioned_cols[0] in numeric_cols:
+                y_axis = mentioned_cols[0]
+                # Auto-pick a categorical x-axis
+                for col in categorical_cols + datetime_cols:
+                    if col != y_axis:
+                        x_axis = col
+                        break
+            else:
+                x_axis = mentioned_cols[0]
+                # Auto-pick a numeric y-axis
+                for col in numeric_cols:
+                    x_axis_set = x_axis  # avoid shadowing
+                    if col != x_axis_set:
+                        y_axis = col
+                        break
+
+    # If still no axis assignment, pick smart defaults
+    if not x_axis and not y_axis and columns:
         if chart_type == ChartType.KPI:
-            y_axis = mentioned_cols[0]
+            y_axis = numeric_cols[0] if numeric_cols else columns[0]
+        elif chart_type == ChartType.TABLE:
+            pass  # Table doesn't need explicit axes
         else:
-            y_axis = mentioned_cols[0]
-            # Try to find a good x_axis
-            for col in columns:
-                dtype = schema[col].get("dtype", "")
-                if col != mentioned_cols[0] and dtype in ("datetime", "date", "category", "object", "string"):
-                    x_axis = col
-                    break
-    elif columns:
-        # No columns mentioned — pick reasonable defaults
-        numeric_cols = [c for c in columns if schema[c].get("dtype", "") in ("int64", "float64", "int", "float", "number", "numeric")]
-        cat_cols = [c for c in columns if schema[c].get("dtype", "") in ("object", "category", "string", "datetime")]
-        if cat_cols:
-            x_axis = cat_cols[0]
-        if numeric_cols:
-            y_axis = numeric_cols[0]
+            if datetime_cols:
+                x_axis = datetime_cols[0]
+            elif categorical_cols:
+                x_axis = categorical_cols[0]
+            if numeric_cols:
+                y_axis = numeric_cols[0]
 
+    # ── Sort by ──
+    sort_by = y_axis if sort_direction else None
+
+    # ── Generate a clean title ──
+    if chart_type == ChartType.KPI:
+        agg_label = aggregation.value.capitalize() if aggregation != AggregationType.SUM else "Total"
+        col_label = (y_axis or "Value").replace("_", " ").title()
+        title = f"{agg_label} {col_label}"
+    elif x_axis and y_axis:
+        agg_label = aggregation.value.upper() if aggregation != AggregationType.SUM else ""
+        y_label = y_axis.replace("_", " ").title()
+        x_label = x_axis.replace("_", " ").title()
+        prefix = f"{agg_label} " if agg_label else ""
+        title = f"{prefix}{y_label} by {x_label}"
+        if group_by:
+            title += f" ({group_by.replace('_', ' ').title()})"
+        if limit and sort_direction:
+            dir_label = "Top" if sort_direction == SortDirection.DESC else "Bottom"
+            title = f"{dir_label} {limit} — {title}"
+    else:
+        title = message[:80]
+
+    # ── Build config ──
     if current_config:
         base = current_config.model_copy()
         base.chart_type = chart_type
@@ -326,21 +463,45 @@ def _fallback_interpret(
         base.aggregation = aggregation
         base.trend_line = base.trend_line or trend_line
         base.stacked = base.stacked or stacked
-        if dark_mode:
-            base.color_scheme = "dark"
+        base.smooth = base.smooth or smooth
+        base.show_values = show_values if show_values else base.show_values
+        if filters:
+            base.filters = (base.filters or []) + filters
+        if sort_by:
+            base.sort_by = sort_by
+            base.sort_direction = sort_direction
+        if limit:
+            base.limit = limit
+        base.title = title
         return base
 
-    return ChartConfig(
+    config_kwargs = dict(
         chart_type=chart_type,
-        title=message[:80],
+        title=title,
         x_axis=x_axis,
         y_axis=y_axis,
         group_by=group_by,
         aggregation=aggregation,
         trend_line=trend_line,
         stacked=stacked,
-        color_scheme="dark" if dark_mode else "default",
+        smooth=smooth,
+        show_values=show_values,
+        show_legend=show_legend,
+        show_grid=show_grid,
+        color_scheme="default",
     )
+    if filters:
+        config_kwargs["filters"] = filters
+    if sort_by:
+        config_kwargs["sort_by"] = sort_by
+        config_kwargs["sort_direction"] = sort_direction
+    if limit:
+        config_kwargs["limit"] = limit
+    if chart_type == ChartType.KPI and y_axis:
+        config_kwargs["kpi_value_column"] = y_axis
+        config_kwargs["kpi_aggregation"] = aggregation.value
+
+    return ChartConfig(**config_kwargs)
 
 
 async def suggest_follow_ups(
@@ -349,7 +510,7 @@ async def suggest_follow_ups(
 ) -> list[str]:
     """Generate AI-powered follow-up prompt suggestions."""
     if not HAS_GENAI:
-        return _fallback_suggestions(current_config)
+        return _fallback_suggestions(current_config, schema)
 
     try:
         schema_desc = _build_schema_description(schema)
@@ -371,26 +532,60 @@ async def suggest_follow_ups(
     except Exception as e:
         logger.warning("Suggestion generation failed: %s", e)
 
-    return _fallback_suggestions(current_config)
+    return _fallback_suggestions(current_config, schema)
 
 
-def _fallback_suggestions(config: Optional[ChartConfig] = None) -> list[str]:
-    """Static follow-up suggestions when Gemini is unavailable."""
-    base = [
-        "Switch to a line chart",
-        "Add a trend line",
-        "Show as dark mode",
-        "Filter to top 10",
-    ]
+def _fallback_suggestions(config: Optional[ChartConfig] = None, schema: Optional[dict] = None) -> list[str]:
+    """Context-aware follow-up suggestions when Gemini is unavailable."""
+    suggestions = []
+    columns = list(schema.keys()) if schema else []
+    numeric_cols = [c for c in columns if schema and schema[c].get("dtype", "") in
+                    ("int64", "float64", "int", "float", "number")] if schema else []
+    cat_cols = [c for c in columns if schema and schema[c].get("dtype", "") in
+                ("object", "category", "string")] if schema else []
+
     if config:
-        if not config.trend_line:
-            base[1] = "Add a trend line"
+        # Chart type switches
         if config.chart_type == ChartType.BAR:
-            base[0] = "Switch to a line chart"
+            suggestions.append("Switch to a line chart")
         elif config.chart_type == ChartType.LINE:
-            base[0] = "Switch to a bar chart"
-        if not config.stacked:
-            base.append("Make it stacked")
-        if not config.group_by:
-            base.append("Break down by category")
-    return base[:4]
+            suggestions.append("Switch to a bar chart")
+        elif config.chart_type == ChartType.PIE:
+            suggestions.append("Switch to a donut chart")
+        else:
+            suggestions.append("Switch to a bar chart")
+
+        # Feature additions
+        if not config.trend_line and config.chart_type in (ChartType.LINE, ChartType.BAR, ChartType.AREA):
+            suggestions.append("Add a trend line")
+        if not config.stacked and config.chart_type in (ChartType.BAR, ChartType.AREA):
+            suggestions.append("Make it stacked")
+
+        # Grouping suggestions using actual column names
+        if not config.group_by and cat_cols:
+            available = [c for c in cat_cols if c != config.x_axis]
+            if available:
+                suggestions.append(f"Break down by {available[0].replace('_', ' ')}")
+
+        # Metric suggestions using actual column names
+        if numeric_cols:
+            other_metrics = [c for c in numeric_cols if c != config.y_axis]
+            if other_metrics:
+                suggestions.append(f"Show {other_metrics[0].replace('_', ' ')} instead")
+
+        # Common actions
+        suggestions.append("Show top 10")
+        if not config.show_values:
+            suggestions.append("Show data labels")
+        suggestions.append("Show as KPI card")
+    else:
+        # No config yet — suggest initial charts using schema
+        if numeric_cols and cat_cols:
+            suggestions.append(f"Show {numeric_cols[0].replace('_', ' ')} by {cat_cols[0].replace('_', ' ')}")
+        if numeric_cols:
+            suggestions.append(f"Total {numeric_cols[0].replace('_', ' ')} as KPI")
+        suggestions.append("Show all data as table")
+        suggestions.append("Create a pie chart")
+
+    return suggestions[:4]
+
