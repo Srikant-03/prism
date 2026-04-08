@@ -48,6 +48,7 @@ export interface ClarificationRequest {
 
 export interface InterpretResponse {
     success: boolean;
+    error?: string;
     config?: ChartConfig;
     clarification?: ClarificationRequest;
     sql?: string;
