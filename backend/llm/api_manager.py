@@ -195,8 +195,15 @@ def with_llm_failover(max_retries: int = None, tier_rpm: int = 15):
                         is_quota = False
                         is_rate_limit = True
                         
-                        # Only mark as permanently exhausted if it explicitly mentions billing/day limits
-                        if "billing" in error_str or "out of quota" in error_str or "daily" in error_str or "day" in error_str or "month" in error_str:
+                        # Only mark as permanently exhausted for EXPLICIT daily/monthly quota signals.
+                        # NOTE: Google's generic 429 message always contains "check your plan and billing details"
+                        #       even for temporary per-minute rate limits — so "billing" alone is NOT a signal
+                        #       of permanent exhaustion.
+                        has_daily_signal = any(kw in error_str for kw in ["daily limit", "daily quota", "per-day", "per day"])
+                        has_monthly_signal = any(kw in error_str for kw in ["monthly limit", "monthly quota", "per-month", "per month"])
+                        has_permanent_signal = "out of quota" in error_str or "billing account" in error_str or "disabled" in error_str
+                        
+                        if has_daily_signal or has_monthly_signal or has_permanent_signal:
                             is_quota = True
                             is_rate_limit = False
                             
