@@ -53,6 +53,7 @@ const DashboardPage: React.FC<Props> = ({ fileId, columns = [] }) => {
     const [activeWidgetId, setActiveWidgetId] = useState<string | null>(null);
     const [presenting, setPresenting] = useState(false);
     const [saving, setSaving] = useState(false);
+    const pendingActiveIdRef = useRef<string | null>(null);
     const canvasRef = useRef<HTMLDivElement>(null);
 
     // Track config history for undo
@@ -91,8 +92,19 @@ const DashboardPage: React.FC<Props> = ({ fileId, columns = [] }) => {
                 return;
             }
 
+            // Show error from the backend but still create the widget if config was returned
+            if (!result.success && result.error && !result.config) {
+                message.error(result.error);
+                return;
+            }
+
             if (result.config) {
-                let newActiveId = activeWidgetId;
+                // Show a warning if SQL execution failed but config was interpreted
+                if (!result.success && result.error) {
+                    message.warning(`Chart created but query had issues: ${result.error}`);
+                }
+
+                pendingActiveIdRef.current = null;
 
                 setState(prev => {
                     // Save snapshot of current widgets before mutating
@@ -113,7 +125,7 @@ const DashboardPage: React.FC<Props> = ({ fileId, columns = [] }) => {
                                         sql: result.sql || w.sql,
                                         source_prompt: prompt,
                                         prompt_history: [...w.prompt_history, prompt],
-                                        error: undefined,
+                                        error: (!result.success && result.error) ? result.error : undefined,
                                     }
                                     : w
                             ),
@@ -133,22 +145,25 @@ const DashboardPage: React.FC<Props> = ({ fileId, columns = [] }) => {
                             },
                             data: result.data || [],
                             sql: result.sql || undefined,
+                            error: (!result.success && result.error) ? result.error : undefined,
                         };
-                        newActiveId = newWidget.id;
+                        pendingActiveIdRef.current = newWidget.id;
                         return { ...prev, widgets: [...prev.widgets, newWidget] };
                     }
                 });
 
-                if (newActiveId !== activeWidgetId) {
-                    setActiveWidgetId(newActiveId);
+                // Update active widget ID for newly created widgets
+                if (pendingActiveIdRef.current) {
+                    setActiveWidgetId(pendingActiveIdRef.current);
                 }
 
+                const finalActiveId = pendingActiveIdRef.current || activeWidgetId;
                 setPromptHistory(prev => [...prev, {
                     prompt,
                     timestamp: Date.now(),
                     chartTypeBefore: activeWidget?.config.chart_type,
                     chartTypeAfter: result.config!.chart_type,
-                    widgetId: newActiveId || undefined,
+                    widgetId: finalActiveId || undefined,
                 }]);
 
                 // Fetch suggestions for the new config
