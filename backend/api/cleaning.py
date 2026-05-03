@@ -158,9 +158,10 @@ async def apply_cell_repairs(file_id: str, request: CellRepairRequest):
         raise HTTPException(status_code=404, detail="File not found")
         
     for repair in request.repairs:
-        col = repair.model_dump().get("column") if hasattr(repair, "model_dump") else repair.get("column")
-        idx = repair.model_dump().get("row_index") if hasattr(repair, "model_dump") else repair.get("row_index")
-        val = repair.model_dump().get("suggested_value") if hasattr(repair, "model_dump") else repair.get("suggested_value")
+        repair_dict = repair.model_dump() if hasattr(repair, "model_dump") else repair
+        col = repair_dict.get("column")
+        idx = repair_dict.get("row_index")
+        val = repair_dict.get("suggested_value")
         if col in df.columns and idx in df.index:
             df.at[idx, col] = val
             
