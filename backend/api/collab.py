@@ -27,15 +27,26 @@ class AnnotationUpdate(BaseModel):
     pinned: Optional[bool] = None
 
 
+class ReactionRequest(BaseModel):
+    emoji: str
+    author: str
+
+
 @router.get("/{file_id}")
 async def get_annotations(file_id: str):
     """Get all annotations for a dataset."""
+    from state import get_stored_data
+    if not get_stored_data(file_id):
+        raise HTTPException(status_code=404, detail=f"Dataset '{file_id}' not found. Upload a file first.")
     return {"annotations": _annotations.get(file_id, [])}
 
 
 @router.post("/{file_id}")
 async def add_annotation(file_id: str, note: Annotation):
     """Add a new annotation."""
+    from state import get_stored_data
+    if not get_stored_data(file_id):
+        raise HTTPException(status_code=404, detail=f"Dataset '{file_id}' not found. Upload a file first.")
     notes = _annotations.get(file_id, [])
     
     new_note = {
@@ -55,6 +66,9 @@ async def add_annotation(file_id: str, note: Annotation):
 @router.patch("/{file_id}/{annotation_id}")
 async def update_annotation(file_id: str, annotation_id: str, update: AnnotationUpdate):
     """Edit an existing annotation (text and/or pinned status)."""
+    from state import get_stored_data
+    if not get_stored_data(file_id):
+        raise HTTPException(status_code=404, detail=f"Dataset '{file_id}' not found. Upload a file first.")
     notes = _annotations.get(file_id, [])
     for note in notes:
         if note["id"] == annotation_id:
@@ -72,6 +86,9 @@ async def update_annotation(file_id: str, annotation_id: str, update: Annotation
 @router.delete("/{file_id}/{annotation_id}")
 async def delete_annotation(file_id: str, annotation_id: str):
     """Delete an annotation by ID."""
+    from state import get_stored_data
+    if not get_stored_data(file_id):
+        raise HTTPException(status_code=404, detail=f"Dataset '{file_id}' not found. Upload a file first.")
     notes = _annotations.get(file_id, [])
     for i, note in enumerate(notes):
         if note["id"] == annotation_id:
@@ -79,4 +96,27 @@ async def delete_annotation(file_id: str, annotation_id: str):
             _annotations[file_id] = notes
             return {"deleted": True, "id": annotation_id}
 
+    raise HTTPException(status_code=404, detail=f"Annotation '{annotation_id}' not found")
+
+
+@router.post("/{file_id}/{annotation_id}/react")
+async def add_reaction(file_id: str, annotation_id: str, reaction: ReactionRequest):
+    """Add or toggle a reaction emoji on an annotation."""
+    from state import get_stored_data
+    if not get_stored_data(file_id):
+        raise HTTPException(status_code=404, detail=f"Dataset '{file_id}' not found. Upload a file first.")
+    notes = _annotations.get(file_id, [])
+    for note in notes:
+        if note["id"] == annotation_id:
+            reactions = note.get("reactions", {})
+            emoji = reaction.emoji
+            if emoji not in reactions:
+                reactions[emoji] = []
+            if reaction.author in reactions[emoji]:
+                reactions[emoji].remove(reaction.author)  # Toggle off
+            else:
+                reactions[emoji].append(reaction.author)  # Toggle on
+            note["reactions"] = reactions
+            _annotations[file_id] = notes
+            return note
     raise HTTPException(status_code=404, detail=f"Annotation '{annotation_id}' not found")
