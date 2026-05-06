@@ -198,11 +198,9 @@ async def save_dashboard(dashboard: DashboardModel):
     if existing:
         if existing.get("file_id") != dashboard.file_id:
             raise HTTPException(status_code=403, detail="Cannot overwrite dashboard belonging to another file.")
-        dashboard.created_at = existing.get("created_at", time.time())
-    else:
-        dashboard.created_at = time.time()
-        
-    dashboard.updated_at = time.time()
+            
+    created_at = existing.get("created_at", time.time()) if existing else time.time()
+    dashboard = dashboard.model_copy(update={"created_at": created_at, "updated_at": time.time()})
     _dashboard_store[dashboard.id] = dashboard.model_dump()
     return {"id": dashboard.id, "status": "saved"}
 
