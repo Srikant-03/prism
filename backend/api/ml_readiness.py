@@ -30,7 +30,7 @@ async def get_ml_readiness(file_id: str):
     if profile is None:
         raise HTTPException(status_code=400, detail="Dataset must be profiled first")
 
-    cross_analysis = getattr(profile, "cross_column_analysis", None) or profile.get("cross_column_analysis")
+    cross_analysis = getattr(profile, "cross_column_analysis", None)
     if not cross_analysis:
         raise HTTPException(status_code=400, detail="Cross-column profiling data is missing")
 
@@ -68,10 +68,10 @@ async def get_ml_readiness(file_id: str):
 
     # 4. Feature Predictive Power (from profile)
     predictors = []
-    top_predictors = getattr(target_analysis, "top_predictors", []) or target_analysis.get("top_predictors", [])
+    top_predictors = getattr(target_analysis, "top_predictors", []) or []
     for p in top_predictors:
-        name = getattr(p, "feature", p.get("feature", ""))
-        score = getattr(p, "importance_score", p.get("importance_score", 0))
+        name = getattr(p, "feature", None) or (p.get("feature", "") if isinstance(p, dict) else "")
+        score = getattr(p, "importance_score", None) or (p.get("importance_score", 0) if isinstance(p, dict) else 0)
         if name and name != target:
             predictors.append({"feature": name, "importance": round(score, 4)})
 
