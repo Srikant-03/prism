@@ -21,6 +21,29 @@ _monitors = {}
 _history = {}
 
 
+import re as _re
+
+def _parse_cron_interval_seconds(cron_expr: str) -> int:
+    """Very simple cron parser — returns interval in seconds. Handles '*/N * * * *' patterns."""
+    try:
+        parts = cron_expr.strip().split()
+        if len(parts) == 5 and parts[0].startswith("*/"):
+            minutes = int(parts[0][2:])
+            return minutes * 60
+    except Exception:
+        pass
+    return 3600  # Default: 1 hour
+
+
+async def _schedule_monitor_loop(job_id: str, interval_seconds: int):
+    """Long-running coroutine that fires the monitor job on an interval."""
+    await asyncio.sleep(interval_seconds)  # Wait before first scheduled run
+    while job_id in _monitors and _monitors[job_id].get("status") == "active":
+        await _run_monitor_job(job_id)
+        _monitors[job_id]["last_run"] = time.time()
+        await asyncio.sleep(interval_seconds)
+
+
 class MonitorRequest(BaseModel):
     file_id: str
     origin_url: str
@@ -37,10 +60,12 @@ async def schedule_monitor(request: MonitorRequest, background_tasks: Background
         raise HTTPException(status_code=404, detail="Baseline dataset not found")
 
     job_id = str(uuid.uuid4())[:8]
+    interval = _parse_cron_interval_seconds(request.cron_expr)
     _monitors[job_id] = {
         "file_id": request.file_id,
         "origin_url": request.origin_url,
         "cron_expr": request.cron_expr,
+        "interval_seconds": interval,
         "status": "active",
         "last_run": None,
         "next_run": "scheduled",
@@ -50,6 +75,9 @@ async def schedule_monitor(request: MonitorRequest, background_tasks: Background
 
     # Kick off an immediate async check as a background task
     background_tasks.add_task(_run_monitor_job, job_id)
+
+    # Start the scheduling loop as a fire-and-forget background coroutine
+    asyncio.create_task(_schedule_monitor_loop(job_id, interval))
 
     return {"job_id": job_id, "status": "scheduled", "details": _monitors[job_id]}
 
@@ -98,13 +126,11 @@ async def _run_monitor_job(job_id: str):
         # Simulate fetching new data from origin
         # In a real system, you'd use httpx or read_csv from the origin URL
         # For demonstration purposes, we'll pretend we fetched slightly worse data
-        if origin_url.startswith("http"):
+        if origin_url.startswith("http") or origin_url.endswith(".csv"):
             try:
-                new_df = pd.read_csv(origin_url)
+                new_df = await asyncio.to_thread(pd.read_csv, origin_url)
             except Exception as e:
-                raise ValueError(f"Failed to fetch or parse external URL {origin_url}: {e}")
-        elif origin_url.endswith(".csv"):
-            new_df = pd.read_csv(origin_url)
+                raise ValueError(f"Failed to fetch or parse {origin_url}: {e}")
         else:
             # Fallback: just add some noise and nulls to the baseline to simulate drift
             new_df = base_df.copy()
