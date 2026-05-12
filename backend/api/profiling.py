@@ -32,9 +32,16 @@ async def get_profile(file_id: str):
     Get the profiling result for an ingested file.
     Auto-computes the profile if not already cached.
     """
-    # Check cache
+    # Check cache and invalidate if cross_analysis has empty correlation matrix
     if file_id in _profile_store:
-        return _profile_store[file_id].model_dump()
+        cached = _profile_store[file_id]
+        if cached.profile and cached.profile.cross_analysis:
+            corrs = cached.profile.cross_analysis.get("correlations", {})
+            matrix = corrs.get("correlation_matrix", {}) if isinstance(corrs, dict) else {}
+            if len(matrix) > 0:
+                return cached.model_dump()
+            # Stale profile with empty matrix — purge cache to re-profile
+            del _profile_store[file_id]
 
     # Get the stored DataFrame from ingestion
     df = get_stored_dataframe(file_id)
