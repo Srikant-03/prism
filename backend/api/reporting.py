@@ -24,6 +24,8 @@ router = APIRouter(prefix="/api/reporting", tags=["reporting"])
 class ReportRequest(BaseModel):
     file_id: str
     format: str = "json"  # json, html, pdf, docx, notebook
+    include_charts: bool = True
+    include_outliers: bool = True
 
 
 class CodeExportRequest(BaseModel):
@@ -121,6 +123,8 @@ async def generate_report(request: ReportRequest):
         insights_data=data["insights_data"],
         audit_log=data["audit_log"],
         before_after=data["before_after"],
+        include_charts=request.include_charts,
+        include_outliers=request.include_outliers,
     )
 
     fmt = request.format.lower()
