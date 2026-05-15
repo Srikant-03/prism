@@ -6,6 +6,7 @@ Provides table introspection, query execution, and export.
 from __future__ import annotations
 
 import io
+import re
 from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -255,14 +256,18 @@ async def template_execute(request: TemplateExecuteRequest):
     if request.params:
         for key, value in request.params.items():
             placeholder = "{{" + key + "}}"
-            sql = sql.replace(placeholder, str(value))
+            str_val = str(value)
+            # Guard against comment-based injection in values
+            if any(token in str_val.upper() for token in ['/*', '*/', '--', ';']):
+                raise HTTPException(status_code=400, detail=f"Parameter '{key}' contains forbidden SQL characters.")
+            sql = sql.replace(placeholder, str_val)
 
     # Re-check for destructive keywords after parameter interpolation
     # to prevent injection via template params (e.g. {{col}} = "x; DROP TABLE y")
     stripped = sql.strip().upper()
     forbidden = ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "TRUNCATE", "GRANT", "REVOKE"]
     for word in forbidden:
-        if word in stripped.split():
+        if re.search(r'\b' + word + r'\b', stripped):
             raise HTTPException(
                 status_code=400,
                 detail=f"Forbidden SQL keyword '{word}' detected after parameter interpolation.",
