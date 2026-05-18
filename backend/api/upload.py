@@ -13,7 +13,7 @@ import uuid
 from pathlib import Path
 from typing import Optional, List
 
-from fastapi import APIRouter, File, Request, UploadFile, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import APIRouter, File, Request, UploadFile, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
 
 from slowapi import Limiter
@@ -42,19 +42,19 @@ limiter = Limiter(key_func=get_remote_address)
 # Active WebSocket connections per file_id
 _ws_connections: dict[str, WebSocket] = {}
 
+# In-memory job store: job_id -> {status, file_id, result, error}
+_upload_jobs: dict[str, dict] = {}
+
 
 @limiter.limit(AppConfig.RATE_LIMIT_UPLOAD)
 @router.post("/upload", response_model=None)
-async def upload_file(request: Request, files: List[UploadFile] = File(...)) -> dict:
+async def upload_file(request: Request, background_tasks: BackgroundTasks, files: List[UploadFile] = File(...)) -> dict:
     """
     Upload one or more files for ingestion.
-    
-    Returns:
-    - Single file: IngestionResult with preview, metadata, malformed report + auto-profile
-    - Multiple files: Individual results + schema comparison
+
+    Returns immediately with a job_id for async status tracking.
     """
     config = IngestionConfig()
-    config.ensure_dirs()
 
     saved_files: list[tuple[Path, str]] = []
     file_id = str(uuid.uuid4())  # Default ID; overwritten per-file inside loop
@@ -76,25 +76,22 @@ async def upload_file(request: Request, files: List[UploadFile] = File(...)) -> 
                 detail=f"MIME type '{content_type}' is not allowed.",
             )
 
-        # ── Read content & enforce file-size limit ───────────────────
-        content = await upload_file.read()
-        if len(content) == 0:
+        # Generate unique filename to prevent collisions
+        file_id = str(uuid.uuid4())
+        save_path = config.UPLOAD_DIR / f"{file_id}{ext}"
+
+        # ── Stream content to disk & verify limits/magic-bytes ─────────
+        first_chunk = await upload_file.read(2048)
+        if not first_chunk or len(first_chunk) == 0:
             raise HTTPException(
                 status_code=400,
                 detail=f"Uploaded file '{upload_file.filename}' is empty (0 bytes).",
-            )
-        if config.MAX_FILE_SIZE and len(content) > config.MAX_FILE_SIZE:
-            size_mb = len(content) / (1024 * 1024)
-            limit_mb = config.MAX_FILE_SIZE / (1024 * 1024)
-            raise HTTPException(
-                status_code=400,
-                detail=f"File too large ({size_mb:.1f} MB). Maximum allowed: {limit_mb:.0f} MB.",
             )
 
         # ── Verify magic bytes (defense against spoofed Content-Type) ─
         try:
             import magic
-            detected_mime = magic.from_buffer(content[:2048], mime=True)
+            detected_mime = magic.from_buffer(first_chunk, mime=True)
             if detected_mime and detected_mime not in config.ALLOWED_MIME_TYPES:
                 logger.warning(
                     "Magic-byte MIME mismatch for %s: header=%s, detected=%s",
@@ -107,15 +104,32 @@ async def upload_file(request: Request, files: List[UploadFile] = File(...)) -> 
         except ImportError:
             pass  # python-magic not installed — skip magic-byte check
 
-        # Generate unique filename to prevent collisions
-        file_id = str(uuid.uuid4())
-        save_path = config.UPLOAD_DIR / f"{file_id}{ext}"
+        total_bytes = len(first_chunk)
 
-        # Save uploaded file to disk
         try:
             with open(str(save_path), "wb") as f:
-                f.write(content)
+                f.write(first_chunk)
+                while True:
+                    chunk = await upload_file.read(1024 * 1024)  # 1 MB chunk
+                    if not chunk:
+                        break
+                    total_bytes += len(chunk)
+                    if config.MAX_FILE_SIZE and total_bytes > config.MAX_FILE_SIZE:
+                        f.close()
+                        if save_path.exists():
+                            save_path.unlink()
+                        size_mb = total_bytes / (1024 * 1024)
+                        limit_mb = config.MAX_FILE_SIZE / (1024 * 1024)
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"File too large ({size_mb:.1f} MB). Maximum allowed: {limit_mb:.0f} MB.",
+                        )
+                    f.write(chunk)
+        except HTTPException:
+            raise
         except Exception as e:
+            if save_path.exists():
+                save_path.unlink()
             raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
 
         if ext == ".zip":
@@ -132,78 +146,95 @@ async def upload_file(request: Request, files: List[UploadFile] = File(...)) -> 
             except Exception as e:
                 logger.error("ZIP inline extraction failed: %s", e)
                 saved_files.append((save_path, upload_file.filename or "unknown"))
+            finally:
+                shutil.rmtree(str(temp_dir), ignore_errors=True)
         else:
             saved_files.append((save_path, upload_file.filename or "unknown"))
 
-    # Build a progress callback that pushes updates to any connected WebSocket
-    def _make_ws_callback(fid: str):
-        """Return a callback that sends ProgressUpdate JSON over the WebSocket for fid."""
-        import asyncio
+    job_id = str(uuid.uuid4())
+    _upload_jobs[job_id] = {"status": "processing", "file_id": file_id, "result": None, "error": None}
+    background_tasks.add_task(_process_upload_job, job_id, saved_files, file_id)
 
-        def callback(update):
-            ws = _ws_connections.get(fid)
-            if ws:
+    return {"job_id": job_id, "file_id": file_id, "status": "processing"}
+
+
+async def _process_upload_job(job_id: str, saved_files: list, file_id: str):
+    try:
+        def _make_ws_callback(fid: str):
+            import asyncio
+            def callback(update):
+                ws = _ws_connections.get(fid)
+                if ws:
+                    try:
+                        loop = asyncio.get_event_loop()
+                        if loop.is_running():
+                            loop.create_task(ws.send_json(update.model_dump()))
+                        else:
+                            loop.run_until_complete(ws.send_json(update.model_dump()))
+                    except Exception:
+                        pass
+            return callback
+
+        progress_cb = _make_ws_callback(file_id) if saved_files else None
+        orchestrator = IngestionOrchestrator(progress_callback=progress_cb)
+
+        if len(saved_files) == 1:
+            file_path, original_name = saved_files[0]
+            result = await orchestrator.ingest_file(file_path, original_name, file_id=file_id)
+            response = result.model_dump()
+
+            if (
+                result.success
+                and not result.requires_sheet_selection
+                and not (result.malformed_report and result.malformed_report.has_issues)
+            ):
                 try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        loop.create_task(ws.send_json(update.model_dump()))
-                    else:
-                        loop.run_until_complete(ws.send_json(update.model_dump()))
-                except Exception:
-                    pass  # Connection closed or broken — silently degrade
-        return callback
-
-    # Create orchestrator with WebSocket progress callback
-    progress_cb = _make_ws_callback(file_id) if saved_files else None
-    orchestrator = IngestionOrchestrator(progress_callback=progress_cb)
-
-
-    if len(saved_files) == 1:
-        # Single file ingestion
-        file_path, original_name = saved_files[0]
-        result = await orchestrator.ingest_file(file_path, original_name, file_id=file_id)
-        response = result.model_dump()
-
-        # Auto-profile if ingestion was successful and no user interaction needed
-        if (
-            result.success
-            and not result.requires_sheet_selection
-            and not (result.malformed_report and result.malformed_report.has_issues)
-        ):
-            try:
-                profile_result = await auto_profile(result.file_id)
-                if profile_result and profile_result.success:
-                    response["profile"] = profile_result.profile.model_dump()
-            except Exception as e:
-                logger.error("Auto-profile failed: %s", e)
-
-            # Register with SQL engine
-            df = get_stored_dataframe(result.file_id)
-            if df is not None:
-                try:
-                    register_table_from_upload(
-                        df, original_name, "raw", result.file_id
-                    )
+                    profile_result = await auto_profile(result.file_id)
+                    if profile_result and profile_result.success:
+                        response["profile"] = profile_result.profile.model_dump()
                 except Exception as e:
-                    logger.error("Failed to auto-register SQL table: %s", e)
+                    logger.error("Auto-profile failed: %s", e)
 
-        return response
-    else:
-        # Multi-file ingestion with schema comparison
-        multi_result = await orchestrator.ingest_multiple_files(saved_files)
-        
-        serialized_results = {}
-        for fid, res in multi_result["results"].items():
-            serialized_results[fid] = res.model_dump()
+                df = get_stored_dataframe(result.file_id)
+                if df is not None:
+                    try:
+                        register_table_from_upload(
+                            df, original_name, "raw", result.file_id
+                        )
+                    except Exception as e:
+                        logger.error("Failed to auto-register SQL table: %s", e)
+            _upload_jobs[job_id]["status"] = "complete"
+            _upload_jobs[job_id]["result"] = response
+        else:
+            multi_result = await orchestrator.ingest_multiple_files(saved_files)
+            
+            serialized_results = {}
+            for fid, res in multi_result["results"].items():
+                serialized_results[fid] = res.model_dump()
 
-        return {
-            "results": serialized_results,
-            "schema_comparison": (
-                multi_result["schema_comparison"].model_dump()
-                if multi_result["schema_comparison"] else None
-            ),
-            "requires_schema_decision": multi_result["requires_schema_decision"],
-        }
+            response = {
+                "results": serialized_results,
+                "schema_comparison": (
+                    multi_result["schema_comparison"].model_dump()
+                    if multi_result["schema_comparison"] else None
+                ),
+                "requires_schema_decision": multi_result["requires_schema_decision"],
+            }
+            _upload_jobs[job_id]["status"] = "complete"
+            _upload_jobs[job_id]["result"] = response
+
+    except Exception as e:
+        _upload_jobs[job_id]["status"] = "error"
+        _upload_jobs[job_id]["error"] = str(e)
+
+
+@router.get("/upload/status/{job_id}")
+async def get_upload_status(job_id: str):
+    """Poll the status of an async upload job."""
+    job = _upload_jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
 
 
 @router.post("/upload/select-sheet")
