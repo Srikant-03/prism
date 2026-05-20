@@ -113,7 +113,7 @@ class DatetimeHandler:
             if self.df[col].dtype == object:
                 sample = self.df[col].dropna().head(20)
                 try:
-                    parsed = pd.to_datetime(sample, errors="coerce")
+                    parsed = pd.to_datetime(sample, format="mixed", errors="coerce")
                     if parsed.notna().mean() > 0.8:
                         dt_cols.append(col)
                 except Exception:
@@ -125,7 +125,7 @@ class DatetimeHandler:
         if pd.api.types.is_datetime64_any_dtype(self.df[col]):
             return self.df[col]
         try:
-            return pd.to_datetime(self.df[col], errors="coerce")
+            return pd.to_datetime(self.df[col], format="mixed", errors="coerce")
         except Exception:
             return None
 
@@ -448,7 +448,7 @@ class DatetimeHandler:
     @staticmethod
     def extract_components(df: pd.DataFrame, col: str, components: list[str]) -> pd.DataFrame:
         """Extract datetime components as new columns."""
-        s = pd.to_datetime(df[col], errors="coerce")
+        s = pd.to_datetime(df[col], format="mixed", errors="coerce")
         for comp in components:
             if comp == "year":
                 df[f"{col}_year"] = s.dt.year
@@ -480,7 +480,7 @@ class DatetimeHandler:
     @staticmethod
     def derive_flags(df: pd.DataFrame, col: str, flags: list[str]) -> pd.DataFrame:
         """Derive boolean flag columns."""
-        s = pd.to_datetime(df[col], errors="coerce")
+        s = pd.to_datetime(df[col], format="mixed", errors="coerce")
         for flag in flags:
             if flag == "is_weekend":
                 df[f"{col}_is_weekend"] = (s.dt.dayofweek >= 5).astype(int)
@@ -501,7 +501,7 @@ class DatetimeHandler:
     @staticmethod
     def compute_elapsed(df: pd.DataFrame, col: str, unit: str = "days") -> pd.DataFrame:
         """Compute elapsed time since min datetime."""
-        s = pd.to_datetime(df[col], errors="coerce")
+        s = pd.to_datetime(df[col], format="mixed", errors="coerce")
         min_dt = s.min()
         delta = s - min_dt
 
@@ -517,8 +517,8 @@ class DatetimeHandler:
     @staticmethod
     def compute_time_delta(df: pd.DataFrame, col_a: str, col_b: str, unit: str = "days") -> pd.DataFrame:
         """Compute time delta between two datetime columns."""
-        sa = pd.to_datetime(df[col_a], errors="coerce")
-        sb = pd.to_datetime(df[col_b], errors="coerce")
+        sa = pd.to_datetime(df[col_a], format="mixed", errors="coerce")
+        sb = pd.to_datetime(df[col_b], format="mixed", errors="coerce")
         
         sa_val = sa.dt.tz_localize(None) if getattr(sa.dt, 'tz', None) is not None else sa
         sb_val = sb.dt.tz_localize(None) if getattr(sb.dt, 'tz', None) is not None else sb
