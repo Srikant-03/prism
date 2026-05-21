@@ -103,7 +103,12 @@ class CleaningConfig:
 
 
 class LLMConfig:
-    """Configuration for the LLM-powered features (NL Query)."""
+    """Configuration for the LLM-powered features (NL Query).
+    
+    NOTE: load_dotenv() MUST be called before this module is imported.
+    In main.py, load_dotenv() is called at the top before any other imports,
+    which guarantees these class-level os.getenv() calls read the correct values.
+    """
 
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     
@@ -112,7 +117,7 @@ class LLMConfig:
     GEMINI_API_KEYS: list[str] = [k.strip() for k in _keys_env.split(",")] if _keys_env else ([GEMINI_API_KEY] if GEMINI_API_KEY else [])
     MODEL_HEAVY: str = os.getenv("LLM_MODEL_HEAVY", "gemini-2.5-flash")
     MODEL_WORKHORSE: str = os.getenv("LLM_MODEL_WORKHORSE", "gemini-2.5-flash")
-    MODEL_TRIAGE: str = os.getenv("LLM_MODEL_TRIAGE", "gemini-2.5-flash-lite")
+    MODEL_TRIAGE: str = os.getenv("LLM_MODEL_TRIAGE", "gemini-2.0-flash")
     TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", 0.1))
     MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", 4096))
 
