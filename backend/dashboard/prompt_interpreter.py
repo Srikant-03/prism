@@ -64,9 +64,9 @@ RULES:
 6. Choose the most appropriate chart type if the user doesn't specify one.
 7. For filter operators, use: =, !=, >, <, >=, <=, in, not_in, between, like, is_null, is_not_null
 8. DO NOT hallucinate dimensions. If comparing two metrics without a specified category (e.g. "compare A and B"):
-   - LEAVE `x_axis` and `group_by` as strictly null.
+   - LEAVE `x_axis` and `group_by` as strictly null if you want a one-dimensional aggregation.
    - Do NOT randomly pick a categorical column like "gender" or "id" to fill the x-axis.
-   - If the user explicitly asks for a "bar" chart but gives no category, change it to a "scatter" chart instead.
+   - If both the intended x-axis and y-axis are continuous numeric columns (e.g., "study hours" and "score"), you MUST use a "scatter" chart. Do not use a "bar" or "line" chart for two numeric coordinates.
 """
 
 
@@ -427,6 +427,10 @@ def _fallback_interpret(
                 x_axis = categorical_cols[0]
             if numeric_cols:
                 y_axis = numeric_cols[0]
+
+    # ── Switch to scatter plot if both axes are numeric ──
+    if x_axis in numeric_cols and y_axis in numeric_cols and chart_type in [ChartType.BAR, ChartType.LINE, ChartType.AREA]:
+        chart_type = ChartType.SCATTER
 
     # ── Sort by ──
     sort_by = y_axis if sort_direction else None
