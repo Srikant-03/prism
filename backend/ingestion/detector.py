@@ -204,7 +204,9 @@ class DelimiterDetector:
     """Auto-detects CSV/TSV delimiter using statistical analysis."""
 
     # Common delimiters to test, ordered by typical frequency
-    CANDIDATES = [",", ";", "\t", "|", " "]
+    PRIMARY_CANDIDATES = [",", ";", "\t", "|"]
+    ALL_CANDIDATES = [",", ";", "\t", "|", " "]
+    CANDIDATES = ALL_CANDIDATES
 
     @staticmethod
     def detect(file_path: Path, encoding: str = "utf-8") -> DelimiterInfo:
@@ -225,9 +227,9 @@ class DelimiterDetector:
 
             sample_text = "".join(sample_lines)
 
-            # Try clevercsv first — it uses a Bayesian approach
+            # Try clevercsv first with primary delimiters (comma, semicolon, tab, pipe)
             try:
-                dialect = clevercsv.Sniffer().sniffer(sample_text)
+                dialect = clevercsv.Sniffer().sniff(sample_text, delimiters=DelimiterDetector.PRIMARY_CANDIDATES)
                 if dialect and dialect.delimiter:
                     alternatives = DelimiterDetector._find_alternatives(sample_text, dialect.delimiter)
                     return DelimiterInfo(
@@ -249,7 +251,7 @@ class DelimiterDetector:
     def _heuristic_detect(lines: list[str]) -> DelimiterInfo:
         """
         Heuristic delimiter detection based on consistency of field counts.
-        The best delimiter produces the most consistent column count across rows.
+        Prioritizes primary delimiters (comma, semicolon, tab, pipe) over space.
         """
         if not lines:
             return DelimiterInfo(delimiter=",", confidence=0.3, alternatives=[])
@@ -258,25 +260,21 @@ class DelimiterDetector:
         best_score = -1.0
         scores: dict[str, float] = {}
 
-        for delim in DelimiterDetector.CANDIDATES:
+        # 1. First test primary candidates (comma, semicolon, tab, pipe)
+        for delim in DelimiterDetector.PRIMARY_CANDIDATES:
             counts = [len(line.split(delim)) for line in lines if line.strip()]
             if not counts:
                 continue
 
-            # A good delimiter produces:
-            # 1. More than 1 column
-            # 2. Consistent column count
             avg = sum(counts) / len(counts)
             if avg <= 1.0:
                 scores[delim] = 0.0
                 continue
 
-            # Coefficient of variation (lower = more consistent)
             variance = sum((c - avg) ** 2 for c in counts) / len(counts)
             std_dev = variance ** 0.5
             cv = std_dev / avg if avg > 0 else float("inf")
 
-            # Score: reward more columns, penalize inconsistency
             score = avg * (1.0 - min(cv, 1.0))
             scores[delim] = score
 
@@ -284,20 +282,32 @@ class DelimiterDetector:
                 best_score = score
                 best_delim = delim
 
-        # Calculate confidence from score distribution
-        total = sum(scores.values())
-        confidence = scores.get(best_delim, 0) / total if total > 0 else 0.3
+        # If a valid primary candidate was found, return it
+        if best_score > 1.0:
+            total = sum(scores.values())
+            confidence = scores.get(best_delim, 0) / total if total > 0 else 0.85
+            alternatives = [
+                d for d, s in sorted(scores.items(), key=lambda x: -x[1])
+                if d != best_delim and s > 0
+            ]
+            return DelimiterInfo(
+                delimiter=best_delim,
+                confidence=round(min(max(confidence, 0.85), 0.99), 4),
+                alternatives=alternatives[:3],
+            )
 
-        alternatives = [
-            d for d, s in sorted(scores.items(), key=lambda x: -x[1])
-            if d != best_delim and s > 0
-        ]
+        # 2. Only test space if no primary candidate yielded multiple columns
+        space_counts = [len(line.split(" ")) for line in lines if line.strip()]
+        if space_counts:
+            avg = sum(space_counts) / len(space_counts)
+            if avg > 1.0:
+                return DelimiterInfo(
+                    delimiter=" ",
+                    confidence=0.5,
+                    alternatives=DelimiterDetector.PRIMARY_CANDIDATES,
+                )
 
-        return DelimiterInfo(
-            delimiter=best_delim,
-            confidence=round(min(confidence, 1.0), 4),
-            alternatives=alternatives[:3],
-        )
+        return DelimiterInfo(delimiter=",", confidence=0.3, alternatives=[";", "\t"])
 
     @staticmethod
     def _find_alternatives(text: str, primary: str) -> list[str]:
