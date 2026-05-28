@@ -14,32 +14,40 @@ class ExportService:
         pdf.add_page()
         pdf.set_auto_page_break(auto=True, margin=15)
         
+        def sanitize_text(text: str) -> str:
+            if not isinstance(text, str):
+                text = str(text)
+            return text.replace("—", "-").replace("×", "x").replace("…", "...").replace("’", "'").replace("‘", "'").replace("•", "-").replace("“", '"').replace("”", '"')
+
+        briefing = insights.analyst_briefing
+
         # Title
         pdf.set_font("Arial", 'B', 16)
         pdf.cell(0, 10, "Data Intelligence System - Analyst Briefing", ln=True, align='C')
         pdf.ln(5)
 
-        briefing = insights.analyst_briefing
-
         # Header 1: Executive Summary
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(0, 10, "1. Executive Summary", ln=True)
         pdf.set_font("Arial", '', 11)
-        pdf.multi_cell(0, 6, briefing.executive_summary)
+        if briefing.executive_summary:
+            pdf.multi_cell(pdf.epw, 6, sanitize_text(briefing.executive_summary))
         pdf.ln(3)
 
         # Header 2: Dataset Characteristics
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(0, 10, "2. Dataset Characteristics", ln=True)
         pdf.set_font("Arial", '', 11)
-        pdf.multi_cell(0, 6, briefing.dataset_characteristics)
+        if briefing.dataset_characteristics:
+            pdf.multi_cell(pdf.epw, 6, sanitize_text(briefing.dataset_characteristics))
         pdf.ln(3)
 
         # Header 3: Quality Assessment
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(0, 10, "3. Quality Assessment", ln=True)
         pdf.set_font("Arial", '', 11)
-        pdf.multi_cell(0, 6, briefing.quality_assessment)
+        if briefing.quality_assessment:
+            pdf.multi_cell(pdf.epw, 6, sanitize_text(briefing.quality_assessment))
         pdf.ln(3)
 
         # Header 4: Key Findings
@@ -47,7 +55,8 @@ class ExportService:
         pdf.cell(0, 10, "4. Key Findings", ln=True)
         pdf.set_font("Arial", '', 11)
         for finding in briefing.key_findings:
-            pdf.multi_cell(0, 6, f"- {finding}")
+            if finding:
+                pdf.multi_cell(pdf.epw, 6, sanitize_text(f"- {finding}"))
         pdf.ln(3)
 
         # Header 5: Recommended Actions
@@ -55,7 +64,8 @@ class ExportService:
         pdf.cell(0, 10, "5. Recommended Actions", ln=True)
         pdf.set_font("Arial", '', 11)
         for action in briefing.recommended_actions:
-            pdf.multi_cell(0, 6, f"- {action}")
+            if action:
+                pdf.multi_cell(pdf.epw, 6, sanitize_text(f"- {action}"))
         
         return bytes(pdf.output())
 
