@@ -23,14 +23,21 @@ class QualityScorer:
         total_nulls = sum(col.null_count for col in profile.columns)
         completeness = max(0.0, 100.0 * (1.0 - (total_nulls / total_cells))) if total_cells > 0 else 0.0
 
-        # 2. Uniqueness: Average unique count vs row count ratio across ID/Categorical columns
-        uniqueness_scores = []
+        # 2. Uniqueness: Percentage of unique (non-duplicate) rows + ID key uniqueness
+        dup_count = getattr(profile, 'duplicate_row_count', 0) or 0
+        row_uniqueness = max(0.0, 100.0 * (1.0 - (dup_count / total_rows))) if total_rows > 0 else 100.0
+
+        id_uniqueness_scores = []
         for col in profile.columns:
-            if col.semantic_type in ['id_key', 'categorical_nominal', 'email', 'phone']:
-                unique_ratio = col.distinct_count / total_rows if total_rows > 0 else 0
-                uniqueness_scores.append(unique_ratio * 100)
-        
-        uniqueness = sum(uniqueness_scores) / len(uniqueness_scores) if uniqueness_scores else 100.0
+            if col.semantic_type in ['id_key', 'email', 'phone']:
+                unique_ratio = col.distinct_count / total_rows if total_rows > 0 else 1.0
+                id_uniqueness_scores.append(unique_ratio * 100)
+
+        if id_uniqueness_scores:
+            id_score = sum(id_uniqueness_scores) / len(id_uniqueness_scores)
+            uniqueness = (row_uniqueness * 0.7) + (id_score * 0.3)
+        else:
+            uniqueness = row_uniqueness
         
         # 3. Validity: Penalize for implausible dates, formatting issues
         validity_penalties = 0
