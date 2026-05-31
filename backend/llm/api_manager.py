@@ -13,9 +13,11 @@ from typing import List, Callable, Any
 try:
     from google import genai
     from google.api_core.exceptions import ResourceExhausted, TooManyRequests
+    from google.genai.errors import ClientError as GenaiClientError
     HAS_GENAI = True
 except ImportError:
     HAS_GENAI = False
+    GenaiClientError = None
 
 from config import AppConfig
 
@@ -37,7 +39,7 @@ class APIKeyManager:
     def __init__(self, keys: List[str]):
         self.keys = [k for k in keys if k]
         self.exhausted_keys = set()
-        self.rate_limited_keys = {}  # key -> timestamp when it got an actual 429
+        self.rate_limited_keys = {}  # key -> absolute timestamp when it will be un-rate-limited
         self.last_used_keys = {}     # key -> timestamp of its last generative request
         self.current_index = 0
         self._lock = threading.Lock()
@@ -61,10 +63,10 @@ class APIKeyManager:
                 key = self.keys[self.current_index]
                 
                 if key not in self.exhausted_keys:
-                    last_429 = self.rate_limited_keys.get(key, 0)
+                    retry_expiry = self.rate_limited_keys.get(key, 0)
                     last_used = self.last_used_keys.get(key, 0)
                     
-                    if (now - last_429 > 65) and (now - last_used >= required_cooldown):
+                    if (now >= retry_expiry) and (now - last_used >= required_cooldown):
                         self.last_used_keys[key] = now
                         return key
                     
@@ -80,7 +82,7 @@ class APIKeyManager:
             
             for key in self.keys:
                 if key not in self.exhausted_keys:
-                    wait_429 = max(0.0, 65 - (now - self.rate_limited_keys.get(key, 0)))
+                    wait_429 = max(0.0, self.rate_limited_keys.get(key, 0) - now)
                     wait_rpm = max(0.0, required_cooldown - (now - self.last_used_keys.get(key, 0)))
                     wait_time = max(wait_429, wait_rpm, 0.1) # Minimum 100ms yield
                     
@@ -113,11 +115,11 @@ class APIKeyManager:
             if self.keys and self.keys[self.current_index] == key:
                 self._advance_index()
 
-    def mark_rate_limited(self, key: str):
-        """Mark a key as temporarily rate limited (e.g. per-minute limit)."""
-        logger.warning(f"Key ending in ...{key[-4:] if key else 'None'} marked as RATE LIMITED.")
+    def mark_rate_limited(self, key: str, retry_delay: float = 65.0):
+        """Mark a key as temporarily rate limited, with exact cooldown if known."""
+        logger.info(f"Key ending in ...{key[-4:] if key else 'None'} marked as RATE LIMITED for {retry_delay:.1f}s.")
         with self._lock:
-            self.rate_limited_keys[key] = time.time()
+            self.rate_limited_keys[key] = time.time() + retry_delay
             if self.keys and self.keys[self.current_index] == key:
                 self._advance_index()
             
@@ -187,48 +189,94 @@ def with_llm_failover(max_retries: int = None, tier_rpm: int = 5):
                     # Check if it's a quota or rate limit error
                     is_quota = isinstance(e, ResourceExhausted) 
                     is_rate_limit = isinstance(e, TooManyRequests)
+                    is_dead_key = False  # 403 leaked/disabled/permission-denied
                     
                     error_str = str(e).lower()
+                    status_code = getattr(e, "code", getattr(e, "status_code", None))
                     
-                    if "429" in error_str or "quota" in error_str or "exhausted" in error_str or getattr(e, "code", None) == 429:
+                    # Handle 403 PERMISSION_DENIED (leaked key, disabled key, etc.)
+                    # These keys will never work again — mark as exhausted immediately.
+                    # Ensure we don't accidentally match 403 inside a 429 message!
+                    is_429 = ("429" in error_str or "quota" in error_str or "exhausted" in error_str or status_code == 429)
+                    
+                    if not is_429 and (status_code == 403 or 
+                        (GenaiClientError and isinstance(e, GenaiClientError) and "403" in error_str) or
+                        any(kw in error_str for kw in ["leaked", "permission_denied", "permission denied", "disabled"])):
+                        is_dead_key = True
+                        logger.warning(f"Key ...{current_key[-4:] if current_key else 'None'} is DEAD (403/leaked/disabled). Rotating immediately.")
+                    
+                    if is_429:
                         # Always assume it's a temporary rate-limit / minute quota first
                         is_quota = False
                         is_rate_limit = True
                         
                         # Only mark as permanently exhausted for EXPLICIT daily/monthly quota signals.
-                        # NOTE: Google's generic 429 message always contains "check your plan and billing details"
-                        #       even for temporary per-minute rate limits — so "billing" alone is NOT a signal
-                        #       of permanent exhaustion.
-                        has_daily_signal = any(kw in error_str for kw in ["daily limit", "daily quota", "per-day", "per day"])
+                        # NOTE: Google's generic 429 message often contains "check your plan and billing details"
+                        #       and "exceeded your current quota", even for temporary token-bucket limits.
+                        has_daily_signal = any(kw in error_str for kw in ["daily limit", "daily quota"])
                         has_monthly_signal = any(kw in error_str for kw in ["monthly limit", "monthly quota", "per-month", "per month"])
-                        has_permanent_signal = "out of quota" in error_str or "billing account" in error_str or "disabled" in error_str
+                        has_permanent_signal = "out of quota" in error_str or "disabled" in error_str
                         
                         if has_daily_signal or has_monthly_signal or has_permanent_signal:
                             is_quota = True
                             is_rate_limit = False
                             
-                    if is_quota or is_rate_limit:
-                        retries += 1
-                        logger.warning(f"LLM API limit hit on key {current_key[-4:] if current_key else 'None'}. Error: {error_str[:150]}")
+                        # If Google explicitly tells us when to retry, we know it's a sliding/token-bucket rate limit
+                        retry_delay = 60.0
                         
-                        if is_quota:
+                        import re
+                        m = re.search(r'retry in ([\d\.]+)s', error_str)
+                        if m:
+                            is_quota = False
+                            is_rate_limit = True
+                            try:
+                                retry_delay = float(m.group(1)) + 1.0  # add 1s buffer
+                            except ValueError:
+                                pass
+                        elif "please retry in" in error_str:
+                            is_quota = False
+                            is_rate_limit = True
+                            
+                    if is_dead_key or is_quota or is_rate_limit:
+                        retries += 1
+                        logger.info(f"LLM API limit hit on key {current_key[-4:] if current_key else 'None'}. Transparently failing over...")
+                        
+                        if is_dead_key or is_quota:
                             key_manager.mark_exhausted(current_key)
+                            
+                            if key_manager.all_keys_exhausted():
+                                logger.error("All keys became exhausted during retries. Aborting.")
+                                raise e
+
+                            # Dead key or quota exhausted: failover to next key immediately
+                            logger.info(f"Failing over to next key immediately (Attempt {retries}/{max_retries})...")
+                            await asyncio.sleep(0.1)
+                            continue
                         else:
-                            key_manager.mark_rate_limited(current_key)
+                            key_manager.mark_rate_limited(current_key, retry_delay=retry_delay)
                             
                         if retries > max_retries:
                             logger.error(f"Max retries ({max_retries}) reached for LLM failover. Aborting.")
                             raise e
                             
-                        if is_quota:
-                            # Quota exhausted: failover to next key immediately without backoff
-                            logger.info(f"Failing over to next key immediately (Attempt {retries}/{max_retries})...")
-                            await asyncio.sleep(0.1)
-                            continue
-                            
-                        # Exponential backoff with jitter for generic rate limits
-                        backoff = min(2 ** (retries - 1), 60.0) + random.uniform(0, 1)
-                        logger.info(f"Retrying with next key (Attempt {retries}/{max_retries}) after {backoff:.2f}s backoff...")
+                        # For keys with an exact explicit delay parsed from Google, rotation happens inherently
+                        # without a manual decorator sleep (key_manager will yield exactly as long as needed).
+                        # However, for arbitrary generic rate limits where we don't have exact token signals, 
+                        # add exponential jitter to prevent cascading storms.
+                        if "retry in" not in error_str:
+                            backoff = min(2 ** (retries - 1), 60.0) + random.uniform(0, 1)
+                            logger.info(f"Retrying with next key (Attempt {retries}/{max_retries}) after {backoff:.2f}s fallback backoff...")
+                            await asyncio.sleep(backoff)
+                        continue
+                    
+                    # Handle 503 UNAVAILABLE (model overload) — transient server issue, retry with backoff
+                    if status_code == 503 or "503" in error_str or "unavailable" in error_str or "high demand" in error_str or "overloaded" in error_str:
+                        retries += 1
+                        if retries > max_retries:
+                            logger.error(f"Max retries ({max_retries}) reached after 503 server errors. Aborting.")
+                            raise e
+                        backoff = min(2 ** retries, 30.0) + random.uniform(0, 2)
+                        logger.warning(f"Model overloaded (503). Retrying same key in {backoff:.1f}s (Attempt {retries}/{max_retries})...")
                         await asyncio.sleep(backoff)
                         continue
                         
