@@ -10,7 +10,10 @@ from dotenv import load_dotenv
 load_dotenv()  # Load .env before anything else reads os.getenv
 
 import logging
+import warnings
 from contextlib import asynccontextmanager
+
+warnings.filterwarnings("ignore", category=UserWarning, message=".*Could not infer format.*")
 
 import uvicorn
 from fastapi import FastAPI, Depends, Request
@@ -20,7 +23,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from config import AppConfig, LLMConfig
+from config import AppConfig, LLMConfig, IngestionConfig
 
 logger = logging.getLogger(__name__)
 from api.dependencies import verify_api_key
@@ -46,6 +49,8 @@ from api.dashboard import router as dashboard_router
 from api.drift import router as drift_router
 from api.hypothesis_testing import router as hypothesis_testing_router
 from api.joins import router as joins_router
+from api.monitor import router as monitor_router
+from api.ml_readiness import router as ml_readiness_router
 
 
 @asynccontextmanager
@@ -70,6 +75,7 @@ async def lifespan(app: FastAPI):
         "[STARTUP] Data Intelligence Platform v%s | host=%s port=%d debug=%s",
         AppConfig.VERSION, AppConfig.HOST, AppConfig.PORT, AppConfig.DEBUG,
     )
+    IngestionConfig.ensure_dirs()
 
     yield  # App is running
 
@@ -142,6 +148,8 @@ def create_app() -> FastAPI:
     app.include_router(drift_router, dependencies=[Depends(verify_api_key)])
     app.include_router(hypothesis_testing_router, dependencies=[Depends(verify_api_key)])
     app.include_router(joins_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(monitor_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(ml_readiness_router, dependencies=[Depends(verify_api_key)])
 
     @app.get("/")
     @limiter.exempt
