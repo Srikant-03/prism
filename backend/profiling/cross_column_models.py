@@ -14,15 +14,15 @@ class CorrelationPair(BaseModel):
     is_significant: bool = Field(False, description="Whether the correlation is statistically significant (p < 0.05)")
 
 class MulticollinearityReport(BaseModel):
-    has_multicollinearity: bool = Field(..., description="Whether strong multicollinearity was detected")
-    vif_scores: Dict[str, float] = Field(..., description="Variance Inflation Factors for numeric columns")
+    has_multicollinearity: bool = Field(False, description="Whether strong multicollinearity was detected")
+    vif_scores: Dict[str, float] = Field(default_factory=dict, description="Variance Inflation Factors for numeric columns")
     warnings: List[str] = Field(default_factory=list, description="Warnings about highly correlated sets")
 
 class CorrelationAnalysis(BaseModel):
-    correlation_matrix: Dict[str, Dict[str, float]] = Field(..., description="Square matrix of default correlations for heatmap rendering")
-    strongest_pairs: List[CorrelationPair] = Field(..., description="Top strongest correlated pairs across all metrics")
-    multicollinearity: MulticollinearityReport = Field(..., description="Multicollinearity detection via VIF")
-    mutual_information: Dict[str, Dict[str, float]] = Field(..., description="Pair-wise Mutual Information scores")
+    correlation_matrix: Dict[str, Dict[str, float]] = Field(default_factory=dict, description="Square matrix of default correlations for heatmap rendering")
+    strongest_pairs: List[CorrelationPair] = Field(default_factory=list, description="Top strongest correlated pairs across all metrics")
+    multicollinearity: MulticollinearityReport = Field(default_factory=lambda: MulticollinearityReport(has_multicollinearity=False, vif_scores={}, warnings=[]), description="Multicollinearity detection via VIF")
+    mutual_information: Dict[str, Dict[str, float]] = Field(default_factory=dict, description="Pair-wise Mutual Information scores")
 
 # -------------------------------------------------------------------
 # Target Detection
