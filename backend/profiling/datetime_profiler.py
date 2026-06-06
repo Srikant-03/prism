@@ -25,7 +25,7 @@ class DatetimeProfiler:
         # Ensure datetime dtype
         if not pd.api.types.is_datetime64_any_dtype(series):
             try:
-                dt_series = pd.to_datetime(series, errors="coerce", infer_datetime_format=True)
+                dt_series = pd.to_datetime(series, format="mixed", errors="coerce")
             except Exception:
                 return profile
         else:
