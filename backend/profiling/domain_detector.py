@@ -83,10 +83,25 @@ DOMAIN_SIGNALS = [
         "weight": 0.9,
     },
     {
+        "domain": "ICT & Digital Transformation Survey",
+        "col_keywords": ["ict", "digital", "internet", "cloud", "cybersecurity", "remote",
+                         "e_commerce", "technology", "connectivity", "fibre", "dsl", "line_code"],
+        "value_keywords": ["fibre", "dsl", "cloud", "cybersecurity", "remote working", "online sales",
+                          "internet access", "hyperfibre", "ict", "employees", "6-19 employees", "20-49 employees"],
+        "weight": 1.5,
+    },
+    {
+        "domain": "Enterprise Financial Survey & National Economy",
+        "col_keywords": ["nzsioc", "anzsic", "income", "expenditure", "profit", "surplus",
+                         "assets", "equity", "roe", "depreciation", "tax"],
+        "value_keywords": ["dollars", "total income", "financial performance", "total expenditure", "pre-tax surplus", "anzsic06"],
+        "weight": 1.2,
+    },
+    {
         "domain": "Genomics / Bioinformatics",
         "col_keywords": ["gene", "chromosome", "sequence", "mutation", "allele", "genome",
                          "protein", "dna", "rna", "variant", "snp", "expression"],
-        "value_keywords": ["A", "T", "G", "C"],
+        "value_keywords": ["fasta", "fastq", "base pairs", "genotype", "nucleotide", "codon"],
         "weight": 1.0,
     },
     {
@@ -124,6 +139,7 @@ class DomainDetector:
         if df.empty:
             return "Unknown", 0.0, "Dataset is empty — cannot infer domain."
 
+        import re
         col_names = [c.lower().replace(" ", "_") for c in df.columns]
         col_set = set(col_names)
 
@@ -147,8 +163,13 @@ class DomainDetector:
                 sample_lower = sample_text.lower()
 
                 for vk in signal["value_keywords"]:
-                    if vk.lower() in sample_lower:
-                        value_matches.append(f"value '{vk}' found in data")
+                    vk_clean = vk.lower()
+                    if len(vk_clean) <= 3:
+                        if re.search(r'\b' + re.escape(vk_clean) + r'\b', sample_lower):
+                            value_matches.append(f"value '{vk}' found in data")
+                    else:
+                        if vk_clean in sample_lower:
+                            value_matches.append(f"value '{vk}' found in data")
 
             total_signals = len(signal["col_keywords"]) + len(signal["value_keywords"])
             matched = len(col_matches) + len(value_matches)
@@ -173,6 +194,13 @@ class DomainDetector:
         # Calibrate confidence
         confidence = min(best_score * 1.5, 0.95)
 
+        if confidence < 0.15:
+            return (
+                "General / Survey Dataset",
+                0.25,
+                "Low domain confidence signal. Classified as general survey/macro dataset.",
+            )
+
         # Check if second-best is close (ambiguous domain)
         if len(scores) > 1 and scores[1][1] > best_score * 0.7:
             second_domain = scores[1][0]
@@ -192,3 +220,4 @@ class DomainDetector:
             )
 
         return best_domain, round(confidence, 3), justification
+
