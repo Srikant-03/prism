@@ -222,9 +222,14 @@ def _stage_geo_analysis(ctx: PipelineContext) -> None:
 
 def _stage_cross_column_assembly(ctx: PipelineContext) -> None:
     """Assemble cross-column profile from available results."""
-    from profiling.cross_column_models import CorrelationAnalysis, TargetAnalysis, TemporalAnalysis, GeoAnalysis
+    from profiling.cross_column_models import CorrelationAnalysis, TargetAnalysis, TemporalAnalysis, GeoAnalysis, MulticollinearityReport
     cross_profile = CrossColumnProfile(
-        correlations=ctx.correlations or CorrelationAnalysis(correlation_matrix={}, strongest_pairs=[], multicollinearity=None, mutual_information={}),
+        correlations=ctx.correlations or CorrelationAnalysis(
+            correlation_matrix={},
+            strongest_pairs=[],
+            multicollinearity=MulticollinearityReport(has_multicollinearity=False, vif_scores={}, warnings=[]),
+            mutual_information={}
+        ),
         target=ctx.target_analysis or TargetAnalysis(is_target_detected=False),
         temporal=ctx.temporal_analysis or TemporalAnalysis(has_temporal_patterns=False),
         geo=ctx.geo_analysis or GeoAnalysis(has_geo_patterns=False),
@@ -237,7 +242,7 @@ def _stage_insights(ctx: PipelineContext) -> None:
     quality = QualityScorer.calculate_scores(ctx.dataset)
     anomalies = AnomalyDetector.detect(ctx.dataset)
     rankings = FeatureRanker.rank_features(ctx.dataset)
-    briefing = BriefingGenerator.generate(ctx.dataset, quality, anomalies, rankings)
+    briefing = BriefingGenerator.generate(ctx.dataset, quality, anomalies, rankings, df=ctx.df)
     ctx.dataset.insights = DatasetInsights(
         quality_score=quality,
         anomalies=anomalies,
@@ -414,7 +419,8 @@ def _profile_column(
     # ── Type-Specific Profiling ──
     if SemanticTypeDetector.is_numeric_type(sem_type):
         try:
-            numeric_series = pd.to_numeric(non_null, errors="coerce").dropna()
+            clean_s = non_null.astype(str).str.replace(',', '', regex=False).str.replace('$', '', regex=False).str.strip() if pd.api.types.is_object_dtype(non_null) else non_null
+            numeric_series = pd.to_numeric(clean_s, errors="coerce").dropna()
             profile.numeric = NumericProfiler.profile(
                 numeric_series,
                 original_series=series if pd.api.types.is_object_dtype(series) else None,
