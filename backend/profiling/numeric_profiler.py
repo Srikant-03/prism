@@ -38,8 +38,15 @@ class NumericProfiler:
         if len(non_null) == 0:
             return profile
 
-        vals = non_null.astype(float)
-        n = len(vals)
+        # Coerce string-encoded numbers (e.g. "976,077", "$50.00") if non-numeric
+        if not pd.api.types.is_numeric_dtype(non_null):
+            clean_str = non_null.astype(str).str.replace(',', '', regex=False).str.replace('$', '', regex=False).str.strip()
+            vals = pd.to_numeric(clean_str, errors="coerce").dropna()
+        else:
+            vals = non_null.astype(float)
+
+        if len(vals) == 0:
+            return profile
 
         # ── Basic Stats ──
         profile.min = float(vals.min())
@@ -272,7 +279,7 @@ class NumericProfiler:
             )
 
         # Thousand separators
-        thousand_pattern = re.compile(r"\d{1,3}(,\d{3})+")
+        thousand_pattern = re.compile(r"\d{1,3}(?:,\d{3})+")
         thousand_count = sample.str.contains(thousand_pattern, na=False).sum()
         if thousand_count > 0:
             issues.append(
