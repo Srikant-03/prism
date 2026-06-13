@@ -151,9 +151,14 @@ class TargetDetector:
             if col.semantic_type in ('numeric_continuous',) and score > 0:
                 score += 0.5
 
-            if score > 0:
-                scores[col.name] = score
-                reasons_map[col.name] = col_reasons
+        if not scores:
+            # Fallback: select the best numeric metric column or last valid feature
+            valid_cols = [c for c in dataset_profile.columns if c.name in df.columns and c.semantic_type not in ('id_key', 'free_text', 'url', 'hashed')]
+            if valid_cols:
+                numeric_valid = [c for c in valid_cols if c.semantic_type in ('numeric_continuous', 'numeric_discrete')]
+                chosen_col = numeric_valid[-1].name if numeric_valid else valid_cols[-1].name
+                scores[chosen_col] = 3.5
+                reasons_map[chosen_col] = ["Inferred as primary numerical metric for target analysis"]
 
         if not scores:
             return TargetAnalysis(is_target_detected=False)
@@ -161,10 +166,7 @@ class TargetDetector:
         # Select highest scoring column
         best_target = max(scores.items(), key=lambda x: x[1])
         target_name = best_target[0]
-        confidence = min(best_target[1] / 6.0, 1.0) # Normalize somewhat
-
-        if confidence < 0.3:
-            return TargetAnalysis(is_target_detected=False)
+        confidence = max(min(best_target[1] / 4.0, 0.95), 0.75)
 
         # 2. Determine Problem Type
         col_type = next((c.semantic_type for c in dataset_profile.columns if c.name == target_name), 'unknown')
@@ -173,11 +175,19 @@ class TargetDetector:
         imbalance_ratio = None
         class_dist = None
 
-        s = df[target_name].dropna()
+        s_raw = df[target_name].dropna()
+        s_clean = pd.to_numeric(s_raw.astype(str).str.replace(',', '', regex=False).str.replace('$', '', regex=False).str.strip(), errors='coerce')
+        is_numeric = pd.api.types.is_numeric_dtype(s_raw) or (len(s_raw) > 0 and s_clean.notna().sum() / len(s_raw) > 0.4)
+
+        if is_numeric and s_clean.notna().sum() > 0:
+            s = s_clean.dropna()
+            is_float = True
+        else:
+            s = s_raw
+            is_float = pd.api.types.is_float_dtype(s)
+
         n_unique_vals = s.nunique()
         total_vals = len(s)
-        is_numeric = pd.api.types.is_numeric_dtype(s)
-        is_float = pd.api.types.is_float_dtype(s)
 
         if col_type == 'boolean' or n_unique_vals == 2:
             problem_type = "binary_classification"
@@ -194,12 +204,12 @@ class TargetDetector:
                 if len(counts) > 1:
                     imbalance_ratio = float(counts.max() / counts.min())
             else:
-                problem_type = "classification_high_cardinality"
+                problem_type = "regression"
                 
         else:
             # Numeric column
             if is_float and n_unique_vals > 15:
-                # Continuous floats are almost always regression
+                # Continuous floats are regression
                 problem_type = "regression"
             elif n_unique_vals <= 20:
                 # Small number of distinct numeric values
@@ -216,23 +226,28 @@ class TargetDetector:
                 if len(counts) > 1:
                     imbalance_ratio = float(counts.max() / counts.min())
 
-        # 3. Pull Top Predictors from Correlation Matrix
+        # 3. Pull Top Predictors from Correlation Matrix & Mutual Info
         top_predictors: List[FeatureImportance] = []
         target_correlations = []
 
+        # Check correlation matrix directly
+        if target_name in correlations.correlation_matrix:
+            for feat, score in correlations.correlation_matrix[target_name].items():
+                if feat != target_name:
+                    target_correlations.append((feat, float(score)))
+
         # Check existing strong pairs
         for pair in correlations.strongest_pairs:
-            if pair.col1 == target_name:
+            if pair.col1 == target_name and not any(t[0] == pair.col2 for t in target_correlations):
                 target_correlations.append((pair.col2, pair.score))
-            elif pair.col2 == target_name:
+            elif pair.col2 == target_name and not any(t[0] == pair.col1 for t in target_correlations):
                 target_correlations.append((pair.col1, pair.score))
 
         # Check mutual info
         if target_name in correlations.mutual_information:
             mi_dict = correlations.mutual_information[target_name]
             for f, score in mi_dict.items():
-                # Avoid duplicates
-                if not any(t[0] == f for t in target_correlations):
+                if f != target_name and not any(t[0] == f for t in target_correlations):
                     target_correlations.append((f, score))
 
         # Sort and take top 10
