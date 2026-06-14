@@ -19,7 +19,7 @@ class TemporalAnalyzer:
             and c.name in df.columns
         ]
         
-        if not dt_cols or len(df) < 50:
+        if not dt_cols or len(df) < 5:
             return TemporalAnalysis(has_temporal_patterns=False)
 
         # Pick the most complete datetime column as the primary index
@@ -31,7 +31,7 @@ class TemporalAnalyzer:
                 min_nulls = nulls
                 primary_dt = col
 
-        if not primary_dt or df[primary_dt].notna().sum() < 50:
+        if not primary_dt or df[primary_dt].notna().sum() < 3:
             return TemporalAnalysis(has_temporal_patterns=False)
 
         df_t = df.copy()
@@ -54,7 +54,7 @@ class TemporalAnalyzer:
             # Not a true time-series, just timestamped events with duplicates
             # Need to aggregate.
             df_t = df_t.groupby(primary_dt).mean(numeric_only=True)
-            if len(df_t) < 50:
+            if len(df_t) < 3:
                 return TemporalAnalysis(has_temporal_patterns=False)
         else:
             df_t = df_t.set_index(primary_dt)
