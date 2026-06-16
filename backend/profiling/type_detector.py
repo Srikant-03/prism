@@ -182,7 +182,7 @@ class SemanticTypeDetector:
 
         # ── Datetime (string-encoded) ──
         try:
-            parsed = pd.to_datetime(sample, errors="coerce", infer_datetime_format=True)
+            parsed = pd.to_datetime(sample, format="mixed", errors="coerce")
             dt_ratio = parsed.notna().sum() / sample_size
             if dt_ratio > 0.7:
                 date_hints = any(h in col_lower for h in [
@@ -207,6 +207,20 @@ class SemanticTypeDetector:
             if unique_lower <= pattern["values"]:
                 return SemanticType.CATEGORICAL_ORDINAL, 0.85
 
+        # ── String-Encoded Numeric (e.g. "976077", "1,234.56", "$50.00") ──
+        try:
+            clean_num = sample.str.replace(',', '', regex=False).str.replace('$', '', regex=False).str.strip()
+            num_parsed = pd.to_numeric(clean_num, errors="coerce")
+            num_ratio = num_parsed.notna().sum() / sample_size
+            if num_ratio > 0.8:
+                non_null_num = num_parsed.dropna()
+                is_int = (non_null_num % 1 == 0).all() if len(non_null_num) > 0 else False
+                if is_int and non_null_num.nunique() <= 10:
+                    return SemanticType.CATEGORICAL_NOMINAL, 0.70
+                return SemanticType.NUMERIC_CONTINUOUS, 0.90
+        except Exception:
+            pass
+
         # ── Free Text vs Categorical ──
         avg_len = sample.str.len().mean()
         unique_ratio = non_null.nunique() / len(non_null) if len(non_null) > 0 else 0
@@ -218,7 +232,7 @@ class SemanticTypeDetector:
             return SemanticType.FREE_TEXT, 0.65
 
         # Default to categorical
-        return SemanticType.CATEGORICAL_NOMINAL, 0.70
+        return SemanticType.CATEGORICAL_NOMINAL, 0.40
 
     @staticmethod
     def _classify_numeric(
