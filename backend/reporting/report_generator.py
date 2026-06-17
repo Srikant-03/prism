@@ -73,6 +73,8 @@ class ReportGenerator:
         insights_data: Optional[dict] = None,
         audit_log: Optional[list[dict]] = None,
         before_after: Optional[dict] = None,
+        include_charts: bool = True,
+        include_outliers: bool = True,
     ) -> FullReport:
         """Build the full report from all available data."""
         report = FullReport()
@@ -372,14 +374,20 @@ class ReportGenerator:
             num = c.get("numeric") or {}
             if not isinstance(num, dict):
                 continue
+            pcts = num.get("percentiles") if isinstance(num.get("percentiles"), dict) else {}
+            std_val = num.get("std_dev") if num.get("std_dev") is not None else num.get("std", 0)
+            q1_val = pcts.get("p25") if pcts.get("p25") is not None else num.get("box_q1", num.get("q1", 0))
+            q3_val = pcts.get("p75") if pcts.get("p75") is not None else num.get("box_q3", num.get("q3", 0))
+            median_val = num.get("median") if num.get("median") is not None else pcts.get("p50", 0)
+
             numeric_rows.append([
                 c.get("name", ""),
                 f"{num.get('mean', 0):.2f}",
-                f"{num.get('std', 0):.2f}",
+                f"{std_val:.2f}",
                 f"{num.get('min', 0):.2f}",
-                f"{num.get('percentile_25', num.get('q1', 0)):.2f}",
-                f"{num.get('median', num.get('percentile_50', 0)):.2f}",
-                f"{num.get('percentile_75', num.get('q3', 0)):.2f}",
+                f"{q1_val:.2f}",
+                f"{median_val:.2f}",
+                f"{q3_val:.2f}",
                 f"{num.get('max', 0):.2f}",
             ])
 
@@ -802,7 +810,7 @@ class ReportGenerator:
                     h.get("evidence", ""),
                     h.get("impact", "").capitalize(),
                     f"{h.get('confidence', 0):.2f}",
-                    h.get("question", "")
+                    h.get("recommended_action") or h.get("question", "")
                 ])
 
         tables = [{
@@ -1126,16 +1134,18 @@ class ReportExporter:
                 if not headers:
                     continue
 
-                col_w = min(180 // len(headers), 50)
+                col_w = min(185 // max(1, len(headers)), 60)
                 pdf.set_font("Arial", "B", 8)
                 for h in headers:
-                    pdf.cell(col_w, 6, sanitize_text(str(h)[:20]), border=1)
+                    h_str = str(h).replace("SemanticType.", "")
+                    pdf.cell(col_w, 6, sanitize_text(h_str[:30]), border=1)
                 pdf.ln()
 
                 pdf.set_font("Arial", "", 8)
                 for row in rows_data[:30]:
                     for val in row:
-                        pdf.cell(col_w, 5, sanitize_text(str(val)[:20]), border=1)
+                        val_str = str(val).replace("SemanticType.", "")
+                        pdf.cell(col_w, 5, sanitize_text(val_str[:45]), border=1)
                     pdf.ln()
                 pdf.ln(3)
 
