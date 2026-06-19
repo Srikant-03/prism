@@ -140,9 +140,9 @@ USER QUESTION:
             contents = []
             if conversation_history:
                 for msg in conversation_history[-6:]:  # Last 3 exchanges
-                    contents.append({"role": msg["role"], "parts": [msg["content"]]})
+                    contents.append({"role": msg["role"], "parts": [{"text": msg["content"]}]})
 
-            contents.append({"role": "user", "parts": [user_prompt]})
+            contents.append({"role": "user", "parts": [{"text": user_prompt}]})
 
             if not HAS_GENAI:
                 raise RuntimeError("google-genai package is not installed.")
