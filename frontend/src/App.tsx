@@ -3,9 +3,9 @@
  * Orchestrates the upload flow and conditionally renders appropriate UI.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ConfigProvider, theme, Alert, Button, Result, Tabs, FloatButton, Modal, message } from 'antd';
-import { ReloadOutlined, CodeOutlined, TableOutlined, FileTextOutlined, AppstoreOutlined, RobotOutlined, BulbOutlined, DashboardOutlined, PlusOutlined } from '@ant-design/icons';
+import { ReloadOutlined, CodeOutlined, TableOutlined, FileTextOutlined, AppstoreOutlined, RobotOutlined, BulbOutlined, DashboardOutlined, PlusOutlined, TeamOutlined, SwapOutlined, ExperimentOutlined, SoundOutlined } from '@ant-design/icons';
 import Layout from './components/common/Layout';
 import FileUploader from './components/upload/FileUploader';
 import UploadProgress from './components/upload/UploadProgress';
@@ -19,10 +19,13 @@ import ReportPanel from './components/reporting/ReportPanel';
 import LiveDataGrid from './components/grid/LiveDataGrid';
 import ChatSidebar from './components/chat/ChatSidebar';
 import ThemeToggle from './components/common/ThemeToggle';
-import OnboardingWalkthrough from './components/common/OnboardingWalkthrough';
 import RelationshipGraph from './components/insights/RelationshipGraph';
 import HypothesisCards from './components/insights/HypothesisCards';
 import DashboardPage from './components/dashboard/DashboardPage';
+import CollabPanel from './components/collab/CollabPanel';
+import InsightDashboard from './components/insights/InsightDashboard';
+import StoryBuilder from './components/reporting/StoryBuilder';
+import DatasetDiff from './components/comparison/DatasetDiff';
 import { ThemeProvider, useTheme } from './hooks/useTheme';
 import { fetchAuth, API_BASE } from './api/client';
 import { useUpload } from './hooks/useUpload';
@@ -36,11 +39,17 @@ const App: React.FC = () => {
     handleSelectSheets,
     handleConfirmMalformed,
     handleResolveMulti,
-    reset,
+    reset: resetUpload,
   } = useUpload();
   const [chatOpen, setChatOpen] = useState(false);
   const [activeTabKey, setActiveTabKey] = useState('preview');
   const [pendingSqlQuery, setPendingSqlQuery] = useState<string | undefined>(undefined);
+
+  const reset = useCallback(() => {
+    resetUpload();
+    setActiveTabKey('preview');
+    setPendingSqlQuery(undefined);
+  }, [resetUpload]);
 
   // Secondary upload state
   const [secondaryModalOpen, setSecondaryModalOpen] = useState(false);
@@ -52,15 +61,20 @@ const App: React.FC = () => {
   const [graphThreshold, setGraphThreshold] = useState(0.3);
   const [hypotheses, setHypotheses] = useState<any[]>([]);
 
+  const graphThresholdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Fetch graph data when file is ready
   useEffect(() => {
     if (state.status === 'complete' && state.result?.file_id) {
-      setGraphLoading(true);
-      fetchAuth(`${API_BASE}/api/graph/${state.result.file_id}?threshold=${graphThreshold}`)
-        .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data) setGraphData(data); })
-        .catch(() => { })
-        .finally(() => setGraphLoading(false));
+        if (graphThresholdTimer.current) clearTimeout(graphThresholdTimer.current);
+        graphThresholdTimer.current = setTimeout(() => {
+            setGraphLoading(true);
+            fetchAuth(`${API_BASE}/api/graph/${state.result!.file_id}?threshold=${graphThreshold}`)
+                .then(r => r.ok ? r.json() : null)
+                .then(data => { if (data) setGraphData(data); })
+                .catch(() => {})
+                .finally(() => setGraphLoading(false));
+        }, 400);
     }
   }, [state.status, state.result?.file_id, graphThreshold]);
 
@@ -178,7 +192,7 @@ const App: React.FC = () => {
                   {state.result.warnings.map((w, i) => (
                     <Alert
                       key={i}
-                      message={w}
+                      title={w}
                       type="warning"
                       showIcon
                       closable
@@ -258,6 +272,26 @@ const App: React.FC = () => {
                     ),
                   },
                   {
+                    key: 'collab',
+                    label: <span><TeamOutlined /> Collaboration</span>,
+                    children: <CollabPanel fileId={state.result.file_id} />,
+                  },
+                  {
+                    key: 'insights',
+                    label: <span><ExperimentOutlined /> Insights</span>,
+                    children: <InsightDashboard fileId={state.result.file_id} insights={(state.result as any).insights || (state.result as any).profile?.insights} />,
+                  },
+                  {
+                    key: 'story',
+                    label: <span><SoundOutlined /> Story Builder</span>,
+                    children: <StoryBuilder fileId={state.result.file_id} />,
+                  },
+                    {
+                    key: 'compare',
+                    label: <span><SwapOutlined /> Compare</span>,
+                    children: <DatasetDiff fileIdA={state.result.file_id} />,
+                  },
+                  {
                     key: 'dashboard',
                     label: <span><DashboardOutlined /> AI Dashboard</span>,
                     children: (
@@ -308,11 +342,11 @@ const App: React.FC = () => {
                 </div>
               </Modal>
 
-              <OnboardingWalkthrough />
               <ChatSidebar
                 open={chatOpen}
                 onClose={() => setChatOpen(false)}
                 onAction={handleChatAction}
+                fileId={state.result.file_id}
               />
 
               <div className="reset-container">
