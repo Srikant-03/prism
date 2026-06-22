@@ -7,7 +7,6 @@ import axios from 'axios';
 import type { AxiosProgressEvent } from 'axios';
 import type {
     IngestionResult,
-    MultiFileResult,
     MalformedComparison,
 } from '../types/ingestion';
 
@@ -16,7 +15,7 @@ export const API_KEY = import.meta.env.VITE_API_KEY || 'dev-secret-key-123';
 
 const api = axios.create({
     baseURL: API_BASE,
-    timeout: 300000, // 5 min for large files
+    timeout: 60000, // 60s default timeout for general API requests
     headers: { 'X-API-Key': API_KEY },
 });
 
@@ -26,12 +25,13 @@ const api = axios.create({
 export async function uploadFiles(
     files: File[],
     onUploadProgress?: (pct: number) => void,
-): Promise<IngestionResult | MultiFileResult> {
+): Promise<{job_id: string, file_id: string, status: string}> {
     const formData = new FormData();
     files.forEach((file) => formData.append('files', file));
 
     const response = await api.post('/api/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 0, // No timeout limit for file upload transfers
         onUploadProgress: (event: AxiosProgressEvent) => {
             if (event.total && onUploadProgress) {
                 onUploadProgress(Math.round((event.loaded / event.total) * 100));
@@ -40,6 +40,51 @@ export async function uploadFiles(
     });
 
     return response.data;
+}
+
+/**
+ * Poll job status until complete or error. Resolves with the final result.
+ */
+export function pollJobStatus(
+    jobId: string,
+    onProgress?: (status: string) => void,
+    intervalMs = 2000,
+    maxWaitMs = 600000, // 10 minutes
+): Promise<any> {
+    return new Promise((resolve, reject) => {
+        const startTime = Date.now();
+        let currentInterval = intervalMs;
+
+        const poll = async () => {
+            try {
+                const response = await api.get(`/api/upload/status/${jobId}`);
+                const job = response.data;
+
+                if (onProgress) onProgress(job.status);
+
+                if (job.status === 'complete') {
+                    resolve(job.result);
+                } else if (job.status === 'error') {
+                    reject(new Error(job.error || 'Upload processing failed'));
+                } else {
+                    // Still processing
+                    if (Date.now() - startTime > maxWaitMs) {
+                        reject(new Error('Upload timed out after 10 minutes'));
+                        return;
+                    }
+                    // Exponential backoff after 30s
+                    if (Date.now() - startTime > 30000) {
+                        currentInterval = Math.min(currentInterval * 1.5, 10000);
+                    }
+                    setTimeout(poll, currentInterval);
+                }
+            } catch (err) {
+                reject(err);
+            }
+        };
+
+        poll();
+    });
 }
 
 /**
