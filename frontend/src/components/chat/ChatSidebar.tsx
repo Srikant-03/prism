@@ -34,9 +34,10 @@ interface Props {
     open: boolean;
     onClose: () => void;
     onAction?: (action: ChatAction) => void;
+    fileId?: string;
 }
 
-const ChatSidebar: React.FC<Props> = ({ open, onClose, onAction }) => {
+const ChatSidebar: React.FC<Props> = ({ open, onClose, onAction, fileId }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([
         {
             id: '0', role: 'ai', content:
@@ -52,6 +53,16 @@ const ChatSidebar: React.FC<Props> = ({ open, onClose, onAction }) => {
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
+
+    useEffect(() => {
+        if (open && fileId) {
+            fetchAuth(`${API_BASE}/api/chat/context`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ file_id: fileId }),
+            }).catch(() => {}); // Best-effort context load
+        }
+    }, [open, fileId]);
 
     const sendMessage = useCallback(async () => {
         if (!input.trim() || loading) return;
@@ -104,7 +115,7 @@ const ChatSidebar: React.FC<Props> = ({ open, onClose, onAction }) => {
             setMessages(prev => [...prev, {
                 id: (Date.now() + 1).toString(),
                 role: 'ai',
-                content: `⚠ï¸ Error: ${e.message || 'Failed to reach the AI service.'}`,
+                content: `⚠️ Error: ${e.message || 'Failed to reach the AI service.'}`,
                 timestamp: Date.now(),
             }]);
         } finally {
@@ -113,8 +124,8 @@ const ChatSidebar: React.FC<Props> = ({ open, onClose, onAction }) => {
     }, [input, loading, messages]);
 
     const clearChat = useCallback(() => {
-        setMessages([messages[0]]);
-    }, [messages]);
+        setMessages(prev => [prev[0]]);
+    }, []);
 
     const actionIcons: Record<string, React.ReactNode> = {
         sql: <CodeOutlined />,
