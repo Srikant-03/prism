@@ -14,7 +14,7 @@ const PrivacyDisclosure: React.FC = () => {
     return (
         <div style={{ padding: '8px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
             <Alert
-                message="AI Privacy Notice"
+                title="AI Privacy Notice"
                 description={
                     <div style={{ fontSize: 11 }}>
                         This platform uses Gemini AI to analyze schema and metadata.
