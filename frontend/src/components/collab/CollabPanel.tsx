@@ -4,12 +4,13 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { Input, Button, Space, Tag, Avatar, Tooltip, Popover, Badge, Empty, Drawer } from 'antd';
+import { Input, Button, Space, Tag, Avatar, Tooltip, Popover, Badge, Empty } from 'antd';
 import {
     SmileOutlined, PushpinOutlined,
     SendOutlined, UserOutlined, TeamOutlined,
     DeleteOutlined,
 } from '@ant-design/icons';
+import { fetchAuth, API_BASE } from '../../api/client';
 
 interface Annotation {
     id: string;
@@ -22,24 +23,74 @@ interface Annotation {
 }
 
 interface Props {
-    open: boolean;
-    onClose: () => void;
-    annotations: Annotation[];
-    onAddAnnotation: (text: string, target?: Annotation['target']) => void;
-    onAddReaction: (annotationId: string, emoji: string) => void;
-    onTogglePin: (annotationId: string) => void;
-    onDelete: (annotationId: string) => void;
+    fileId: string;
     currentUser?: string;
 }
 
-const REACTIONS = ['ðŸ‘', '👎', 'â“', '💡', '🔥', '✅', '⚠ï¸', '🎯'];
+const REACTIONS = ['👍', '👎', '❓', '💡', '🔥', '✅', '⚠️', '🎯'];
 
 const CollabPanel: React.FC<Props> = ({
-    open, onClose, annotations, onAddAnnotation, onAddReaction,
-    onTogglePin, onDelete, currentUser = 'You',
+    fileId, currentUser = 'You',
 }) => {
+    const [annotations, setAnnotations] = useState<Annotation[]>([]);
     const [input, setInput] = useState('');
     const [filter, setFilter] = useState<'all' | 'pinned' | 'mine'>('all');
+
+    const fetchAnnotations = useCallback(async () => {
+        try {
+            const res = await fetchAuth(`${API_BASE}/api/collab/${fileId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setAnnotations(data.annotations || []);
+            }
+        } catch (e) {
+            console.error('Failed to fetch annotations', e);
+        }
+    }, [fileId]);
+
+    React.useEffect(() => {
+        fetchAnnotations();
+    }, [fetchAnnotations]);
+
+    const onAddAnnotation = async (text: string, target?: Annotation['target']) => {
+        try {
+            await fetchAuth(`${API_BASE}/api/collab/${fileId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, author: currentUser, target }),
+            });
+            fetchAnnotations();
+        } catch (e) {}
+    };
+
+    const onAddReaction = async (annotationId: string, emoji: string) => {
+        try {
+            await fetchAuth(`${API_BASE}/api/collab/${fileId}/${annotationId}/react`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ emoji, author: currentUser }),
+            });
+            fetchAnnotations();
+        } catch (e) {}
+    };
+
+    const onTogglePin = async (annotationId: string, currentPinnedState: boolean) => {
+        try {
+            await fetchAuth(`${API_BASE}/api/collab/${fileId}/${annotationId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pinned: !currentPinnedState }),
+            });
+            fetchAnnotations();
+        } catch (e) {}
+    };
+
+    const onDelete = async (annotationId: string) => {
+        try {
+            await fetchAuth(`${API_BASE}/api/collab/${fileId}/${annotationId}`, { method: 'DELETE' });
+            fetchAnnotations();
+        } catch (e) {}
+    };
 
     const filtered = annotations.filter(a => {
         if (filter === 'pinned') return a.pinned;
@@ -67,20 +118,15 @@ const CollabPanel: React.FC<Props> = ({
     };
 
     return (
-        <Drawer
-            title={
-                <Space>
-                    <TeamOutlined style={{ color: '#6366f1' }} />
-                    <span style={{ fontWeight: 700 }}>Annotations</span>
-                    <Badge count={annotations.length} style={{ background: '#6366f1' }} />
-                </Space>
-            }
-            placement="right"
-            open={open}
-            onClose={onClose}
-            size="default"
-            styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', height: '100%' } }}
-        >
+        <div className="collab-panel-container" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 400 }}>
+            <div style={{
+                padding: '16px', display: 'flex', gap: 8, alignItems: 'center',
+                borderBottom: '1px solid rgba(255,255,255,0.06)'
+            }}>
+                <TeamOutlined style={{ color: '#6366f1' }} />
+                <span style={{ fontWeight: 700 }}>Annotations</span>
+                <Badge count={annotations.length} style={{ background: '#6366f1' }} />
+            </div>
             {/* Filter bar */}
             <div style={{
                 padding: '8px 12px', display: 'flex', gap: 4,
@@ -126,7 +172,7 @@ const CollabPanel: React.FC<Props> = ({
                                     <Tooltip title={note.pinned ? 'Unpin' : 'Pin'}>
                                         <Button size="small" type="text"
                                             icon={<PushpinOutlined />}
-                                            onClick={() => onTogglePin(note.id)}
+                                            onClick={() => onTogglePin(note.id, note.pinned)}
                                             style={{ fontSize: 10 }} />
                                     </Tooltip>
                                     {note.author === currentUser && (
@@ -216,7 +262,7 @@ const CollabPanel: React.FC<Props> = ({
                         onClick={send} style={{ borderRadius: 8, alignSelf: 'flex-end' }} />
                 </div>
             </div>
-        </Drawer>
+        </div>
     );
 };
 
