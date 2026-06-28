@@ -28,32 +28,32 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
     const tourSteps: TourProps['steps'] = [
         {
-            title: '👋 Welcome to Data Intelligence Platform',
+            title: 'Welcome to Data Intelligence Platform',
             description: 'Upload any dataset — CSV, Excel, JSON, Parquet, XML, or SQL dump. The system handles everything automatically.',
             target: null,
         },
         {
-            title: '📊 Pillar 1: Smart Profiling',
+            title: 'Pillar 1: Smart Profiling',
             description: 'After upload, every column is deeply profiled — types, distributions, quality, correlations, anomalies.',
             target: null,
         },
         {
-            title: '🧹 Pillar 2: Auto Preprocessing',
+            title: 'Pillar 2: Auto Preprocessing',
             description: 'The AI Decision Engine recommends cleaning steps — duplicates, missing values, outliers, encoding, scaling. You approve or let it run autonomously.',
             target: null,
         },
         {
-            title: '🗃ï¸ Pillar 3: SQL Query Engine',
+            title: 'Pillar 3: SQL Query Engine',
             description: 'Query your data with a visual builder, raw SQL, or plain English. Auto-visualization suggests the best chart for every result.',
             target: null,
         },
         {
-            title: '📄 Pillar 4: Reporting & Export',
+            title: 'Pillar 4: Reporting & Export',
             description: 'Export full analysis reports (PDF, DOCX, HTML, Notebook), pipeline code, and data in 6+ formats.',
             target: null,
         },
         {
-            title: '🌗 Theme & Settings',
+            title: 'Theme & Settings',
             description: 'Toggle dark/light mode anytime. Your settings, queries, and pipeline state persist across sessions.',
             target: null,
         },
@@ -109,7 +109,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                             />
                         </Tooltip>
                         <div className="header-badge">
-                            <Text className="badge-text">v1.0</Text>
+                            <Text className="badge-text">v2.0</Text>
                         </div>
                     </Space>
                 </div>
