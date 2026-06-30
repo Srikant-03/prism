@@ -52,7 +52,7 @@ const ChartWidget: React.FC<Props> = ({ config, data, loading, error }) => {
     if (error) {
         return (
             <div style={{ padding: 16, height: '100%', display: 'flex', alignItems: 'center' }}>
-                <Alert type="error" message="Chart Error" description={error} showIcon style={{ width: '100%' }} />
+                <Alert type="error" title="Chart Error" description={error} showIcon style={{ width: '100%' }} />
             </div>
         );
     }
