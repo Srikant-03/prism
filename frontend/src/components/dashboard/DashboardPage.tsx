@@ -4,8 +4,8 @@
  * Manages: widgets[], layout, activeWidgetId, promptHistory[], globalFilters,
  * present mode, save/share/export flows.
  */
-import React, { useState, useCallback, useRef } from 'react';
-import { message } from 'antd';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { message, Modal, List, Button } from 'antd';
 import type { Widget, ChartConfig, FilterCondition, InterpretResponse } from '../../types/dashboard';
 import DashboardHeader from './DashboardHeader';
 import GlobalFilterBar from './GlobalFilterBar';
@@ -13,6 +13,7 @@ import DashboardCanvas from './DashboardCanvas';
 import PromptBar from './PromptBar';
 import PresentMode from './PresentMode';
 import { fetchAuth, API_BASE } from '../../api/client';
+import { useTheme } from '../../hooks/useTheme';
 
 interface PromptEntry {
     prompt: string;
@@ -37,8 +38,9 @@ interface Props {
 }
 
 const DashboardPage: React.FC<Props> = ({ fileId, columns = [] }) => {
+    const { isDark } = useTheme();
     const [state, setState] = useState<DashboardState>({
-        id: crypto.randomUUID?.() || Math.random().toString(36).slice(2),
+        id: (crypto.randomUUID?.() || Math.random().toString(36).slice(2)),
         title: 'Untitled Dashboard',
         description: '',
         fileId,
@@ -58,6 +60,49 @@ const DashboardPage: React.FC<Props> = ({ fileId, columns = [] }) => {
 
     // Track config history for undo
     const [configSnapshots, setConfigSnapshots] = useState<Widget[][]>([]);
+
+    const [dashboardList, setDashboardList] = useState<any[]>([]);
+    const [loadModalOpen, setLoadModalOpen] = useState(false);
+
+    const handleLoadDashboard = async () => {
+        try {
+            const resp = await fetchAuth(`${API_BASE}/api/dashboards`);
+            if (resp.ok) {
+                const data = await resp.json();
+                setDashboardList(data.dashboards || []);
+                setLoadModalOpen(true);
+            }
+        } catch {
+            message.error('Failed to load dashboards');
+        }
+    };
+
+    const handleSelectDashboard = async (id: string) => {
+        try {
+            const resp = await fetchAuth(`${API_BASE}/api/dashboards/${id}`);
+            if (resp.ok) {
+                const data = await resp.json();
+                setState(prev => ({
+                    ...prev,
+                    id: data.id,
+                    title: data.title || 'Untitled Dashboard',
+                    description: data.description || '',
+                    widgets: data.widgets || [],
+                    globalFilters: data.global_filters || [],
+                }));
+                setLoadModalOpen(false);
+                message.success('Dashboard loaded!');
+            }
+        } catch {
+            message.error('Failed to load dashboard');
+        }
+    };
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const dashId = params.get('dashboard');
+        if (dashId) handleSelectDashboard(dashId);
+    }, []);
 
     // ── Prompt Submission ──
     const handlePromptSubmit = useCallback(async (prompt: string) => {
@@ -133,7 +178,7 @@ const DashboardPage: React.FC<Props> = ({ fileId, columns = [] }) => {
                     } else {
                         // Create new widget
                         const newWidget: Widget = {
-                            id: Math.random().toString(36).slice(2, 10),
+                            id: (crypto.randomUUID?.() || Math.random().toString(36).slice(2)),
                             config: result.config!,
                             source_prompt: prompt,
                             prompt_history: [prompt],
@@ -212,13 +257,19 @@ const DashboardPage: React.FC<Props> = ({ fileId, columns = [] }) => {
     };
 
     // ── Undo ──
-    const handleUndo = useCallback(() => {
+    const handleUndo = useCallback(async () => {
         if (configSnapshots.length === 0) return;
-        const prev = configSnapshots[configSnapshots.length - 1];
-        setState(s => ({ ...s, widgets: prev }));
+        const prevWidgets = configSnapshots[configSnapshots.length - 1];
+        const requeried = await Promise.all(
+            prevWidgets.map(async w => ({
+                ...w,
+                data: await reQueryWidget(w, state.globalFilters),
+            }))
+        );
+        setState(s => ({ ...s, widgets: requeried }));
         setConfigSnapshots(ss => ss.slice(0, -1));
         setPromptHistory(ph => ph.slice(0, -1));
-    }, [configSnapshots]);
+    }, [configSnapshots, state.globalFilters]);
 
     // ── Layout Change ──
     const handleLayoutChange = useCallback((layout: any[]) => {
@@ -239,7 +290,7 @@ const DashboardPage: React.FC<Props> = ({ fileId, columns = [] }) => {
         if (!w) return;
         const dup: Widget = {
             ...w,
-            id: Math.random().toString(36).slice(2, 10),
+            id: (crypto.randomUUID?.() || Math.random().toString(36).slice(2)),
             layout: { ...w.layout, x: (w.layout.x + w.layout.w) % 12, y: w.layout.y },
             prompt_history: [...w.prompt_history],
         };
@@ -266,17 +317,17 @@ const DashboardPage: React.FC<Props> = ({ fileId, columns = [] }) => {
     };
 
     // ── Global Filters ──
-    const handleGlobalFiltersChange = async (filters: FilterCondition[]) => {
+    const handleGlobalFiltersChange = useCallback(async (filters: FilterCondition[]) => {
+        const currentWidgets = state.widgets;
         setState(prev => ({ ...prev, globalFilters: filters }));
-        // Re-query all widgets
         const updatedWidgets = await Promise.all(
-            state.widgets.map(async w => ({
+            currentWidgets.map(async w => ({
                 ...w,
                 data: await reQueryWidget(w, filters),
             }))
         );
         setState(prev => ({ ...prev, widgets: updatedWidgets }));
-    };
+    }, [state.widgets]);
 
     // ── Save ──
     const handleSave = async () => {
@@ -312,7 +363,7 @@ const DashboardPage: React.FC<Props> = ({ fileId, columns = [] }) => {
 
     // ── Share ──
     const handleShare = () => {
-        const url = `${window.location.origin}/dashboard/share/${state.id}`;
+        const url = `${window.location.href.split('?')[0]}?dashboard=${state.id}`;
         navigator.clipboard?.writeText(url);
         message.success('Share link copied to clipboard!');
     };
@@ -322,7 +373,7 @@ const DashboardPage: React.FC<Props> = ({ fileId, columns = [] }) => {
         if (!canvasRef.current) return;
         try {
             const html2canvas = (await import('html2canvas')).default;
-            const canvas = await html2canvas(canvasRef.current, { scale: 2, backgroundColor: '#0f172a' });
+            const canvas = await html2canvas(canvasRef.current, { scale: 2, backgroundColor: isDark ? '#0f172a' : '#ffffff' });
             const link = document.createElement('a');
             link.download = `${state.title || 'dashboard'}.png`;
             link.href = canvas.toDataURL();
@@ -339,7 +390,7 @@ const DashboardPage: React.FC<Props> = ({ fileId, columns = [] }) => {
         try {
             const html2canvas = (await import('html2canvas')).default;
             const { jsPDF } = await import('jspdf');
-            const canvas = await html2canvas(canvasRef.current, { scale: 2, backgroundColor: '#0f172a' });
+            const canvas = await html2canvas(canvasRef.current, { scale: 2, backgroundColor: isDark ? '#0f172a' : '#ffffff' });
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas.width, canvas.height] });
             pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
@@ -369,10 +420,13 @@ const DashboardPage: React.FC<Props> = ({ fileId, columns = [] }) => {
 
     return (
         <div style={{
-            minHeight: '100vh', background: '#0f172a',
+            minHeight: '100vh', background: isDark ? '#0f172a' : '#f8fafc',
             display: 'flex', flexDirection: 'column',
             paddingBottom: 120, /* space for prompt bar */
         }}>
+            <div style={{ padding: '8px 24px', display: 'flex', justifyContent: 'flex-end', background: isDark ? '#1e293b' : '#ffffff' }}>
+                <Button size="small" onClick={handleLoadDashboard}>Load Dashboard</Button>
+            </div>
             <DashboardHeader
                 title={state.title}
                 description={state.description}
@@ -427,6 +481,24 @@ const DashboardPage: React.FC<Props> = ({ fileId, columns = [] }) => {
                 canUndo={configSnapshots.length > 0}
                 clarification={clarification}
             />
+
+            <Modal
+                title="Load Dashboard"
+                open={loadModalOpen}
+                onCancel={() => setLoadModalOpen(false)}
+                footer={null}
+            >
+                <List
+                    dataSource={dashboardList}
+                    renderItem={item => (
+                        <List.Item
+                            actions={[<Button onClick={() => handleSelectDashboard(item.id)}>Load</Button>]}
+                        >
+                            <List.Item.Meta title={item.title} description={item.description || 'No description'} />
+                        </List.Item>
+                    )}
+                />
+            </Modal>
         </div>
     );
 };
