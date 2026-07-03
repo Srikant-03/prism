@@ -69,7 +69,7 @@ const AnomalyRegistry: React.FC<AnomalyRegistryProps> = ({ data }) => {
             <Table
                 dataSource={data}
                 columns={columns}
-                rowKey={(record, i) => `${record.feature}-${record.category}-${i}`}
+                rowKey={(record) => `${record.feature}-${record.category}-${record.description}`}
                 pagination={{ pageSize: 5 }}
                 size="small"
                 scroll={{ y: 400 }}
