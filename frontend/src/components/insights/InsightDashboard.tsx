@@ -1,10 +1,11 @@
-import React from 'react';
-import { Row, Col, Typography } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Row, Col, Typography, Spin } from 'antd';
 import type { DatasetInsights } from '../../types/insight';
 import QualityReportCard from './QualityReportCard';
 import AnomalyRegistry from './AnomalyRegistry';
 import FeatureRanking from './FeatureRanking';
 import AnalystBriefingPanel from './AnalystBriefing';
+import { fetchAuth, API_BASE } from '../../api/client';
 
 const { Paragraph } = Typography;
 
@@ -13,7 +14,40 @@ interface InsightDashboardProps {
     fileId?: string;
 }
 
-const InsightDashboard: React.FC<InsightDashboardProps> = ({ insights, fileId }) => {
+const InsightDashboard: React.FC<InsightDashboardProps> = ({ insights: initialInsights, fileId }) => {
+    const [insights, setInsights] = useState<DatasetInsights | undefined>(initialInsights);
+    const [loading, setLoading] = useState<boolean>(!initialInsights && !!fileId);
+
+    useEffect(() => {
+        if (initialInsights) {
+            setInsights(initialInsights);
+            setLoading(false);
+            return;
+        }
+
+        if (fileId) {
+            setLoading(true);
+            fetchAuth(`${API_BASE}/api/profile/${fileId}`)
+                .then(r => r.ok ? r.json() : null)
+                .then(data => {
+                    if (data && data.profile && data.profile.insights) {
+                        setInsights(data.profile.insights);
+                    }
+                })
+                .catch(() => {})
+                .finally(() => setLoading(false));
+        }
+    }, [initialInsights, fileId]);
+
+    if (loading) {
+        return (
+            <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
+                <Spin size="large" />
+                <Paragraph type="secondary" style={{ marginTop: '16px' }}>Generating Autonomous Insights...</Paragraph>
+            </div>
+        );
+    }
+
     if (!insights) {
         return (
             <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center' }}>
