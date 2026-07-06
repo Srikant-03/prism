@@ -79,7 +79,7 @@ const RelationshipGraph: React.FC<Props> = ({ data, loading, onThresholdChange, 
         };
     }, [data]);
 
-    if (loading) return <div style={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spin tip="Building graph..." /></div>;
+    if (loading) return <div style={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spin description="Building graph..." /></div>;
     if (!data || data.nodes.length === 0) return <Empty description="No relationships detected with current threshold" />;
 
     return (
