@@ -1,15 +1,48 @@
-import React, { useMemo } from 'react';
-import { Card, Table, Typography, Alert, Space, Row, Col } from 'antd';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Card, Table, Alert, Space, Row, Col } from 'antd';
 import ReactECharts from 'echarts-for-react';
 import type { CorrelationAnalysis } from '../../types/profiling';
-
-const { Paragraph } = Typography;
+import { fetchAuth, API_BASE } from '../../api/client';
 
 interface CorrelationPanelProps {
-    data: CorrelationAnalysis;
+    data?: CorrelationAnalysis;
+    fileId?: string;
 }
 
-const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data }) => {
+const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data: initialData, fileId }) => {
+    const [fetchedData, setFetchedData] = useState<CorrelationAnalysis | undefined>(initialData);
+
+    useEffect(() => {
+        if (initialData && Object.keys(initialData.correlation_matrix || {}).length > 0) {
+            setFetchedData(initialData);
+            return;
+        }
+
+        if (fileId) {
+            fetchAuth(`${API_BASE}/api/profile/${fileId}`)
+                .then(r => r.ok ? r.json() : null)
+                .then(res => {
+                    if (res && res.profile && res.profile.cross_analysis && res.profile.cross_analysis.correlations) {
+                        setFetchedData(res.profile.cross_analysis.correlations);
+                    }
+                })
+                .catch(() => {});
+        }
+    }, [initialData, fileId]);
+
+    const activeData = fetchedData || initialData;
+    const matrix = activeData?.correlation_matrix || {};
+    const strongestPairs = activeData?.strongest_pairs || [];
+    const multicollinearity = activeData?.multicollinearity || { has_multicollinearity: false, vif_scores: {}, warnings: [] };
+
+    const effectiveMatrix = useMemo(() => {
+        return matrix;
+    }, [matrix]);
+
+    const effectiveStrongestPairs = useMemo(() => {
+        return strongestPairs;
+    }, [strongestPairs]);
+
     // Top pairs table
     const columns = [
         { title: 'Feature 1', dataIndex: 'col1', key: 'col1' },
@@ -20,7 +53,7 @@ const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data }) => {
             key: 'score',
             render: (val: number) => {
                 const color = val > 0.7 || val < -0.7 ? '#faad14' : val > 0.9 || val < -0.9 ? '#ff4d4f' : '#fff';
-                return <span style={{ color }}>{val.toFixed(3)}</span>;
+                return <span style={{ color }}>{val ? val.toFixed(3) : '0.000'}</span>;
             }
         },
         { title: 'Metric', dataIndex: 'metric', key: 'metric' }
@@ -28,15 +61,13 @@ const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data }) => {
 
     // Heatmap formatting
     const heatmapOption = useMemo(() => {
-        const matrix = data.correlation_matrix;
-        const features = Object.keys(matrix);
-        // Ensure features have matrix data
+        const features = Object.keys(effectiveMatrix);
         if (features.length === 0) return {};
 
         const chartData: [number, number, number][] = [];
         features.forEach((f1, i) => {
             features.forEach((f2, j) => {
-                const val = matrix[f1][f2] !== undefined ? matrix[f1][f2] : 0;
+                const val = effectiveMatrix[f1] && effectiveMatrix[f1][f2] !== undefined ? effectiveMatrix[f1][f2] : 0;
                 chartData.push([i, j, Number(val.toFixed(2))]);
             });
         });
@@ -64,7 +95,7 @@ const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data }) => {
                 left: 'center',
                 bottom: '0%',
                 inRange: {
-                    color: ['#0050b3', '#141414', '#a8071a'] // Red positive, Blue negative
+                    color: ['#0050b3', '#141414', '#a8071a']
                 },
                 textStyle: { color: 'rgba(255,255,255,0.7)' }
             },
@@ -76,7 +107,7 @@ const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data }) => {
                 emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0, 0, 0, 0.5)' } }
             }]
         };
-    }, [data.correlation_matrix]);
+    }, [effectiveMatrix]);
 
     // Network Graph formatting
     const networkOption = useMemo(() => {
@@ -84,8 +115,8 @@ const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data }) => {
         const edges: { source: string; target: string; value: number; lineStyle: { width: number; color: string } }[] = [];
         const addedNodes = new Set();
 
-        data.strongest_pairs.forEach(pair => {
-            if (Math.abs(pair.score) > 0.4) {
+        effectiveStrongestPairs.forEach(pair => {
+            if (pair && pair.score !== undefined && Math.abs(pair.score) > 0.4) {
                 if (!addedNodes.has(pair.col1)) {
                     nodes.push({ name: pair.col1, value: 1, symbolSize: 30 });
                     addedNodes.add(pair.col1);
@@ -126,17 +157,16 @@ const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data }) => {
                 }
             ]
         };
-    }, [data.strongest_pairs]);
-
+    }, [effectiveStrongestPairs]);
 
     return (
         <Space orientation="vertical" size="large" style={{ width: '100%' }}>
-            {data.multicollinearity.has_multicollinearity && (
+            {multicollinearity?.has_multicollinearity && multicollinearity.warnings && multicollinearity.warnings.length > 0 && (
                 <Alert
-                    message="High Multicollinearity Detected"
+                    title="High Multicollinearity Detected"
                     description={
                         <ul>
-                            {data.multicollinearity.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                            {multicollinearity.warnings.map((w, i) => <li key={i}>{w}</li>)}
                         </ul>
                     }
                     type="warning"
@@ -147,27 +177,19 @@ const CorrelationPanel: React.FC<CorrelationPanelProps> = ({ data }) => {
             <Row gutter={[16, 16]}>
                 <Col span={24} lg={12}>
                     <Card title="Correlation Matrix" variant="borderless" className="glass-panel">
-                        {Object.keys(data.correlation_matrix).length > 0 ? (
-                            <ReactECharts option={heatmapOption} style={{ height: 600 }} theme="dark" />
-                        ) : (
-                            <Paragraph type="secondary">Not enough numeric columns for a matrix.</Paragraph>
-                        )}
+                        <ReactECharts option={heatmapOption} style={{ height: 600 }} theme="dark" />
                     </Card>
                 </Col>
                 <Col span={24} lg={12}>
                     <Card title="Association Network (Score > 0.4)" variant="borderless" className="glass-panel">
-                        {data.strongest_pairs.some(p => Math.abs(p.score) > 0.4) ? (
-                            <ReactECharts option={networkOption} style={{ height: 600 }} theme="dark" />
-                        ) : (
-                            <Paragraph type="secondary">No strong correlations found to graph.</Paragraph>
-                        )}
+                        <ReactECharts option={networkOption} style={{ height: 600 }} theme="dark" />
                     </Card>
                 </Col>
             </Row>
 
             <Card title="Strongest Associations" variant="borderless" className="glass-panel">
                 <Table
-                    dataSource={data.strongest_pairs.slice(0, 10)}
+                    dataSource={effectiveStrongestPairs.slice(0, 10)}
                     columns={columns}
                     rowKey={(rec) => `${rec.col1}-${rec.col2}`}
                     pagination={false}
