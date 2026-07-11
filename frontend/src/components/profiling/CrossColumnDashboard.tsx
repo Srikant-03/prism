@@ -26,7 +26,6 @@ const CrossColumnDashboard: React.FC<CrossColumnDashboardProps> = ({ profile, in
             key: 'target',
             label: 'Target Analysis',
             children: <TargetAnalysisPanel data={profile.target} />,
-            disabled: !profile.target.is_target_detected,
         },
         {
             key: 'correlation',
@@ -37,18 +36,15 @@ const CrossColumnDashboard: React.FC<CrossColumnDashboardProps> = ({ profile, in
             key: 'temporal',
             label: 'Temporal Patterns',
             children: <TemporalPatternsPanel data={profile.temporal} />,
-            disabled: !profile.temporal.has_temporal_patterns,
         },
         {
             key: 'geo',
             label: 'Geospatial Distribution',
             children: <GeoPatternsPanel data={profile.geo} />,
-            disabled: !profile.geo.has_geo_patterns,
         },
     ];
 
-    // Auto-select the first non-disabled tab
-    const activeKey = items.find(item => !item.disabled)?.key || 'insights';
+    const activeKey = 'insights';
 
     return (
         <div className="cross-column-dashboard animate-fade-in">
