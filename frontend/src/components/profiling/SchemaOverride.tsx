@@ -151,7 +151,7 @@ const SchemaOverride: React.FC<Props> = ({
                 <Alert
                     type="warning"
                     showIcon
-                    message={`${conflicts.length} column(s) have ambiguous types — please review`}
+                    title={`${conflicts.length} column(s) have ambiguous types — please review`}
                     description={conflicts.map(c => c.column).join(', ')}
                 />
             )}
@@ -212,7 +212,7 @@ const SchemaOverride: React.FC<Props> = ({
                     <Alert
                         type="info"
                         showIcon
-                        message="Downstream Impact"
+                        title="Downstream Impact"
                         description={
                             <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12 }}>
                                 <li>Column encoding method will change</li>
