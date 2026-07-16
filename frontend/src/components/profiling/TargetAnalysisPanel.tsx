@@ -11,6 +11,13 @@ interface TargetAnalysisPanelProps {
 }
 
 const TargetAnalysisPanel: React.FC<TargetAnalysisPanelProps> = ({ data }) => {
+    if (!data) {
+        return (
+            <Card variant="borderless" className="glass-panel target-analysis-panel" style={{ padding: '24px', textAlign: 'center' }}>
+                <Typography.Paragraph type="secondary">Target analysis data is being generated...</Typography.Paragraph>
+            </Card>
+        );
+    }
 
     const classDistOption = useMemo(() => {
         if (!data.class_distribution) return {};
@@ -84,7 +91,7 @@ const TargetAnalysisPanel: React.FC<TargetAnalysisPanelProps> = ({ data }) => {
                     />
                     <Statistic
                         title={<span style={{ color: 'rgba(255,255,255,0.7)', marginTop: '20px', display: 'block' }}>Problem Type</span>}
-                        value={data.problem_type ? data.problem_type.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()) : "Unknown"}
+                        value={data.problem_type ? data.problem_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : "Regression"}
                         prefix={<TrophyOutlined style={{ color: '#faad14' }} />}
                         styles={{ content: { color: '#faad14' } }}
                     />
