@@ -95,6 +95,7 @@ const ReportPanel: React.FC<Props> = ({ fileId }) => {
             a.href = url;
             a.download = `report.${ext}`;
             a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 100);
         } catch (e: any) {
             setError(e.message);
         } finally {
@@ -118,6 +119,7 @@ const ReportPanel: React.FC<Props> = ({ fileId }) => {
             a.href = url;
             a.download = `pipeline.${extMap[format] || format}`;
             a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 100);
         } catch (e: any) {
             setError(e.message);
         } finally {
@@ -141,6 +143,7 @@ const ReportPanel: React.FC<Props> = ({ fileId }) => {
             a.href = url;
             a.download = `data.${extMap[format] || format}`;
             a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 100);
         } catch (e: any) {
             setError(e.message);
         } finally {
@@ -158,7 +161,7 @@ const ReportPanel: React.FC<Props> = ({ fileId }) => {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {error && <Alert type="error" message={error} closable onClose={() => setError(null)} />}
+            {error && <Alert type="error" title={error} closable onClose={() => setError(null)} />}
 
             {/* ── 4.1: Full Analysis Report ── */}
             <div className="glass-panel" style={{ padding: 16 }}>
@@ -355,7 +358,7 @@ const ReportPanel: React.FC<Props> = ({ fileId }) => {
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <Button icon={<CodeOutlined />} onClick={() => downloadCode('python')}
                         loading={downloading === 'code_python'}>
-                        ðŸ Python Script
+                        🐍 Python Script
                     </Button>
                     <Button icon={<BookOutlined />} onClick={() => downloadCode('notebook')}
                         loading={downloading === 'code_notebook'}>
@@ -367,7 +370,7 @@ const ReportPanel: React.FC<Props> = ({ fileId }) => {
                     </Button>
                     <Button icon={<CodeOutlined />} onClick={() => downloadCode('sql')}
                         loading={downloading === 'code_sql'}>
-                        🗄ï¸ SQL Queries
+                        🗄️ SQL Queries
                     </Button>
                 </div>
             </div>
