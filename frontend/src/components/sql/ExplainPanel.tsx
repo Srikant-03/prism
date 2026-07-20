@@ -138,7 +138,7 @@ const ExplainPanel: React.FC<Props> = ({ onCreateView }) => {
                 </Button>
             </div>
 
-            {error && <Alert type="error" message={error} showIcon />}
+            {error && <Alert type="error" title={error} showIcon />}
 
             {/* Plan tree */}
             {loading && <div style={{ textAlign: 'center', padding: 20 }}><Spin size="large" /></div>}
