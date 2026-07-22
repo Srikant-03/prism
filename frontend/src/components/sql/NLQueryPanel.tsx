@@ -137,7 +137,7 @@ const NLQueryPanel: React.FC<Props> = ({ onResultReady, onSQLGenerated }) => {
                 showIcon
                 closable
                 banner
-                message="Privacy Notice"
+                title="Privacy Notice"
                 description="Natural language queries are processed by Google Gemini. Only column names, data types, and a few sample values are sent — never your full dataset rows. All data remains local."
                 style={{ borderRadius: 8, fontSize: 12 }}
             />
@@ -251,7 +251,7 @@ const NLQueryPanel: React.FC<Props> = ({ onResultReady, onSQLGenerated }) => {
                 <Alert
                     type="error"
                     showIcon
-                    message="Query Generation Failed"
+                    title="Query Generation Failed"
                     description={nlResult.error || 'An unknown error occurred.'}
                 />
             )}
@@ -290,7 +290,7 @@ const NLQueryPanel: React.FC<Props> = ({ onResultReady, onSQLGenerated }) => {
                             type="warning"
                             showIcon
                             icon={<QuestionCircleOutlined />}
-                            message="Clarification Needed"
+                            title="Clarification Needed"
                             description={nlResult.clarification_needed}
                         />
                     )}
