@@ -3,7 +3,7 @@
  * Supports multi-file upload, shows accepted format badges.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Upload, Typography, Tag, Space } from 'antd';
 import {
     InboxOutlined,
@@ -42,15 +42,24 @@ const ACCEPTED_FORMATS = [
 const FileUploader: React.FC<FileUploaderProps> = ({ onUpload, disabled = false }) => {
     const [isDragOver, setIsDragOver] = useState(false);
 
+    const uploadCalledRef = useRef(false);
+    const uploadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     const draggerProps = {
         name: 'files',
         multiple: true,
         fileList: [] as UploadFile[],
         beforeUpload: (_file: File, files: File[]) => {
-            // Small delay to allow all files to be added
-            setTimeout(() => {
-                onUpload(files);
-            }, 100);
+            // Guard: only fire onUpload once per batch using a ref flag
+            if (uploadTimerRef.current) clearTimeout(uploadTimerRef.current);
+            if (!uploadCalledRef.current) {
+                uploadCalledRef.current = true;
+                uploadTimerRef.current = setTimeout(() => {
+                    onUpload(files);
+                    // Reset guard after 500ms to allow next upload
+                    setTimeout(() => { uploadCalledRef.current = false; }, 500);
+                }, 50);
+            }
             return false; // Prevent default upload behavior
         },
         onDragEnter: () => setIsDragOver(true),
