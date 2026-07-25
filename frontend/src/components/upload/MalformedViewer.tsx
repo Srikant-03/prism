@@ -101,7 +101,7 @@ const MalformedViewer: React.FC<MalformedViewerProps> = ({
                 type={errorCount > 0 ? 'error' : 'warning'}
                 showIcon
                 icon={errorCount > 0 ? <CloseCircleOutlined /> : <WarningOutlined />}
-                message="Data Quality Issues Detected"
+                title="Data Quality Issues Detected"
                 description={
                     <Space orientation="vertical" size={4}>
                         <Text>{report.summary}</Text>
