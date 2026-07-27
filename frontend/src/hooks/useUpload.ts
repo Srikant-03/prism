@@ -2,7 +2,7 @@
  * Custom hook for managing file upload state and flows.
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type {
     UploadState,
     UploadStatus,
@@ -15,6 +15,8 @@ import {
     confirmMalformed,
     resolveMultiFile,
     fetchProfile,
+    pollJobStatus,
+    connectProgress,
 } from '../api/ingestion';
 
 const initialState: UploadState = {
@@ -39,14 +41,40 @@ export function useUpload() {
         }
     }, []);
 
+    useEffect(() => {
+        return () => {
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+            }
+        };
+    }, []);
+
     const handleUpload = useCallback(async (files: File[]) => {
         reset();
         setState((s) => ({ ...s, status: 'uploading' }));
 
         try {
-            const data = await uploadFiles(files, (pct) => {
+            const uploadResp = await uploadFiles(files, (pct) => {
                 setUploadPct(pct);
             });
+
+            // If we got a job_id, start polling and websockets
+            let data: any = uploadResp;
+            if (uploadResp.job_id) {
+                setState((s) => ({ ...s, status: 'processing' }));
+                
+                wsRef.current = connectProgress(uploadResp.file_id, (progressData: any) => {
+                    setState(s => ({ ...s, progress: progressData }));
+                });
+
+                data = await pollJobStatus(uploadResp.job_id);
+
+                if (wsRef.current) {
+                    wsRef.current.close();
+                    wsRef.current = null;
+                }
+            }
 
             // Determine the type of result
             if ('results' in data) {
@@ -174,8 +202,24 @@ export function useUpload() {
         async (fileIds: string[], action: 'merge' | 'separate' | 'exclude') => {
             setState((s) => ({ ...s, status: 'processing' }));
             try {
-                await resolveMultiFile(fileIds, action);
-                setState((s) => ({ ...s, status: 'complete' }));
+                const resolveData = await resolveMultiFile(fileIds, action) as any;
+                // For merge action, the response contains preview_data and row_count
+                if (action === 'merge' && resolveData?.preview_data) {
+                    // Build a minimal IngestionResult from the merge response
+                    const mergedResult = {
+                        success: true,
+                        file_id: fileIds[0],
+                        preview_data: resolveData.preview_data,
+                        row_count: resolveData.row_count,
+                        col_count: resolveData.col_count,
+                        warnings: [],
+                        errors: [],
+                        metadata: { columns: resolveData.preview_data[0] ? Object.keys(resolveData.preview_data[0]).map(k => ({ name: k, dtype: 'text' })) : [] },
+                    } as any;
+                    setState(s => ({ ...s, status: 'complete', result: mergedResult }));
+                } else {
+                    setState(s => ({ ...s, status: 'complete' }));
+                }
             } catch (err: unknown) {
                 const error = err as { response?: { data?: { detail?: string } } };
                 setState((s) => ({
