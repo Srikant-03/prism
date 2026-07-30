@@ -1,0 +1,21 @@
+Name,Age,Department,Salary,City,Experience_Years,Performance_Score
+Alice,28,Engineering,85000,New York,5,92
+Bob,34,Marketing,72000,Chicago,8,78
+Charlie,25,Engineering,78000,San Francisco,3,88
+Diana,31,Sales,68000,Boston,6,85
+Eve,29,Engineering,90000,New York,4,95
+Frank,42,Marketing,82000,Chicago,15,72
+Grace,27,Sales,65000,San Francisco,2,90
+Henry,38,Engineering,95000,Boston,12,88
+Ivy,33,Marketing,75000,New York,9,80
+Jack,26,Sales,62000,Chicago,3,82
+Karen,45,Engineering,105000,San Francisco,20,91
+Leo,30,Marketing,70000,Boston,7,76
+Mia,28,Sales,67000,New York,4,87
+Noah,35,Engineering,92000,Chicago,10,89
+Olivia,32,Marketing,78000,San Francisco,8,83
+Peter,29,Sales,64000,Boston,5,79
+Quinn,40,Engineering,98000,New York,16,93
+Rachel,27,Marketing,69000,Chicago,4,81
+Sam,36,Sales,71000,San Francisco,11,86
+Tina,31,Engineering,88000,Boston,7,90
