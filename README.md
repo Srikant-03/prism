@@ -1,135 +1,212 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/ant-design/ant-design/master/components/style/color/bezierEasing.less" width="100" height="0" />
+
+# ⚡ PRISM — Autonomous AI Data Intelligence Platform
+
+### *Your Local-First, Zero-Setup AI Data Analyst*
+
+**Stop writing repetitive Pandas boilerplate. Stop struggling with complex SQL joins. Stop paying cloud BI fees.**
+
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![DuckDB](https://img.shields.io/badge/DuckDB-In--Memory_Analytics-FFF000?style=for-the-badge&logo=duckdb&logoColor=black)](https://duckdb.org/)
+[![Google Gemini](https://img.shields.io/badge/AI-Google_Gemini-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/)
+[![Privacy First](https://img.shields.io/badge/Privacy-100%25_Local_Data-green?style=for-the-badge&logo=shield&logoColor=white)](#-privacy--security-manifesto)
+
+<br/>
+
+![PRISM Dashboard Hero](./assets/prism_hero.jpg)
+
 </div>
 
-<h1 align="center" style="border-bottom: none">⚡ Data Intelligence Platform (PRISM)</h1>
-<h3 align="center">Your Autonomous, Zero-Setup AI Data Analyst</h3>
+---
 
-<p align="center">
-  <b>Just drop in your data. It does the rest.</b><br>
-  No coding. No struggling with Pandas. No massive cloud bills.
-</p>
+## 🌟 Why PRISM Stands Apart
+
+Traditional data analysis is broken: you spend 80% of your time cleaning corrupted CSVs, configuring virtual environments, and fighting database drivers—only to expose your company's sensitive records to third-party cloud servers.
+
+**PRISM flips the script.** 
+
+It is a **local-first, ultra-fast Data Intelligence Platform** that acts as an autonomous AI Data Analyst running straight from your machine. Drop in any raw dataset—no matter how messy, fractured, or unformatted—and PRISM automatically detects schemas, repairs corrupt records, discovers hidden causal correlations, generates interactive Power BI-style dashboards, and answers your plain-English questions with hyper-optimized SQL.
+
+> [!IMPORTANT]
+> **🛡️ 100% Privacy-First Architecture**  
+> Your raw dataset rows **NEVER leave your local machine**. PRISM executes all data processing locally via an in-memory DuckDB engine. Only lightweight schema definitions (column names and data types) are sent to the AI for reasoning.
 
 ---
 
-## 🚀 What is Prism?
+## 📐 System Architecture & Data Pipeline
 
-**Prism** is a local-first, blazing-fast Data Intelligence Platform designed to automate the most tedious parts of data science: ingestion, cleaning, profiling, and analysis. It combines a robust Python backend with a stunning, highly-interactive React frontend to give you a truly autonomous AI Data Analyst living right on your machine.
+PRISM combines high-throughput data engineering with modern generative AI reasoning:
 
-**Upload a completely messed up dataset**, and Prism will automatically detect the format, guess the encoding, handle missing values, map exactly how the columns relate, generate specific hypotheses, create auto-visualizations, and let you query the data in **plain English**.
+![PRISM System Architecture](./assets/prism_architecture.jpg)
+
+### 🔄 End-to-End Execution Flow
+
+```mermaid
+flowchart TD
+    subgraph Ingestion ["1. Universal Ingestion"]
+        A[Raw Files: CSV, XLSX, JSON, Parquet, XML, SQL] --> B[Zip Archive Unpacker]
+        B --> C[Stream Chunking & Encoding Auto-Detector]
+    end
+
+    subgraph AnalyticsEngine ["2. Local Analytics Engine"]
+        C --> D[(In-Memory DuckDB Analytical Engine)]
+        D --> E[Deep Statistical Profiler]
+    end
+
+    subgraph AIReasoning ["3. AI Reasoning Brain"]
+        E --> F[Google Gemini LLM Manager]
+        F --> G[NL-to-SQL Generator]
+        F --> H[Autonomous Hypothesis Discovery]
+    end
+
+    subgraph Presentation ["4. Visual & Business Intelligence"]
+        G & H --> I[Recharts Interactive Dashboard]
+        G & H --> J[Visual Query Builder & SQL Workbench]
+        G & H --> K[ML Readiness & Anomaly Registry]
+    end
+
+    subgraph Export ["5. Executive Deliverables"]
+        I & J & K --> L[PDF & DOCX Executive Briefings]
+        I & J & K --> M[Clean Parquet/CSV Dataset Export]
+    end
+
+    style Ingestion fill:#1e293b,stroke:#3b82f6,stroke-width:2px,color:#fff
+    style AnalyticsEngine fill:#0f172a,stroke:#eab308,stroke-width:2px,color:#fff
+    style AIReasoning fill:#1e1b4b,stroke:#8b5cf6,stroke-width:2px,color:#fff
+    style Presentation fill:#022c22,stroke:#10b981,stroke-width:2px,color:#fff
+    style Export fill:#312e81,stroke:#6366f1,stroke-width:2px,color:#fff
+```
 
 ---
 
-## 🔥 Unrivaled Features
+## 🔥 Unrivaled Feature Suite
 
-Prism isn't just a dashboard. It's an entire data engineering pipeline wrapped in a seamless UI.
-
-### 🧠 The AI Brain
-* **Natural Language to SQL:** Ask your data questions in plain English (e.g., *"Show me the top 5 products by revenue last quarter"*). The AI translates this into hyper-optimized DuckDB SQL.
-* **Autonomous Hypotheses:** The moment you upload data, Prism starts generating testable theories about causality and correlations without you lifting a finger.
-* **AI-Powered Data Dashboard:** It instantly calculates exactly which graph tells the best story based solely on column types. No configuration required.
-
-### 🌪️ The "Upload Anything" Engine
-* **Universal File Support:** Throw `.csv`, `.xlsx`, `.json`, `.parquet`, `.xml`, or even raw `.sql` dumps at it. 
-* **Seamless ZIP Extraction:** Upload a `.zip` archive full of CSVs—Prism automatically unzips it in the background and processes every file simultaneously.
-* **Mid-Session Multi-File Append:** Missing a dataset? Just click the **Floating Add Button** inside the workspace to inject new tables directly into the SQL engine *without* losing your current progress.
-* **Chunked Large File Ingestion:** Have a 5GB CSV? Prism handles it smoothly without crashing your browser or eating all your RAM. 
-
-### 🧹 No-Code Data Cleaning & Profiling
-* **Instant Deep Profiling:** See null distributions, unique counts, inferred semantic types, and out-of-bounds data points the second your file finishes uploading.
-* **Auto-Correction Engine:** Prism suggests how to handle duplicates or massive null gaps. Let it drop missing rows, fill with medians, or flag anomalies intelligently.
-* **Malformed Data Side-by-Side:** When data is profoundly broken, Prism shows you the exact rows causing issues and lets you configure salvage strategies visually.
-
-### 🛠️ The SQL Workbench
-* **Zero-Setup DuckDB:** An in-memory, insanely fast analytical database is spun up automatically for every session.
-* **Visual Query Builder:** Don't know SQL? Use the drag-and-drop Visual Builder to join tables, filter data, and apply complex aggregations.
-* **Instant Auto-Viz Engine:** Every time you run a query, the results are instantly graphed out.
-
-### 📄 Instant Exporting
-* **One-Click Reports:** Generate breathtaking Analyst Briefs detailing all findings directly to **PDF** or **DOCX**.
-* **Export Anything:** Download your cleaned data to Parquet, JSON, or CSV instantly.
+### 🌪️ 1. The "Upload Anything" Engine
+* **Universal File Compatibility:** Seamlessly ingests `.csv`, `.xlsx`, `.json`, `.parquet`, `.xml`, and raw `.sql` database dumps without pre-formatting.
+* **Recursive `.zip` Processing:** Upload a compressed `.zip` archive containing dozens of files—PRISM unpacks and processes every table in parallel automatically.
+* **Mid-Session Dynamic Table Append:** Need to add another dataset mid-analysis? Click the floating `+` button to dynamically inject new tables directly into the live SQL workspace without losing progress.
+* **GB-Scale Memory Efficiency:** Built with chunked streaming ingestion so multi-gigabyte files process smoothly without crashing your browser or draining RAM.
 
 ---
 
-## ⚡ The Ultimate 1-Click Setup Guide
+### 🧠 2. The Autonomous AI Brain
+* **Plain-English to DuckDB SQL:** Ask questions naturally (*"Show me top 5 revenue growth categories in Q3"*). PRISM translates your intent into hyper-optimized, error-free DuckDB SQL.
+* **Zero-Touch Hypothesis Generator:** On upload, PRISM scans column dynamics to generate testable theories on causality, risk factors, and revenue drivers before you even ask a question.
+* **Explainable Query Workbench:** Inspect every generated SQL query with step-by-step plain-English breakdowns and visual query execution plans.
 
-We’ve engineered Prism to be incredibly easy to start, even if you have absolutely **zero programming experience**. 
+---
 
-### Step 1: Install the Bare Essentials
-If you don't already have these, install them first:
-1. **[Python 3.10+](https://www.python.org/downloads/)**
-   - *⚠️ CRITICAL:* During the Python installation, you **MUST** check the box that says **"Add Python to PATH"** at the very bottom of the installer window.
-2. **[Node.js (18+)](https://nodejs.org/en/download/)**
-   - Download the LTS version and install it with default settings.
+### 📊 3. AI Business Intelligence & Power BI Alternative
+* **Self-Service Auto-Dashboards:** PRISM analyzes column semantics to calculate the exact visualizations (bar, line, scatter, heatmap) that convey maximum business value.
+* **Visual Query Builder:** Construct complex multi-table joins, filters, and aggregations visually without writing a single line of SQL code.
+* **Interactive Relationship Graphs:** Visualize cross-table foreign key links and column correlations through node-link relationship diagrams powered by React Flow.
+
+---
+
+### 🧹 4. No-Code Data Repair & ML Readiness
+* **Instant Statistical Profiling:** View distribution histograms, missing value heatmaps, cardinality metrics, and outlier ranges instantly.
+* **Side-by-Side Corrupted Row Repair:** Interactively inspect broken or malformed rows and visual repair strategies side-by-side.
+* **Automated Data Sanitization:** Apply intelligent missing-value imputation (median, mode, forward-fill) and outlier flagging in one click.
+* **ML Feature Engineering Scorecard:** Evaluate whether your dataset is machine-learning ready with automated encoding advice and target variable detectors.
+
+---
+
+### 📄 5. Executive Reporting & Export Engine
+* **1-Click Executive Analyst Briefings:** Compile all findings, graphs, statistical summaries, and AI key takeaways directly into client-ready **PDF** or **DOCX** reports.
+* **Clean Data Export:** Download transformed, cleaned, and feature-engineered datasets into production-ready `.parquet`, `.csv`, or `.json` formats.
+
+---
+
+### 🤝 6. Collaboration & Failover Infrastructure
+* **Workspace Collaboration Panel:** Annotate insights, leave comments for team members, and export shared workspace sessions.
+* **Resilient Multi-Key API Management:** Built-in API key rotation system with intelligent fallback algorithms to handle Gemini free-tier rate limits (429/RPM thresholds) smoothly.
+
+---
+
+## 📊 Feature Matrix: PRISM vs. Legacy Tools
+
+| Capability | Legacy Power BI / Tableau | Standard Python / Pandas | PRISM Data Intelligence |
+| :--- | :---: | :---: | :---: |
+| **Setup Overhead** | Hours (Complex Installation & Licensing) | Medium (Environments & Dependencies) | **⚡ Instant 1-Click (`start.bat`)** |
+| **Natural Language Queries** | Limited / Basic | ❌ Requires Code | **🧠 Full Autonomous SQL Reasoning** |
+| **Messy & Malformed Data Handling** | ❌ Fails on Syntax Errors | Manual Data Cleaning Code | **🧹 Automatic Visual Repair & Imputation** |
+| **Compressed File Ingestion** | ❌ Manual Extraction Required | Custom Scripting | **📦 Direct `.zip` Multi-Table Ingestion** |
+| **Data Privacy** | Cloud Upload / Proprietary Lock-in | Local (High Effort) | **🛡️ 100% Local-First Engine** |
+| **Automated Executive Reports** | Manual Slide Formatting | Manual Export Scripting | **📄 1-Click PDF & DOCX Briefings** |
+
+---
+
+## ⚡ The 1-Click Setup Guide
+
+PRISM is engineered for effortless deployment. You do not need deep programming knowledge to run it.
+
+### Step 1: Prerequisites
+Ensure you have the following installed:
+1. **[Python 3.10+](https://www.python.org/downloads/)** (*Check "Add Python to PATH" during setup*)
+2. **[Node.js 18+](https://nodejs.org/en/download/)**
 3. **[Git](https://git-scm.com/downloads)**
-   - So you can clone the repository.
-4. *(Optional but Highly Recommended)* **[Visual Studio Code](https://code.visualstudio.com/)** to view the code.
 
-### Step 2: Get Your Free AI Brain (API Key)
-Prism uses Google's Gemini AI to power its incredible reasoning engine.
-1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey).
-2. Sign in with any Google account.
-3. Click **"Create API Key"** and copy the long string of letters and numbers it gives you.
+### Step 2: Get Your Free AI Key
+PRISM uses Google's Gemini AI to power its natural language reasoning:
+1. Visit [Google AI Studio](https://aistudio.google.com/app/apikey).
+2. Click **Create API Key** and copy your key.
 
-### Step 3: Magic 1-Click Startup
-You don't need to manually install dependencies, configure virtual environments, or worry about environment variables. **Our `start.bat` script handles *literally everything*.**
+### Step 3: Launch with 1-Click
+Run the following in your terminal:
+```bash
+git clone https://github.com/Srikant-03/prism.git
+cd prism
+start.bat
+```
 
-1. Open your terminal (Command Prompt or PowerShell) and run:
-   ```bash
-   git clone https://github.com/YourUsername/prism.git
-   cd prism
-   ```
-2. Double click the **`start.bat`** file in the folder (or run `start.bat` in the terminal).
-
-**What the script does autonomously:**
-- ✅ Verifies you have Python and Node.js installed correctly.
-- ✅ Creates an isolated Python virtual environment safely.
-- ✅ Installs complex backend Data Science libraries (`pandas`, `duckdb`, `fastapi`, etc.).
-- ✅ Installs frontend React dependencies seamlessly.
-- ✅ Creates your `.env` configuration files completely automatically. 
-- ✅ Boots the backend server and frontend client simultaneously.
-- ✅ Automatically opens your browser to `http://localhost:5173`.
-
-### Step 4: Paste Your Key
-The **first time** the script runs, it will create a `backend/.env` file for you automatically. 
-1. Open the `prism/backend/.env` file in Notepad or VS Code.
-2. Find the line that says `GEMINI_API_KEY=""`.
-3. Paste the key you got from Step 2 inside the quotes (e.g., `GEMINI_API_KEY="AIzaSyYourSecretKey..."`).
-4. Save the file. (You never have to do this again).
-
-**That's it. You're completely done.** Your autonomous AI analyst is alive. Drop in a dataset and watch the magic happen.
+> **What `start.bat` handles automatically:**
+> - ✅ Verifies Python and Node.js environments.
+> - ✅ Spins up an isolated Python virtual environment (`.venv`).
+> - ✅ Installs all backend (`fastapi`, `duckdb`, `pandas`) and frontend dependencies.
+> - ✅ Prompts for your `GEMINI_API_KEY` on first launch and configures `.env`.
+> - ✅ Boots both backend server & React UI, automatically launching `http://localhost:5173`.
 
 ---
 
-## 📸 Navigating the Interface
+## 🛠️ Tech Stack & Architecture
 
-### The Workspace
-- **Data Grid:** An Excel-style endless-scroll view into your datasets.
-- **SQL Query Engine:** Let the AI write queries for you, or build them visually.
-- **AI Dashboard:** Look for the dashboard tab—Prism will generate bar, line, and scatter plots comparing the most vital columns automatically.
-- **Add Dataset Button:** See that little `+` button floating in the bottom right? At any point during your analysis, click it to upload a completely new table (or ZIP file!), and it will be silently injected into your SQL engine so you can instantly `JOIN` it with your existing data!
-
----
-
-## 🛠️ Tech Stack Architecture
-**Frontend:**
-- React 18 / TypeScript
-- Vite
-- Ant Design (Custom Themed Glassmorphism UI)
-- Recharts (Interactive Visualizations)
-- React Flow (Relationship Graphs)
-
-**Backend:**
-- Python 3.10+
-- FastAPI (High-performance async server)
-- Pandas & DuckDB (Core analytics and SQL engine)
-- Uvicorn (ASGI Server)
-- Python-Magic (Magic-byte threat detection)
-- Google GenAI SDK (LLM integration)
+```text
+PRISM PLATFORM
+├── FRONTEND LAYER (React 18 + TypeScript + Vite)
+│   ├── UI Framework: Ant Design (Custom Glassmorphism Theme)
+│   ├── Visualizations: Recharts, React Flow
+│   └── State & API: Custom Hooks, Async File Streaming
+│
+├── BACKEND ENGINE (Python 3.10+ FastAPI)
+│   ├── Analytical Engine: DuckDB (In-Memory Columnar OLAP)
+│   ├── Data Processing: Pandas, OpenPyXL, PyArrow
+│   ├── Safety & Ingestion: Python-Magic, ZipFile Streamer
+│   └── LLM Reasoning: Google GenAI SDK (Gemini Flash/Pro)
+│
+└── EXPORT & REPORTING
+    ├── Document Generators: ReportLab (PDF), Python-Docx (DOCX)
+    └── Serialization: Parquet, JSON, CSV Exporters
+```
 
 ---
 
-## 🛡️ License & Privacy
-Prism is built to be a privacy-first local powerhouse. Your actual dataset rows **never** leave your machine. The only data sent to the AI API are schema structures (column names and types) for reasoning purposes. 
+## 🛡️ Privacy & Security Manifesto
 
-### Built with ❤️ for data people.
+PRISM was built on a foundational promise: **Your data belongs to you.**
+
+1. **Zero Raw-Row Cloud Leakage:** All data processing, aggregation, mathematical transformations, and cleaning algorithms happen exclusively inside local RAM via DuckDB.
+2. **Schema-Only AI Context:** When sending prompts to the LLM, PRISM passes only column metadata (e.g., `["sales": FLOAT, "region": VARCHAR]`) and truncated data samples so the AI can craft valid SQL queries without accessing your full dataset.
+3. **No External Storage:** PRISM does not persist or upload your datasets to external cloud buckets.
+
+---
+
+<div align="center">
+
+### Built with ❤️ for data analysts, engineers, and researchers.
+
+**[⭐ Star this repository on GitHub](https://github.com/Srikant-03/prism)** if PRISM helps streamline your data workflow!
+
+</div>
