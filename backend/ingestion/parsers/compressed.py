@@ -114,9 +114,19 @@ class CompressedParser(BaseParser):
         """Decompress a ZIP and parse its contents."""
         config = IngestionConfig()
         temp_dir = Path(tempfile.mkdtemp(dir=str(config.TEMP_DIR)))
+        resolved_temp_dir = temp_dir.resolve()
 
         try:
             with zipfile.ZipFile(str(self.file_path), "r") as zf:
+                # Security: Validate all entries against Zip Slip path traversal
+                for member in zf.infolist():
+                    target_path = (resolved_temp_dir / member.filename).resolve()
+                    if resolved_temp_dir not in target_path.parents and target_path != resolved_temp_dir:
+                        shutil.rmtree(temp_dir, ignore_errors=True)
+                        return ParseResult(
+                            warnings=[f"Security: Path traversal attempted in archive member '{member.filename}'"],
+                            justification="Decompression aborted due to path traversal security violation.",
+                        )
                 zf.extractall(str(temp_dir))
 
             # Find all extracted files
@@ -125,6 +135,7 @@ class CompressedParser(BaseParser):
             ]
 
             if not extracted_files:
+                shutil.rmtree(temp_dir, ignore_errors=True)
                 return ParseResult(
                     warnings=["ZIP archive is empty"],
                     justification="ZIP archive contained no files.",
@@ -143,6 +154,7 @@ class CompressedParser(BaseParser):
                     f"Decompressed ZIP → {inner_file.name}. {result.justification}"
                 )
                 result.metadata["compressed_source"] = self.file_path.name
+                shutil.rmtree(temp_dir, ignore_errors=True)
                 return result
             elif parser_factory:
                 # Multiple files — return metadata for multi-file handling
@@ -168,16 +180,17 @@ class CompressedParser(BaseParser):
                     justification=" ".join(justification_parts),
                 )
             else:
+                shutil.rmtree(temp_dir, ignore_errors=True)
                 return ParseResult(
                     metadata={
                         **self.get_metadata(),
-                        "temp_dir": str(temp_dir),
                     },
                     justification="ZIP decompressed but no parser factory available.",
                     warnings=["Internal: parser_factory not provided to CompressedParser"],
                 )
 
         except Exception as e:
+            shutil.rmtree(temp_dir, ignore_errors=True)
             return ParseResult(
                 warnings=[f"ZIP decompression failed: {str(e)}"],
                 justification=f"Failed to decompress ZIP: {str(e)}",
