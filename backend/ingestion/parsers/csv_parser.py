@@ -18,6 +18,18 @@ from ingestion.detector import DelimiterDetector
 from models.schemas import MalformedReport, MalformedRow, MalformedSeverity
 from ingestion.parsers.base import BaseParser, ParseResult
 
+try:
+    from cleaning.datetime_handler import infer_dayfirst
+except ImportError:
+    def infer_dayfirst(series: pd.Series) -> bool:
+        return False
+
+
+STANDARD_NA_VALUES = [
+    "", " ", "\t", "NA", "N/A", "null", "NULL", "None", "NaN", "nan",
+    "\\N", "nil", "NIL", "none", "NONE", "#N/A", "<NA>", "#NA"
+]
+
 
 class CSVParser(BaseParser):
     """
@@ -83,8 +95,15 @@ class CSVParser(BaseParser):
                 on_bad_lines="warn",
                 engine="python",
                 dtype=str,  # Read everything as string first to avoid data loss
-                keep_default_na=False,
+                keep_default_na=True,
+                na_values=STANDARD_NA_VALUES,
             )
+
+            # Convert whitespace-only strings and residual null tokens to genuine np.nan
+            for col in df.columns:
+                if df[col].dtype == object or str(df[col].dtype) == "string":
+                    mask = df[col].isna() | df[col].astype(str).str.strip().isin(STANDARD_NA_VALUES)
+                    df.loc[mask, col] = None
 
             justification_parts.append(
                 f"Successfully parsed {len(df)} rows × {len(df.columns)} columns."
@@ -135,10 +154,15 @@ class CSVParser(BaseParser):
                 engine="python",
                 chunksize=chunk_size,
                 dtype=str,
-                keep_default_na=False,
+                keep_default_na=True,
+                na_values=STANDARD_NA_VALUES,
             )
 
             for i, chunk in enumerate(reader):
+                for col in chunk.columns:
+                    if chunk[col].dtype == object or str(chunk[col].dtype) == "string":
+                        mask = chunk[col].isna() | chunk[col].astype(str).str.strip().isin(STANDARD_NA_VALUES)
+                        chunk.loc[mask, col] = None
                 chunks.append(chunk)
                 # Estimate bytes read based on rows processed
                 rows_so_far = sum(len(c) for c in chunks)
@@ -175,56 +199,92 @@ class CSVParser(BaseParser):
     def _detect_malformed_rows(self, config: IngestionConfig) -> MalformedReport:
         """
         Scan the file for rows that don't match the expected structure.
-        Returns a detailed report of all issues found.
+        Uses Python's csv.reader respecting quotechar='"' so RFC-4180 quoted
+        commas (JSON, formatted dates, currencies) are not falsely flagged.
         """
         issues: list[MalformedRow] = []
+        total_data_rows = 0
 
         try:
-            with open(self.file_path, "r", encoding=self.encoding, errors="replace") as f:
-                lines = f.readlines()
+            with open(self.file_path, "r", encoding=self.encoding, errors="replace", newline="") as f:
+                reader = csv.reader(f, delimiter=self._delimiter, quotechar='"')
+                try:
+                    header = next(reader)
+                except StopIteration:
+                    return MalformedReport()
+                except Exception as e:
+                    return MalformedReport(
+                        has_issues=True,
+                        total_issues=1,
+                        issues=[MalformedRow(
+                            row_number=1,
+                            raw_content="",
+                            issue=f"Failed to read header: {str(e)}",
+                            severity=MalformedSeverity.ERROR,
+                        )],
+                        summary=f"Header read failed: {str(e)}",
+                    )
 
-            if not lines:
-                return MalformedReport()
+                header_fields = len(header)
+                row_idx = 1
+                while True:
+                    if len(issues) >= config.MAX_MALFORMED_REPORT_ROWS:
+                        break
+                    row_idx += 1
+                    try:
+                        row = next(reader)
+                    except StopIteration:
+                        break
+                    except csv.Error as e:
+                        issues.append(MalformedRow(
+                            row_number=row_idx,
+                            raw_content="",
+                            issue=f"CSV parsing error: {str(e)}",
+                            severity=MalformedSeverity.ERROR,
+                            suggested_fix="Check quotes and escaping in row",
+                        ))
+                        continue
+                    except Exception as e:
+                        issues.append(MalformedRow(
+                            row_number=row_idx,
+                            raw_content="",
+                            issue=f"Error reading row: {str(e)}",
+                            severity=MalformedSeverity.ERROR,
+                        ))
+                        continue
 
-            # Detect expected field count from header
-            header_fields = len(lines[0].split(self._delimiter))
+                    # Skip empty rows (empty list or all empty strings)
+                    if not row or all(c == "" for c in row):
+                        continue
 
-            for i, line in enumerate(lines[1:], start=2):  # 1-indexed, skip header
-                if len(issues) >= config.MAX_MALFORMED_REPORT_ROWS:
-                    break
+                    total_data_rows += 1
+                    field_count = len(row)
 
-                stripped = line.strip()
-                if not stripped:
-                    continue
+                    if field_count != header_fields:
+                        issues.append(MalformedRow(
+                            row_number=row_idx,
+                            raw_content=",".join(row)[:500],
+                            issue=(
+                                f"Expected {header_fields} fields but found {field_count}. "
+                                f"{'Extra' if field_count > header_fields else 'Missing'} "
+                                f"{abs(field_count - header_fields)} field(s)."
+                            ),
+                            severity=MalformedSeverity.WARNING if abs(field_count - header_fields) <= 2
+                            else MalformedSeverity.ERROR,
+                            suggested_fix=(
+                                "Extra fields will be truncated" if field_count > header_fields
+                                else "Missing fields will be filled with empty values"
+                            ),
+                        ))
 
-                field_count = len(stripped.split(self._delimiter))
-
-                if field_count != header_fields:
-                    issues.append(MalformedRow(
-                        row_number=i,
-                        raw_content=stripped[:500],  # Truncate very long lines
-                        issue=(
-                            f"Expected {header_fields} fields but found {field_count}. "
-                            f"{'Extra' if field_count > header_fields else 'Missing'} "
-                            f"{abs(field_count - header_fields)} field(s)."
-                        ),
-                        severity=MalformedSeverity.WARNING if abs(field_count - header_fields) <= 2
-                        else MalformedSeverity.ERROR,
-                        suggested_fix=(
-                            "Extra fields will be truncated" if field_count > header_fields
-                            else "Missing fields will be filled with empty values"
-                        ),
-                    ))
-
-                # Check for encoding issues
-                if "\ufffd" in line:
-                    issues.append(MalformedRow(
-                        row_number=i,
-                        raw_content=stripped[:500],
-                        issue="Contains replacement characters (encoding errors detected)",
-                        severity=MalformedSeverity.WARNING,
-                        suggested_fix="Characters that could not be decoded were replaced with '�'",
-                    ))
+                    if any("\ufffd" in str(c) for c in row):
+                        issues.append(MalformedRow(
+                            row_number=row_idx,
+                            raw_content=",".join(row)[:500],
+                            issue="Contains replacement characters (encoding errors detected)",
+                            severity=MalformedSeverity.WARNING,
+                            suggested_fix="Characters that could not be decoded were replaced with '\ufffd'",
+                        ))
 
         except Exception as e:
             return MalformedReport(
@@ -243,6 +303,8 @@ class CSVParser(BaseParser):
             return MalformedReport(
                 has_issues=False,
                 summary="No malformed rows detected. All rows have consistent structure.",
+                best_effort_rows_parsed=total_data_rows,
+                best_effort_rows_dropped=0,
             )
 
         return MalformedReport(
@@ -254,7 +316,7 @@ class CSVParser(BaseParser):
                 f"{sum(1 for i in issues if i.severity == MalformedSeverity.ERROR)} critical, "
                 f"{sum(1 for i in issues if i.severity == MalformedSeverity.WARNING)} warnings."
             ),
-            best_effort_rows_parsed=len(lines) - 1 - sum(
+            best_effort_rows_parsed=total_data_rows - sum(
                 1 for i in issues if i.severity == MalformedSeverity.ERROR
             ),
             best_effort_rows_dropped=sum(
@@ -268,6 +330,7 @@ class CSVParser(BaseParser):
         Converts to numeric/datetime ONLY if there is zero data loss
         (i.e. no valid non-empty string is coerced into NaN).
         """
+        import warnings
         for col in df.columns:
             # Skip empty columns
             if len(df) == 0:
@@ -288,8 +351,10 @@ class CSVParser(BaseParser):
 
             # Try datetime
             try:
-                # Use format="mixed" for strictness if supported, else rely on coerce
-                dt = pd.to_datetime(df[col], errors="coerce")
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    df_first = infer_dayfirst(df[col])
+                    dt = pd.to_datetime(df[col], errors="coerce", format="mixed", dayfirst=df_first)
                 new_nans = dt.isna().sum()
                 if new_nans == original_empty and dt.notna().sum() > 0:
                     df[col] = dt
@@ -304,7 +369,7 @@ class CSVParser(BaseParser):
     ) -> ParseResult:
         """
         Fallback parsing when pandas main parser fails.
-        Reads line by line, skipping unparseable rows.
+        Reads line by line using csv.reader, skipping unparseable rows.
         """
         justification_parts.append(
             f"Primary parser failed ({error}). Falling back to line-by-line parsing."
@@ -314,22 +379,25 @@ class CSVParser(BaseParser):
         fallback_issues = []
 
         try:
-            with open(self.file_path, "r", encoding=self.encoding, errors="replace") as f:
-                for i, line in enumerate(f, 1):
-                    fields = line.strip().split(self._delimiter)
+            with open(self.file_path, "r", encoding=self.encoding, errors="replace", newline="") as f:
+                reader = csv.reader(f, delimiter=self._delimiter, quotechar='"')
+                for i, row in enumerate(reader, 1):
                     if header is None:
-                        header = fields
-                    elif len(fields) == len(header):
-                        rows.append(fields)
+                        header = row
+                    elif len(row) == len(header):
+                        rows.append(row)
                     else:
                         fallback_issues.append(MalformedRow(
                             row_number=i,
-                            raw_content=line.strip()[:500],
-                            issue=f"Row skipped: expected {len(header)} fields, got {len(fields)}",
+                            raw_content=",".join(row)[:500],
+                            issue=f"Row skipped: expected {len(header)} fields, got {len(row)}",
                             severity=MalformedSeverity.ERROR,
                         ))
 
             df = pd.DataFrame(rows, columns=header) if header and rows else pd.DataFrame()
+            for col in df.columns:
+                mask = df[col].isna() | df[col].astype(str).str.strip().isin(STANDARD_NA_VALUES)
+                df.loc[mask, col] = None
             df = self._infer_types(df)
 
             if fallback_issues:
@@ -348,7 +416,6 @@ class CSVParser(BaseParser):
                 warnings=[f"Used fallback parser due to: {error}"],
                 justification=" ".join(justification_parts),
             )
-
         except Exception as e2:
             return ParseResult(
                 warnings=[f"All parsing methods failed. Primary: {error}. Fallback: {str(e2)}"],
