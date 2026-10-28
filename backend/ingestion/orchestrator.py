@@ -508,4 +508,9 @@ def update_stored_dataframe(file_id: str, df: pd.DataFrame) -> bool:
     if file_id in _ingestion_store:
         _ingestion_store[file_id]["dataframe"] = df
         return True
-    return False
+    _ingestion_store[file_id] = {
+        "dataframe": df,
+        "filename": f"{file_id}.csv",
+        "metadata": None,
+    }
+    return True
