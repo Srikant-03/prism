@@ -391,14 +391,16 @@ class SQLEngine:
 
 
 def _safe_val(v: Any) -> Any:
-    """Convert a value to JSON-safe type."""
-    if v is None or (isinstance(v, float) and np.isnan(v)):
+    """Convert a value to JSON-safe type with clean float quantization."""
+    if v is None:
         return None
-    if isinstance(v, (np.integer,)):
+    if isinstance(v, (float, np.floating)):
+        if np.isnan(v) or np.isinf(v):
+            return None
+        return round(float(v), 6)
+    if isinstance(v, (int, np.integer)):
         return int(v)
-    if isinstance(v, (np.floating,)):
-        return float(v)
-    if isinstance(v, np.bool_):
+    if isinstance(v, (bool, np.bool_)):
         return bool(v)
     if isinstance(v, (pd.Timestamp, np.datetime64)):
         return str(v)
