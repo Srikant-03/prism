@@ -123,8 +123,13 @@ def get_df(file_id: str) -> Optional[pd.DataFrame]:
 
 def set_df(file_id: str, df: pd.DataFrame) -> None:
     """Update / replace the stored DataFrame for a file_id."""
-    from ingestion.orchestrator import update_stored_dataframe
-    update_stored_dataframe(file_id, df)
+    from ingestion.orchestrator import update_stored_dataframe, _ingestion_store
+    if not update_stored_dataframe(file_id, df):
+        _ingestion_store[file_id] = {
+            "dataframe": df,
+            "filename": f"{file_id}.csv",
+            "metadata": None,
+        }
 
 
 def get_meta(file_id: str) -> Optional[dict]:
