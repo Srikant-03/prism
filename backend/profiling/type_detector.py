@@ -184,9 +184,13 @@ class SemanticTypeDetector:
 
         # ── Disguised Boolean ──
         unique_lower = set(sample.str.lower().str.strip().unique())
-        for pair in BOOLEAN_PAIRS:
-            if unique_lower <= pair or (len(unique_lower) == 2 and unique_lower <= pair | {""}):
-                return SemanticType.BOOLEAN, 0.90
+        unique_clean = unique_lower - {"", None}
+        if len(unique_clean) == 2:
+            for pair in BOOLEAN_PAIRS:
+                if unique_clean <= pair:
+                    return SemanticType.BOOLEAN, 0.90
+        elif len(unique_clean) == 1 and unique_clean <= {"true", "false", "t", "f"}:
+            return SemanticType.BOOLEAN, 0.70
 
         # ── Binary Encoded ──
         if all(len(str(v)) > 10 for v in sample.head(20)):
@@ -277,11 +281,12 @@ class SemanticTypeDetector:
         else:
             # Float — check if actually integer-valued
             try:
-                is_int = (non_null == non_null.astype(int)).all()
+                is_int = (non_null % 1 == 0).all() if len(non_null) > 0 else False
                 if is_int:
                     n_unique = non_null.nunique()
                     if n_unique <= 20 and n > 50:
-                        return SemanticType.NUMERIC_DISCRETE, 0.80
+                        return SemanticType.NUMERIC_DISCRETE, 0.85
+                    return SemanticType.NUMERIC_DISCRETE, 0.75
             except (ValueError, OverflowError):
                 pass
 
