@@ -236,6 +236,10 @@ class ColumnProfile(BaseModel):
     name: str
     position: int
 
+    @property
+    def column_name(self) -> str:
+        return self.name
+
     # Universal
     inferred_dtype: str
     semantic_type: SemanticType
@@ -280,6 +284,7 @@ class DatasetProfile(BaseModel):
     # Metadata
     total_rows: int = 0
     total_columns: int = 0
+    duplicate_rows_count: int = 0
     memory_size_bytes: int = 0
     memory_size_readable: str = ""
     disk_size_bytes: int = 0
