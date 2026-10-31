@@ -71,11 +71,18 @@ def detect_functional_dependency(
     if n_c1 <= 1 or n_c2 <= 1:
         return None
 
-    # If every row is uniquely numbered/valued, any pair trivially maps 1-to-1.
-    # Meaningful redundancy requires repetitions or categorical types.
-    if n_c1 == len(sub) and n_c2 == len(sub):
-        if pd.api.types.is_numeric_dtype(sub[col1]) or pd.api.types.is_numeric_dtype(sub[col2]):
-            return None
+    # Skip near-unique columns (ratio > 0.70) or ID columns:
+    # A unique or near-unique identifier mathematically determines every other column in the dataset,
+    # generating false functional dependency explosion.
+    if (n_c1 / len(sub) > 0.70) or (n_c2 / len(sub) > 0.70):
+        return None
+
+    def _is_id_col(name: str) -> bool:
+        nl = name.lower()
+        return any(k in nl for k in ["id", "uuid", "guid", "row_id", "sequential", "key"])
+
+    if _is_id_col(col1) or _is_id_col(col2):
+        return None
 
     # Check col1 -> col2
     c1_determines_c2 = bool((sub.groupby(col1)[col2].nunique() <= 1).all())
