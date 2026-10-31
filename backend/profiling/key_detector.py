@@ -96,9 +96,22 @@ class KeyDetector:
 
         candidates: list[KeyCandidate] = []
 
+        def is_excluded_quantity(col_name: str) -> bool:
+            cl = col_name.lower()
+            return any(k in cl for k in [
+                "unit", "units", "qty", "quantity", "amount", "price",
+                "revenue", "cost", "rate", "score", "age", "weight", "discount"
+            ])
+
+        def has_key_token(col_name: str) -> bool:
+            cl = col_name.lower()
+            return any(k in cl for k in ["id", "key", "uuid", "code", "guid", "pk", "fk"])
+
         # Only check columns with reasonable cardinality
         eligible = []
         for col in df.columns:
+            if is_excluded_quantity(col):
+                continue
             nunique = df[col].nunique()
             if 2 < nunique < len(df) * 0.8:
                 eligible.append(col)
@@ -114,12 +127,14 @@ class KeyDetector:
                 if len(values_b) == 0:
                     continue
 
+                both_keys = has_key_token(col_a) and has_key_token(col_b)
+
                 intersection = len(values_a.intersection(values_b))
                 overlap_a = intersection / len(values_a)
                 overlap_b = intersection / len(values_b)
 
                 # Check if A is largely a subset of B
-                if overlap_a >= 0.95:
+                if overlap_a >= 0.95 and (len(values_a) >= 10 or both_keys):
                     candidates.append(KeyCandidate(
                         columns=[col_a, col_b],
                         uniqueness=overlap_a,
@@ -131,7 +146,7 @@ class KeyDetector:
                     ))
 
                 # Check if B is largely a subset of A
-                elif overlap_b >= 0.95:
+                elif overlap_b >= 0.95 and (len(values_b) >= 10 or both_keys):
                     candidates.append(KeyCandidate(
                         columns=[col_b, col_a],
                         uniqueness=overlap_b,
