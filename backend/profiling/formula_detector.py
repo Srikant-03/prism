@@ -90,6 +90,21 @@ def check_formula_match(
     a_vals = s_a[valid].to_numpy(dtype=float)
     exp_vals = expected_a[valid].to_numpy(dtype=float)
 
+    # 1. Non-zero values of a_vals must actually match exp_vals
+    a_nonzero = (a_vals != 0.0)
+    if np.sum(a_nonzero) > 0:
+        nonzero_matches = np.isclose(a_vals[a_nonzero], exp_vals[a_nonzero], atol=atol, rtol=rtol)
+        if np.mean(nonzero_matches) < min_match_ratio:
+            return False, float(np.mean(nonzero_matches)), n_valid
+
+    # 2. Guard against zero-dominated false positives:
+    # If a column is >80% zeros, expected values for zero rows must also be actually zero
+    a_zero = (a_vals == 0.0)
+    if np.mean(a_zero) > 0.80 and np.sum(a_zero) > 0:
+        zero_matches = np.isclose(exp_vals[a_zero], 0.0, atol=1e-4)
+        if np.mean(zero_matches) < min_match_ratio:
+            return False, float(np.mean(zero_matches)), n_valid
+
     matches = np.isclose(a_vals, exp_vals, atol=atol, rtol=rtol)
     match_ratio = float(np.mean(matches))
 
@@ -226,6 +241,21 @@ def detect_three_variable_formulas(
                     tolerance=atol,
                 ))
 
+            # 5b_dec. A = op1 * (1 - op2) (Discounted price with decimal rate, e.g. discount_rate = 0.15)
+            exp_pct2_dec = s_map[op1] * (1.0 - s_map[op2])
+            ok, ratio, count = check_formula_match(s_a, exp_pct2_dec, atol=atol, rtol=rtol, min_match_ratio=min_match_ratio)
+            if ok:
+                found.append(DeterministicFormula(
+                    dependent=a,
+                    operands=[op1, op2],
+                    operation="percentage",
+                    formula_expr=f"{a} = {op1} * (1 - {op2})",
+                    description=f"`{a}` is deterministically derived from `{op1}` and `{op2}`.",
+                    match_ratio=ratio,
+                    sample_size=count,
+                    tolerance=atol,
+                ))
+
             # 5c. A = op1 * (1 + op2 / 100) (Tax / Markup)
             exp_pct3 = s_map[op1] * (1.0 + s_map[op2] / 100.0)
             ok, ratio, count = check_formula_match(s_a, exp_pct3, atol=atol, rtol=rtol, min_match_ratio=min_match_ratio)
@@ -235,6 +265,21 @@ def detect_three_variable_formulas(
                     operands=[op1, op2],
                     operation="percentage",
                     formula_expr=f"{a} = {op1} * (1 + {op2} / 100)",
+                    description=f"`{a}` is deterministically derived from `{op1}` and `{op2}`.",
+                    match_ratio=ratio,
+                    sample_size=count,
+                    tolerance=atol,
+                ))
+
+            # 5c_dec. A = op1 * (1 + op2) (Tax / Markup with decimal rate)
+            exp_pct3_dec = s_map[op1] * (1.0 + s_map[op2])
+            ok, ratio, count = check_formula_match(s_a, exp_pct3_dec, atol=atol, rtol=rtol, min_match_ratio=min_match_ratio)
+            if ok:
+                found.append(DeterministicFormula(
+                    dependent=a,
+                    operands=[op1, op2],
+                    operation="percentage",
+                    formula_expr=f"{a} = {op1} * (1 + {op2})",
                     description=f"`{a}` is deterministically derived from `{op1}` and `{op2}`.",
                     match_ratio=ratio,
                     sample_size=count,
