@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Any, Optional, Tuple
@@ -12,6 +13,24 @@ from profiling.cross_column_models import (
 )
 from profiling.profiling_models import DatasetProfile
 
+logger = logging.getLogger(__name__)
+
+
+def _to_clean_num(series: pd.Series) -> pd.Series:
+    """
+    Robustly convert a series to numeric, stripping currency symbols,
+    ISO currency codes (e.g. USD, EUR, GBP), commas, and percent signs.
+    """
+    if pd.api.types.is_numeric_dtype(series):
+        return pd.to_numeric(series, errors='coerce')
+    clean_s = series.astype(str).str.strip()
+    clean_s = clean_s.str.replace(r'^[A-Z]{3}\s*', '', regex=True)
+    clean_s = clean_s.str.replace(r'[$€£¥,]', '', regex=True)
+    clean_s = clean_s.str.replace(r'%', '', regex=True)
+    clean_s = clean_s.str.strip()
+    return pd.to_numeric(clean_s, errors='coerce')
+
+
 class CorrelationAnalyzer:
     """
     Computes pair-wise correlations, associations, and multicollinearity
@@ -24,12 +43,6 @@ class CorrelationAnalyzer:
 
     def analyze(self, df: pd.DataFrame, dataset_profile: Optional[DatasetProfile] = None) -> CorrelationAnalysis:
         try:
-            def _to_clean_num(series: pd.Series) -> pd.Series:
-                if pd.api.types.is_numeric_dtype(series):
-                    return pd.to_numeric(series, errors='coerce')
-                clean_s = series.astype(str).str.replace(',', '', regex=False).str.replace('$', '', regex=False).str.strip()
-                return pd.to_numeric(clean_s, errors='coerce')
-
             # 1. Detect datetime columns before any categorical partitioning
             datetime_cols = self._detect_datetime_columns(df, dataset_profile)
             dt_set = set(datetime_cols)
@@ -505,12 +518,12 @@ class CorrelationAnalyzer:
                 y = sub_df[target]
                 
                 # Identify discrete features for the MI computer
-                discrete_features_idx = [j for j, f in enumerate(features) if f in cat_cols or f in bin_cols]
+                discrete_mask = np.array([f in cat_cols or f in bin_cols for f in features], dtype=bool)
 
                 if discrete_target:
-                    mi_scores = mutual_info_classif(X, y, discrete_features=discrete_features_idx, random_state=42)
+                    mi_scores = mutual_info_classif(X, y, discrete_features=discrete_mask, random_state=42)
                 else:
-                    mi_scores = mutual_info_regression(X, y, discrete_features=discrete_features_idx, random_state=42)
+                    mi_scores = mutual_info_regression(X, y, discrete_features=discrete_mask, random_state=42)
                 
                 for feat, score in zip(features, mi_scores):
                     s_f = float(score) if not np.isnan(score) and not np.isinf(score) else 0.0
@@ -518,8 +531,7 @@ class CorrelationAnalyzer:
                     mi_dict[target][feat] = s_f
 
         except Exception as e:
-            # Fallback if MI fails
-            pass
+            logger.warning("Mutual information calculation failed: %s", e, exc_info=True)
 
         return mi_dict
 
@@ -571,7 +583,8 @@ class CorrelationAnalyzer:
                 vif_scores=vif_scores,
                 warnings=warnings
             )
-        except Exception:
+        except Exception as e:
+            logger.warning("VIF multicollinearity calculation failed: %s", e, exc_info=True)
             return MulticollinearityReport(has_multicollinearity=False, vif_scores={}, warnings=[])
 
 
