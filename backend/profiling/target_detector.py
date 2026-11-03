@@ -154,6 +154,10 @@ class TargetDetector:
             if col.semantic_type in ('numeric_continuous',) and score > 0:
                 score += 0.5
 
+            if score > 0:
+                scores[col.name] = score
+                reasons_map[col.name] = col_reasons
+
         if not scores:
             # Fallback: select the best numeric metric column or last valid feature
             valid_cols = [c for c in dataset_profile.columns if c.name in df.columns and c.semantic_type not in ('id_key', 'free_text', 'url', 'hashed')]
@@ -192,7 +196,13 @@ class TargetDetector:
         n_unique_vals = s.nunique()
         total_vals = len(s)
 
-        if col_type == 'boolean' or n_unique_vals == 2:
+        is_binary = (
+            col_type == 'boolean'
+            or n_unique_vals == 2
+            or (n_unique_vals <= 2 and set(s.unique()).issubset({0, 1, 0.0, 1.0, '0', '1', 'true', 'false', 'True', 'False', True, False}))
+        )
+
+        if is_binary and n_unique_vals >= 2:
             problem_type = "binary_classification"
             counts = s.value_counts(normalize=True)
             class_dist = {str(k): float(v) for k, v in counts.items()}
@@ -234,21 +244,27 @@ class TargetDetector:
         target_correlations = []
 
         # Check correlation matrix directly
-        if target_name in correlations.correlation_matrix:
-            for feat, score in correlations.correlation_matrix[target_name].items():
+        corr_matrix = correlations.correlation_matrix if hasattr(correlations, "correlation_matrix") else (correlations.get("correlation_matrix") if isinstance(correlations, dict) else {})
+        if corr_matrix and target_name in corr_matrix:
+            for feat, score in corr_matrix[target_name].items():
                 if feat != target_name:
                     target_correlations.append((feat, float(score)))
 
         # Check existing strong pairs
-        for pair in correlations.strongest_pairs:
-            if pair.col1 == target_name and not any(t[0] == pair.col2 for t in target_correlations):
-                target_correlations.append((pair.col2, pair.score))
-            elif pair.col2 == target_name and not any(t[0] == pair.col1 for t in target_correlations):
-                target_correlations.append((pair.col1, pair.score))
+        strong_pairs = correlations.strongest_pairs if hasattr(correlations, "strongest_pairs") else (correlations.get("strongest_pairs") if isinstance(correlations, dict) else [])
+        for pair in strong_pairs:
+            col1 = pair.col1 if hasattr(pair, "col1") else (pair.get("col1") if isinstance(pair, dict) else None)
+            col2 = pair.col2 if hasattr(pair, "col2") else (pair.get("col2") if isinstance(pair, dict) else None)
+            score = pair.score if hasattr(pair, "score") else (pair.get("score") if isinstance(pair, dict) else 0.0)
+            if col1 == target_name and not any(t[0] == col2 for t in target_correlations):
+                target_correlations.append((col2, score))
+            elif col2 == target_name and not any(t[0] == col1 for t in target_correlations):
+                target_correlations.append((col1, score))
 
         # Check mutual info
-        if target_name in correlations.mutual_information:
-            mi_dict = correlations.mutual_information[target_name]
+        mi = correlations.mutual_information if hasattr(correlations, "mutual_information") else (correlations.get("mutual_information") if isinstance(correlations, dict) else {})
+        if mi and target_name in mi:
+            mi_dict = mi[target_name]
             for f, score in mi_dict.items():
                 if f != target_name and not any(t[0] == f for t in target_correlations):
                     target_correlations.append((f, score))
