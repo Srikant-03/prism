@@ -94,6 +94,7 @@ def _stage_metadata(ctx: PipelineContext) -> None:
     ds = ctx.dataset
     ds.total_rows = len(ctx.df)
     ds.total_columns = len(ctx.df.columns)
+    ds.duplicate_rows_count = int(ctx.df.duplicated().sum())
 
     mem_bytes = int(ctx.df.memory_usage(deep=True).sum())
     ds.memory_size_bytes = mem_bytes
