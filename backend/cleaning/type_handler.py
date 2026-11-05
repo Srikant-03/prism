@@ -17,6 +17,7 @@ from cleaning.cleaning_models import (
     ImpactEstimate, PreviewSample, UserOption,
     TypeCorrectionReport, TypeCorrectionDetail, DetectedType,
 )
+from cleaning.datetime_handler import infer_dayfirst
 
 
 # ── Boolean mappings ──────────────────────────────────────────────────
@@ -154,6 +155,7 @@ class TypeHandler:
         sample_before: list[str] = []
         sample_after: list[str] = []
         unparseable: list[str] = []
+        df_first = infer_dayfirst(values)
 
         for val in sample:
             val_str = str(val).strip()
@@ -178,17 +180,17 @@ class TypeHandler:
             except (ValueError, OverflowError):
                 pass
 
-            # Try standard date parsing
+            # Try standard date parsing with inferred dayfirst
             try:
-                dt = pd.to_datetime(val_str, dayfirst=False)
+                dt = pd.to_datetime(val_str, dayfirst=df_first)
                 parsed += 1
                 if len(sample_before) < 5:
                     sample_before.append(val_str)
                     sample_after.append(str(dt))
             except Exception:
-                # Try European format
+                # Try alternate format
                 try:
-                    dt = pd.to_datetime(val_str, dayfirst=True)
+                    dt = pd.to_datetime(val_str, dayfirst=not df_first)
                     parsed += 1
                     if len(sample_before) < 5:
                         sample_before.append(val_str)
@@ -260,6 +262,11 @@ class TypeHandler:
             unparseable_samples=unparseable[:5],
         )
 
+    def _to_datetime(self, series: pd.Series) -> pd.Series:
+        """Convert a series to datetime, inferring dayfirst orientation."""
+        df_first = infer_dayfirst(series)
+        return pd.to_datetime(series, errors="coerce", format="mixed", dayfirst=df_first)
+
     def _parse_currency_value(self, val_str: str) -> Optional[float]:
         """Parse a currency/numeric string to float."""
         try:
@@ -304,8 +311,10 @@ class TypeHandler:
 
     # ── Boolean Detection ─────────────────────────────────────────────
     def _detect_booleans(self, col: str, values: pd.Series, total: int) -> Optional[TypeCorrectionDetail]:
-        unique = values.str.lower().str.strip().unique()
-        if len(unique) > 10:
+        unique_clean = set(values.str.lower().str.strip().unique()) - {"", "nan", "none", "null"}
+        if len(unique_clean) < 2 and not (len(unique_clean) == 1 and unique_clean <= {"true", "false", "t", "f"}):
+            return None
+        if len(unique_clean) > 10:
             return None
 
         # Check if all values are in boolean mappings
