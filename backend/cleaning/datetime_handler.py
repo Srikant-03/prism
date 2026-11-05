@@ -6,6 +6,7 @@ pairwise deltas, and detects time-series patterns.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Optional
 
 import numpy as np
@@ -15,6 +16,38 @@ from cleaning.cleaning_models import (
     CleaningAction, ActionType, ActionConfidence, ActionCategory,
     ImpactEstimate, PreviewSample, UserOption,
 )
+
+
+def infer_dayfirst(series: pd.Series) -> bool:
+    """
+    Deterministically infer whether date strings in a series are day-first (DD/MM/YYYY)
+    or month-first (MM/DD/YYYY).
+    Scans non-null string values matching ^(\\d{1,2})[/-](\\d{1,2})[/-](\\d{4})$ (excluding YYYY-MM-DD).
+    Counts unambiguous first > 12 (day-first) vs second > 12 (month-first).
+    Returns True if first_gt_12 > second_gt_12, else False.
+    """
+    if series is None or len(series) == 0:
+        return False
+    non_null = series.dropna()
+    if len(non_null) == 0:
+        return False
+
+    first_gt_12 = 0
+    second_gt_12 = 0
+    pattern = re.compile(r"^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$")
+
+    for val in non_null:
+        val_str = str(val).strip()
+        m = pattern.match(val_str)
+        if m:
+            first = int(m.group(1))
+            second = int(m.group(2))
+            if first > 12 and second <= 12:
+                first_gt_12 += 1
+            elif second > 12 and first <= 12:
+                second_gt_12 += 1
+
+    return first_gt_12 > second_gt_12
 
 
 class DatetimeHandler:
@@ -113,7 +146,8 @@ class DatetimeHandler:
             if self.df[col].dtype == object:
                 sample = self.df[col].dropna().head(20)
                 try:
-                    parsed = pd.to_datetime(sample, format="mixed", errors="coerce")
+                    df_first = infer_dayfirst(self.df[col])
+                    parsed = pd.to_datetime(sample, format="mixed", errors="coerce", dayfirst=df_first)
                     if parsed.notna().mean() > 0.8:
                         dt_cols.append(col)
                 except Exception:
@@ -125,7 +159,8 @@ class DatetimeHandler:
         if pd.api.types.is_datetime64_any_dtype(self.df[col]):
             return self.df[col]
         try:
-            return pd.to_datetime(self.df[col], format="mixed", errors="coerce")
+            df_first = infer_dayfirst(self.df[col])
+            return pd.to_datetime(self.df[col], format="mixed", errors="coerce", dayfirst=df_first)
         except Exception:
             return None
 
