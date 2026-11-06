@@ -49,19 +49,41 @@ class MissingHandler:
         if total_missing == 0:
             return actions, report
 
-        # 1. Per-column strategy selection
+        # 1. High-null rows (detected first to consolidate redundant single-row drops)
+        row_actions, high_null_count, threshold = self._high_null_rows()
+        report.high_null_rows = high_null_count
+        report.high_null_row_threshold = threshold
+
+        high_null_indices = set()
+        if high_null_count > 0:
+            null_pct_per_row = self.df.isnull().sum(axis=1) / self.n_cols
+            high_null_indices = set(self.df[null_pct_per_row >= threshold].index)
+
+        # 2. Per-column strategy selection
         col_strategies = self._column_strategies()
         report.column_strategies = col_strategies
+
+        consolidated_cols = []
         for cs in col_strategies:
+            col_null_indices = set(self.df[self.df[cs.column].isnull()].index)
+            # If all nulls for this column are completely contained in the high-null rows and strategy is DROP_ROWS:
+            if high_null_indices and col_null_indices.issubset(high_null_indices) and cs.recommended_strategy == ActionType.DROP_ROWS:
+                consolidated_cols.append(cs.column)
+                continue  # Consolidate into high-null row drop action!
+
             action = self._strategy_to_action(cs)
             if action:
                 actions.append(action)
 
-        # 2. High-null rows
-        row_actions, high_null_count, threshold = self._high_null_rows()
-        actions.extend(row_actions)
-        report.high_null_rows = high_null_count
-        report.high_null_row_threshold = threshold
+        # Add the consolidated high-null rows action
+        if row_actions:
+            if consolidated_cols:
+                row_actions[0].evidence += (
+                    f" Consolidates single-row missing values from {len(consolidated_cols)} columns: "
+                    f"{', '.join(consolidated_cols[:5])}{'...' if len(consolidated_cols) > 5 else ''}."
+                )
+                row_actions[0].metadata["consolidated_columns"] = consolidated_cols
+            actions.extend(row_actions)
 
         # 3. Missing pattern analysis
         pattern_results = self._pattern_analysis()
@@ -239,18 +261,12 @@ class MissingHandler:
 
     # ── Row-level null analysis ───────────────────────────────────────
     def _high_null_rows(self) -> tuple[list[CleaningAction], int, float]:
-        """Flag rows where a high percentage of values are missing."""
-        # Dynamic threshold based on column count
-        if self.n_cols <= 5:
-            threshold = 0.6
-        elif self.n_cols <= 20:
-            threshold = 0.5
-        else:
-            threshold = 0.4
+        """Flag rows where a high percentage of values (>= 50%) are missing."""
+        threshold = 0.50
 
         null_per_row = self.df.isnull().sum(axis=1)
         null_pct_per_row = null_per_row / self.n_cols
-        high_null_mask = null_pct_per_row > threshold
+        high_null_mask = null_pct_per_row >= threshold
         high_null_count = int(high_null_mask.sum())
 
         if high_null_count == 0:
@@ -260,7 +276,8 @@ class MissingHandler:
 
         # Preview
         sample_indices = self.df[high_null_mask].head(5).index.tolist()
-        before_sample = self.df.loc[sample_indices].fillna("NULL").astype(str).to_dict(orient="records")
+        raw_before = self.df.loc[sample_indices].fillna("NULL").astype(str).to_dict(orient="records")
+        before_sample: list[dict[str, Any]] = [{str(k): v for k, v in row.items()} for row in raw_before]
 
         action = CleaningAction(
             category=ActionCategory.MISSING_VALUES,
@@ -451,7 +468,11 @@ class MissingHandler:
         # Build preview
         non_null = self.df[col].dropna()
         null_sample_idx = self.df[self.df[col].isnull()].head(3).index.tolist()
-        before_rows = self.df.loc[null_sample_idx][[col]].fillna("NULL").astype(str).to_dict(orient="records") if null_sample_idx else []
+        if null_sample_idx:
+            raw_before_rows = self.df.loc[null_sample_idx][[col]].fillna("NULL").astype(str).to_dict(orient="records")
+            before_rows: list[dict[str, Any]] = [{str(k): v for k, v in row.items()} for row in raw_before_rows]
+        else:
+            before_rows = []
 
         # Simulate imputed values for preview
         after_rows = self._simulate_impute(col, cs.recommended_strategy, null_sample_idx)
@@ -696,9 +717,13 @@ class MissingHandler:
 
     def _get_skewness(self, col: str, col_profile: dict | None) -> float | None:
         if col_profile and "numeric" in col_profile and col_profile["numeric"]:
-            return col_profile["numeric"].get("skewness")
+            val = col_profile["numeric"].get("skewness")
+            return float(val) if val is not None else None
         try:
-            return float(self.df[col].skew())
+            val = self.df[col].skew()
+            if pd.notna(val) and isinstance(val, (int, float, np.number)):
+                return float(val)
+            return None
         except Exception:
             return None
 
