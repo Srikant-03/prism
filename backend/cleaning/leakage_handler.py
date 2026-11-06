@@ -168,7 +168,7 @@ class LeakageHandler:
             try:
                 s = self.df[col]
 
-                # For numeric columns: correlation
+                # For numeric columns: correlation & post-hoc zero-inflation / indicator correlation
                 if pd.api.types.is_numeric_dtype(s) and pd.api.types.is_numeric_dtype(target_series):
                     corr = abs(float(s.corr(target_series)))
                     if corr > 0.95:
@@ -180,23 +180,56 @@ class LeakageHandler:
                         })
                         continue
 
-                # For categorical columns: mutual information / conditional entropy
-                if s.dtype == object or s.nunique() <= 50:
-                    # Check if column uniquely determines target
+                    # Check zero-inflated / presence indicator (post-hoc outcome event like refunds)
+                    if (s != 0).nunique() > 1:
+                        ind = (s.fillna(0) != 0).astype(int)
+                        ind_corr = abs(float(ind.corr(target_series)))
+                        if ind_corr > 0.95:
+                            results.append({
+                                "column": col,
+                                "method": "post_hoc_indicator",
+                                "score": round(ind_corr, 4),
+                                "description": f"Post-hoc indicator perfectly correlates with target ({ind_corr:.4f})",
+                            })
+                            continue
+
+                # For categorical columns: cardinality-guarded purity gain over baseline
+                n_unique = s.nunique()
+                n_rows = len(s)
+                u_ratio = n_unique / n_rows if n_rows > 0 else 0
+                col_l = col.lower()
+
+                # Exclude ID columns, emails, datetimes, currency strings, and physical unit strings
+                is_id_or_key = (
+                    u_ratio > 0.70
+                    or any(k in col_l for k in ["id", "uuid", "guid", "key", "code", "email", "address", "notes", "comment", "desc"])
+                )
+                is_temporal_or_unit = any(k in col_l for k in ["date", "time", "price", "weight", "revenue", "amount", "cost", "fee"])
+
+                if (
+                    not is_id_or_key
+                    and not is_temporal_or_unit
+                    and (s.dtype == object or str(s.dtype) == "category" or pd.api.types.is_bool_dtype(s) or pd.api.types.is_integer_dtype(s))
+                    and 2 <= n_unique <= 50
+                    and u_ratio < 0.35
+                ):
                     contingency = pd.crosstab(s.fillna("__NULL__"), target_series.fillna("__NULL__"))
-                    # If each value of col maps to exactly one target value
                     if contingency.shape[1] > 1:
                         max_per_row = contingency.max(axis=1)
                         row_totals = contingency.sum(axis=1)
-                        purity = (max_per_row / row_totals).mean()
+                        non_singletons = (row_totals > 1).sum()
+                        if non_singletons >= 2:
+                            weighted_purity = float(max_per_row.sum() / row_totals.sum())
+                            baseline = float(target_series.value_counts(normalize=True).max())
+                            gain = (weighted_purity - baseline) / max(1e-9, 1.0 - baseline)
 
-                        if purity > 0.98:
-                            results.append({
-                                "column": col,
-                                "method": "purity",
-                                "score": round(float(purity), 4),
-                                "description": f"Category purity: {purity:.4f} (each value predicts target)",
-                            })
+                            if gain > 0.90:
+                                results.append({
+                                    "column": col,
+                                    "method": "purity_gain",
+                                    "score": round(gain, 4),
+                                    "description": f"Category purity gain: {gain:.4f} (weighted purity {weighted_purity:.4f} over baseline {baseline:.4f})",
+                                })
 
             except Exception:
                 pass
@@ -528,13 +561,19 @@ class LeakageHandler:
                 UserOption(key="investigate", label="Flag for Review"),
             ]
 
+        evidence = str(info.get("evidence") or info.get("description") or f"Potential future leakage detected in column '{col}'.")
+        reasoning = str(info.get("reasoning") or (
+            f"Feature '{col}' contains information that may only become available after the target event occurs. "
+            "Using post-event data during model training creates artificially inflated performance that fails in production."
+        ))
+
         return CleaningAction(
             category=ActionCategory.DATA_LEAKAGE,
             action_type=ActionType.FLAG_LEAKAGE_FUTURE,
             confidence=confidence,
-            evidence=info.get("evidence", info.get("description")),
+            evidence=evidence,
             recommendation=recommendation,
-            reasoning=info.get("reasoning"),
+            reasoning=reasoning,
             target_columns=[col],
             impact=ImpactEstimate(
                 rows_before=self.n_rows, rows_after=self.n_rows,
