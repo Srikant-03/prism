@@ -92,8 +92,12 @@ class FeatureSelectionHandler:
         # 3. High correlation filter on predictor features (X_i vs X_j)
         corr_pairs = self._high_correlation(predictor_numeric_cols)
         report["high_correlation_pairs"] = corr_pairs
+        seen_corr_drops: set[str] = set()
         for pair in corr_pairs:
-            actions.append(self._build_correlation_action(pair))
+            drop_col = pair["drop_recommendation"]
+            if drop_col not in seen_corr_drops:
+                seen_corr_drops.add(drop_col)
+                actions.append(self._build_correlation_action(pair))
 
         # 4. VIF-based multicollinearity on predictor features
         if len(predictor_numeric_cols) >= 3:
@@ -605,7 +609,14 @@ class FeatureSelectionHandler:
         try:
             from insights.relationship_classifier import RelationshipClassifier
             classifier = RelationshipClassifier()
-            cols = self.df.columns.tolist()
+            target = getattr(self, "target_column", None)
+            cols = [
+                c for c in self.df.columns
+                if c != target
+                and 1 < self.df[c].nunique() <= len(self.df) * 0.70
+                and not any(k in c.lower() for k in ["id", "uuid", "guid", "row_id", "sequential", "key"])
+            ]
+            seen_drops: set[str] = set()
             n = len(cols)
             for i in range(n):
                 for j in range(i + 1, n):
@@ -613,18 +624,36 @@ class FeatureSelectionHandler:
                     col_b = cols[j]
                     rel = classifier.classify_pair(col_a, col_b, df=self.df)
                     if rel.type.value == "functional_dependency":
+                        if rel.derivation_direction == "col1_from_col2":
+                            dep = col_a
+                            det = col_b
+                        elif rel.derivation_direction == "col2_from_col1":
+                            dep = col_b
+                            det = col_a
+                        else:
+                            card_a = self.df[col_a].nunique()
+                            card_b = self.df[col_b].nunique()
+                            dep = col_a if card_a < card_b else col_b
+                            det = col_b if dep == col_a else col_a
+
+                        if dep == target or dep in seen_drops:
+                            continue
+
+                        seen_drops.add(dep)
                         report_items.append({
-                            "col_a": col_a,
-                            "col_b": col_b,
+                            "col_a": det,
+                            "col_b": dep,
+                            "dependent": dep,
+                            "determinant": det,
                             "description": rel.description,
                             "recommendation": rel.recommendation,
                             "direction": rel.derivation_direction,
                         })
 
             for item in report_items:
-                col_a = item["col_a"]
-                col_b = item["col_b"]
-                target_drop = [col_b]
+                det = item["determinant"]
+                dep = item["dependent"]
+                target_drop = [dep]
 
                 action = CleaningAction(
                     category=ActionCategory.FEATURE_SELECTION,
@@ -636,13 +665,13 @@ class FeatureSelectionHandler:
                     target_columns=target_drop,
                     options=[
                         UserOption(
-                            key=f"drop_{col_b}",
-                            label=f"Drop '{col_b}' (redundant)",
+                            key=f"drop_{dep}",
+                            label=f"Drop '{dep}' (redundant)",
                             is_default=True,
                         ),
                         UserOption(
-                            key=f"drop_{col_a}",
-                            label=f"Drop '{col_a}'",
+                            key=f"drop_{det}",
+                            label=f"Drop '{det}'",
                             is_default=False,
                         ),
                         UserOption(
@@ -657,7 +686,7 @@ class FeatureSelectionHandler:
                         columns_before=self.n_cols,
                         columns_after=self.n_cols - 1,
                         columns_affected=1,
-                        description=f"Reduces redundant column '{col_b}' determined by '{col_a}'.",
+                        description=f"Reduces redundant column '{dep}' determined by '{det}'.",
                     ),
                     metadata=item,
                 )
