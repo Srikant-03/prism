@@ -18,6 +18,31 @@ from cleaning.cleaning_models import (
 )
 
 
+def _is_duplicate_name(col: str) -> bool:
+    cl = col.lower()
+    dup_markers = ["dup_", "_dup", "copy", "_copy", "_2", "clone", "backup", "old", "temp"]
+    return any(m in cl for m in dup_markers)
+
+
+def _pick_duplicate_pair(c1: str, c2: str) -> tuple[str, str]:
+    """Returns (drop_col, keep_col) prioritizing canonical columns over duplicate-marked ones."""
+    c1_is_dup = _is_duplicate_name(c1)
+    c2_is_dup = _is_duplicate_name(c2)
+
+    if c1_is_dup and not c2_is_dup:
+        return c1, c2
+    elif c2_is_dup and not c1_is_dup:
+        return c2, c1
+    else:
+        # If neither or both have duplicate markers, keep shorter or earlier column (drop longer/later)
+        if len(c1) < len(c2):
+            return c2, c1
+        elif len(c2) < len(c1):
+            return c1, c2
+        else:
+            return c2, c1
+
+
 class DuplicateHandler:
     """Detect all flavours of duplication and return evidence-based actions."""
 
@@ -129,9 +154,8 @@ class DuplicateHandler:
                     similarity = equal_mask.mean()
 
                     if similarity >= 0.98:
-                        # Prefer keeping the column with the more descriptive name
-                        drop_col = c2 if len(c1) >= len(c2) else c1
-                        keep_col = c1 if drop_col == c2 else c2
+                        # Prioritize canonical naming (drop dup-marked columns, retain canonical)
+                        drop_col, keep_col = _pick_duplicate_pair(c1, c2)
 
                         pair_info = {
                             "col1": c1, "col2": c2,
