@@ -510,16 +510,22 @@ class StandardizationHandler:
     # ── 8. Currency format check ──────────────────────────────────────
     def _check_currency_format(self, col: str, series: pd.Series) -> Optional[dict]:
         symbols: Counter = Counter()
+        has_digit = False
+        valid_iso = {"USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "INR", "BRL", "KRW", "RUB", "MXN", "SEK", "NZD"}
         for val in series.head(200):
             s = str(val).strip()
-            if re.match(r"^[\$€£¥₹₽₩]", s):
-                symbols[s[0]] += 1
-            elif re.search(r"[A-Z]{3}$", s):  # ISO code at end
-                match = re.search(r"([A-Z]{3})$", s)
-                if match:
-                    symbols[match.group(1)] += 1
+            if not s or s.lower() == "nan":
+                continue
+            if re.search(r"\d", s):
+                has_digit = True
+                if re.match(r"^[\$€£¥₹₽₩]", s):
+                    symbols[s[0]] += 1
+                else:
+                    match = re.search(r"\b([A-Z]{3})\b", s)
+                    if match and match.group(1) in valid_iso:
+                        symbols[match.group(1)] += 1
 
-        if len(symbols) <= 1:
+        if not has_digit or len(symbols) <= 1:
             return None
 
         return {"column": col, "symbols": dict(symbols)}
