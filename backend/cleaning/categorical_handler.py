@@ -100,10 +100,24 @@ class CategoricalHandler:
     # ── Identify categoricals ─────────────────────────────────────────
     def _identify_categorical_columns(self) -> list[str]:
         cats: list[str] = []
+        excluded_cols: set[str] = set()
+        if self.profile:
+            excluded_cols.update(getattr(self.profile, "id_columns", []))
+            excluded_cols.update(getattr(self.profile, "temporal_columns", []))
+            for cp in getattr(self.profile, "columns", []):
+                st = getattr(cp, "semantic_type", None)
+                st_val = getattr(st, "value", str(st)) if st else ""
+                if st_val in ("id_key", "email", "url", "phone", "free_text", "datetime"):
+                    excluded_cols.add(getattr(cp, "name", getattr(cp, "column_name", "")))
+
         for col in self.df.columns:
-            if col == self.target_column:
+            if col == self.target_column or col in excluded_cols:
                 continue
             s = self.df[col]
+            # Exclude near-unique identifiers if profile was absent
+            non_null = s.dropna()
+            if len(non_null) > 0 and (non_null.nunique() / len(non_null) > 0.85):
+                continue
             # Already categorical dtype
             if pd.api.types.is_categorical_dtype(s):
                 cats.append(col)
