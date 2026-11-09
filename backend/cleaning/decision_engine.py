@@ -253,6 +253,12 @@ class DecisionEngine:
         return df
 
     def _cmd_drop_rows(self, df, action, option):
+        if action.metadata and "threshold" in action.metadata:
+            threshold = float(action.metadata["threshold"])
+            null_pct = df.isnull().sum(axis=1) / max(1, len(df.columns))
+            df = df[null_pct < threshold].reset_index(drop=True)
+            return df
+
         for col in action.target_columns:
             if col in df.columns:
                 df = df.dropna(subset=[col]).reset_index(drop=True)
@@ -424,18 +430,22 @@ class DecisionEngine:
         upper = float(action.metadata.get("upper_pct", 0.99))
         for col in action.target_columns:
             if col in df.columns and pd.api.types.is_numeric_dtype(df[col]):
-                lo = df[col].quantile(lower)
-                hi = df[col].quantile(upper)
-                df[col] = df[col].clip(lower=lo, upper=hi)
+                s_valid = df[col].dropna()
+                if len(s_valid) > 0:
+                    lo = s_valid.quantile(lower)
+                    hi = s_valid.quantile(upper)
+                    df[col] = df[col].clip(lower=lo, upper=hi)
         return df
 
     def _cmd_cap_outliers(self, df, action, option):
         for col in action.target_columns:
             if col in df.columns and pd.api.types.is_numeric_dtype(df[col]):
-                q1 = df[col].quantile(0.25)
-                q3 = df[col].quantile(0.75)
-                iqr = q3 - q1
-                df[col] = df[col].clip(lower=q1 - 1.5 * iqr, upper=q3 + 1.5 * iqr)
+                s_valid = df[col].dropna()
+                if len(s_valid) > 0:
+                    q1 = s_valid.quantile(0.25)
+                    q3 = s_valid.quantile(0.75)
+                    iqr = q3 - q1
+                    df[col] = df[col].clip(lower=q1 - 1.5 * iqr, upper=q3 + 1.5 * iqr)
         return df
 
     def _cmd_log_transform(self, df, action, option):
@@ -451,7 +461,10 @@ class DecisionEngine:
     def _cmd_parse_dates(self, df, action, option):
         for col in action.target_columns:
             if col in df.columns:
-                df[col] = pd.to_datetime(df[col], errors="coerce")
+                try:
+                    df[col] = pd.to_datetime(df[col], format="mixed", errors="coerce")
+                except Exception:
+                    df[col] = pd.to_datetime(df[col], errors="coerce")
         return df
 
     def _cmd_parse_currency(self, df, action, option):
@@ -460,8 +473,9 @@ class DecisionEngine:
                 from cleaning.type_handler import TypeHandler as TH
                 th = TH.__new__(TH)
                 df[col] = df[col].apply(
-                    lambda v: th._parse_currency_value(str(v)) if pd.notna(v) else v
+                    lambda v: th._parse_currency_value(str(v)) if pd.notna(v) else np.nan
                 )
+                df[col] = pd.to_numeric(df[col], errors="coerce")
         return df
 
     def _cmd_standardize_booleans(self, df, action, option):
@@ -484,12 +498,18 @@ class DecisionEngine:
         from cleaning.type_handler import _PSEUDO_NULLS
         for col in action.target_columns:
             if col in df.columns:
-                mask = df[col].astype(str).str.lower().str.strip().isin(_PSEUDO_NULLS)
-                df.loc[mask, col] = np.nan
-                try:
-                    df[col] = pd.to_numeric(df[col], errors="coerce")
-                except Exception:
-                    pass
+                non_null_mask = df[col].notna()
+                if non_null_mask.any():
+                    pseudo_submask = df.loc[non_null_mask, col].astype(str).str.lower().str.strip().isin(_PSEUDO_NULLS)
+                    matching_idx = df.loc[non_null_mask].index[pseudo_submask]
+                    df.loc[matching_idx, col] = np.nan
+                
+                # Only cast to numeric if the remaining non-null values are genuinely numeric
+                remaining = df[col].dropna()
+                if len(remaining) > 0:
+                    converted = pd.to_numeric(remaining, errors="coerce")
+                    if converted.notna().mean() >= 0.8:
+                        df[col] = pd.to_numeric(df[col], errors="coerce")
         return df
 
     def _cmd_flag_integer_categories(self, df, action, option):
