@@ -184,6 +184,16 @@ class AnomalyDetector:
                         recommendation="Anonymize, hash, or drop this column before downstream storage."
                     ))
 
+        # Deduplicate warnings
+        seen = set()
+        unique_warnings = []
+        for w in warnings:
+            sig = (w.feature, str(w.severity), str(w.category), str(w.description))
+            if sig not in seen:
+                seen.add(sig)
+                unique_warnings.append(w)
+        warnings = unique_warnings
+
         # Sort by severity
         severity_map = {
             AnomalySeverity.CRITICAL: 0,
