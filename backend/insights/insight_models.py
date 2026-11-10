@@ -28,6 +28,14 @@ class AnomalyWarning(BaseModel):
     description: str = Field(..., description="A plain-English description of the finding")
     recommendation: Optional[str] = Field(None, description="Suggested action to take (e.g., 'Drop column', 'Impute values')")
 
+    @property
+    def column(self) -> Optional[str]:
+        return self.feature
+
+    @property
+    def anomaly_type(self) -> str:
+        return self.category
+
 # ── Feature Importance ──
 
 class FeatureImportance(BaseModel):
