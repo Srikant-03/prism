@@ -256,42 +256,50 @@ class BriefingGenerator:
                     pass
 
         if not insights:
-            col_names = [c.name.lower() for c in profile.columns]
-            text_space = " ".join(col_names)
-            domain_name = getattr(profile, 'estimated_domain', '') or ''
-            
-            is_ict = "ict" in domain_name.lower() or "digital" in domain_name.lower() or any(k in text_space for k in ["line_code", "connectivity", "cybersecurity", "cloud", "fibre"])
-            is_financial = not is_ict and any(k in text_space for k in ["nzsioc", "anzsic", "income", "expenditure", "profit", "surplus", "revenue", "roe"])
+            # 1. Primary numerical metrics (revenue, sales, price, quantity)
+            rev_cols = [c for c in profile.columns if any(k in c.name.lower() for k in ["net_revenue", "gross_revenue", "revenue", "sales", "income"])]
+            if rev_cols:
+                primary_rev = next((c for c in rev_cols if "net" in c.name.lower()), rev_cols[0])
+                if primary_rev.numeric and primary_rev.numeric.mean is not None:
+                    mean_val = primary_rev.numeric.mean
+                    total_est = mean_val * profile.total_rows
+                    insights.append(
+                        f"Primary Metric Dynamics: '{primary_rev.name}' averages ${mean_val:,.2f} per record "
+                        f"(estimated cumulative total: ${total_est:,.2f})."
+                    )
 
-            if is_ict:
+            # 2. Target Variable & Classification / Regression Context
+            if profile.cross_analysis and profile.cross_analysis.get("target"):
+                target_info = profile.cross_analysis["target"]
+                t_col = target_info.get("target_column")
+                p_type = target_info.get("problem_type")
+                c_dist = target_info.get("class_distribution")
+                if t_col and p_type == "binary_classification" and c_dist:
+                    dist_str = ", ".join(f"class '{k}': {v*100:.1f}%" for k, v in c_dist.items())
+                    insights.append(
+                        f"Target Class Distribution: Binary objective '{t_col}' exhibits {dist_str}."
+                    )
+                elif t_col:
+                    insights.append(
+                        f"Objective Variable: '{t_col}' identified as the primary target for {(p_type or 'modeling').replace('_', ' ')}."
+                    )
+
+            # 3. Categorical Segmentation & Concentration
+            cat_cols = [c for c in profile.columns if c.categorical and c.categorical.top_values and c.semantic_type != "id_key"]
+            if cat_cols:
+                top_cat_col = cat_cols[0]
+                top_val = top_cat_col.categorical.top_values[0]
+                pct = (top_val.count / max(1, profile.total_rows)) * 100
                 insights.append(
-                    "Executive Finding: ICT Adoption & Business Size — Small enterprises (6-19 employees) dominate survey responses, indicating SMEs form the backbone of digital adoption impact."
+                    f"Segment Concentration: In '{top_cat_col.name}', dominant category '{top_val.value}' accounts for {pct:.1f}% of volume ({top_val.count:,} records)."
                 )
-                insights.append(
-                    "Industry Representation: High Coordination Sectors — Construction, Professional/Technical Services, and Manufacturing report high ICT engagement, reflecting heavy reliance on digital logistics and client coordination."
-                )
-                insights.append(
-                    "Infrastructure Baseline: Connectivity Focus — High-speed internet (Fibre/Hyperfibre) serves as the primary foundational capability for cloud services, remote working, and cybersecurity adoption."
-                )
-                insights.append(
-                    "Data Scientist Perspective: Deep Dives — 1) Build a Digital Maturity Index combining cloud, cybersecurity, and e-commerce; 2) Cluster businesses by ICT adoption profile (Advanced vs Developing); 3) Industry-level benchmarking."
-                )
-            elif is_financial:
-                insights.append(
-                    "Executive Finding: Revenue & Income Stagnation — Total income shows flattening growth dynamics across survey periods, indicating plateauing market demand."
-                )
-                insights.append(
-                    "Cost vs Revenue Dynamics: Expense Inflation — Operating expenditures are increasing faster than gross revenue, compressing net profit margins."
-                )
-                insights.append(
-                    "Profitability Impact: Surplus Compression — Pre-tax surplus and net operating profit show sharper percentage declines than total revenue, highlighting cost pressures."
-                )
-                insights.append(
-                    "Capital & Asset Strategy: Ongoing Investment — Asset accumulation remains positive despite margin compression, suggesting long-term capacity expansion."
-                )
-                insights.append(
-                    "Data Scientist Perspective: Recommended Deep Dives — 1) Industry-level breakdown & ranking by profit growth; 2) Expenditure decomposition; 3) Time-series forecasting (ARIMA/XGBoost); 4) Outlier detection via Isolation Forest."
-                )
+
+            # 4. Data Quality & Completeness Finding
+            total_null_pct = sum(c.null_percentage for c in profile.columns) / max(1, profile.total_columns)
+            completeness = 100 - total_null_pct
+            insights.append(
+                f"Data Quality Baseline: Overall attribute completeness tracks at {completeness:.1f}% across {profile.total_rows:,} rows."
+            )
 
         if not any("Data Scientist Perspective" in i for i in insights):
             insights.append(
@@ -301,27 +309,32 @@ class BriefingGenerator:
 
     @staticmethod
     def _compute_business_recommendations(profile: DatasetProfile) -> List[str]:
-        """Generate recommended business optimization actions."""
+        """Generate recommended business optimization actions grounded in dataset attributes."""
         recs = []
-        col_names = [c.name.lower() for c in profile.columns]
-        text_space = " ".join(col_names)
-        domain_name = getattr(profile, 'estimated_domain', '') or ''
-        
-        is_ict = "ict" in domain_name.lower() or "digital" in domain_name.lower() or any(k in text_space for k in ["line_code", "connectivity", "cybersecurity", "cloud", "fibre"])
-        is_financial = not is_ict and any(k in text_space for k in ["nzsioc", "anzsic", "income", "expenditure", "profit", "surplus", "revenue", "roe"])
 
-        if is_ict:
-            recs.append("Prioritize SME Digital Support: Expand high-speed fibre infrastructure and digital capability grants targeting small businesses (6-19 employees).")
-            recs.append("Enhance Cybersecurity & Cloud Adoption: Encourage cloud services and cybersecurity frameworks through targeted industry transformation programs.")
-            recs.append("Industry-Specific Roadmaps: Develop tailored digital transformation strategies for key sectors (Retail e-commerce, Construction logistics, Professional Services security).")
-            recs.append("Annual Digital Benchmarking: Measure digital maturity scores annually across business size tiers to track adoption velocity.")
-        elif is_financial:
-            recs.append("Focus on cost optimization: Audit operating expenses and salary growth since costs are rising faster than revenue.")
-            recs.append("Segment by Industry: Filter top 10 and bottom 10 industry sectors by profit growth to isolate structural underperformers.")
-            recs.append("Monitor Return on Equity (ROE): Track ROE and liquidity ratios across quarters to prevent efficiency drops.")
-            recs.append("Build Time-Series Forecasting: Apply ARIMA/XGBoost models on historical income and asset values to project future performance.")
-        else:
-            recs.append("Perform exploratory data analysis and feature engineering tailored to the key domain variables.")
+        # Target optimization
+        if profile.cross_analysis and profile.cross_analysis.get("target"):
+            target_info = profile.cross_analysis["target"]
+            t_col = target_info.get("target_column")
+            p_type = target_info.get("problem_type")
+            if t_col:
+                if p_type == "binary_classification":
+                    recs.append(f"Target Optimization: Focus retention/conversion interventions on drivers predicting '{t_col}'.")
+                else:
+                    recs.append(f"Predictive Modeling: Calibrate regressor models against '{t_col}' to optimize forward expectations.")
+
+        # Revenue / pricing optimization
+        rev_cols = [c for c in profile.columns if any(k in c.name.lower() for k in ["revenue", "sales", "price", "discount"])]
+        if rev_cols:
+            recs.append("Pricing & Margin Optimization: Monitor discount rates against gross and net revenue across customer segments.")
+
+        # Data quality & feature hygiene
+        high_null_cols = [c.name for c in profile.columns if c.null_percentage > 30]
+        if high_null_cols:
+            recs.append(f"Data Hygiene: Impute or systematically evaluate high-missingness features ({', '.join(high_null_cols[:2])}).")
+
+        if not recs:
+            recs.append("Perform exploratory data analysis and feature engineering tailored to key domain variables.")
 
         return recs
 
