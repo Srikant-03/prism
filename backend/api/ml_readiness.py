@@ -80,8 +80,8 @@ async def get_ml_readiness(file_id: str):
     if problem_type in ("binary_classification", "multiclass_classification"):
         handler = ImbalanceHandler(df, file_id, target_column=target)
         try:
-            handler_result = handler.analyze()
-            imbalance_data = handler_result.get("report", {})
+            res = handler.analyze()
+            imbalance_data = res[1] if isinstance(res, tuple) else (res.get("report", {}) if isinstance(res, dict) else {})
         except Exception:
             pass
 
@@ -94,7 +94,7 @@ async def get_ml_readiness(file_id: str):
 
     # 4. Feature Predictive Power (from profile)
     predictors = []
-    top_predictors = getattr(target_analysis, "top_predictors", []) or []
+    top_predictors = target_state.get("top_predictors", []) if isinstance(target_state, dict) else (getattr(target_state, "top_predictors", []) or [])
     for p in top_predictors:
         name = getattr(p, "feature", None) or (p.get("feature", "") if isinstance(p, dict) else "")
         score = getattr(p, "importance_score", None) or (p.get("importance_score", 0) if isinstance(p, dict) else 0)
