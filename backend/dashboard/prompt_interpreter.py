@@ -30,6 +30,8 @@ from dashboard.chart_config_models import (
     FilterCondition,
     ClarificationRequest,
     TimeGrain,
+    MetricSpec,
+    MeasureDefinition,
 )
 from llm.api_manager import with_llm_failover, get_active_client
 
@@ -40,13 +42,15 @@ SYSTEM_PROMPT = """You are a data visualization assistant. Given a user's natura
 
 RULES:
 1. Return ONLY valid JSON — no markdown, no code fences, no explanation.
-2. If the user's request is ambiguous, return: {"clarification": "<one specific question>", "suggestions": ["option1", "option2"]}
+2. If the user's request is truly ambiguous, return: {"clarification": "<one specific question>", "suggestions": ["option1", "option2"]}
+   NOTE: Do NOT ask for clarification if the user asks for multiple metrics (e.g., 'total net_revenue and average discount_rate' or 'compare X vs Y'). Instead, return a multi-metric configuration with the 'metrics' list.
 3. If the request is clear, return a chart configuration object with these fields:
    - chart_type: one of "bar", "line", "area", "pie", "donut", "scatter", "heatmap", "treemap", "funnel", "kpi", "table"
    - title: descriptive chart title
    - x_axis: column name for the x-axis (or category axis)
    - y_axis: column name for the y-axis (or value axis)
    - group_by: column to group/segment by (optional)
+   - metrics: array of {column, aggregation, label} objects (optional, for multi-metric charts or KPI scorecards with multiple metrics)
    - aggregation: one of "sum", "avg", "count", "min", "max", "median", "none"
    - filters: array of {column, operator, value} objects (optional)
    - sort_by: column to sort by (optional)
@@ -68,11 +72,15 @@ RULES:
    - LEAVE `x_axis` and `group_by` as strictly null if you want a one-dimensional aggregation.
    - Do NOT randomly pick a categorical column like "gender" or "id" to fill the x-axis.
    - If both the intended x-axis and y-axis are continuous numeric columns (e.g., "study hours" and "score"), you MUST use a "scatter" chart. Do not use a "bar" or "line" chart for two numeric coordinates.
-9. TEMPORAL AGGREGATION RULE: If the chart title or user request mentions a temporal granularity ("daily", "weekly", "monthly", "quarterly", "yearly"), you MUST:
+9. TEMPORAL AGGREGATION RULE: If the chart title or user request mentions a temporal granularity ("daily", "weekly", "monthly", "quarterly", "yearly"):
    - Set `x_axis` to the date/time column.
    - Set `x_axis_time_grain` to the matching grain: "day", "week", "month", "quarter", or "year".
    - The aggregation level in the SQL MUST match the title exactly. A "Monthly Revenue Trend" must GROUP BY calendar month, NOT by raw date.
    - x_axis_time_grain: one of "day", "week", "month", "quarter", "year", or null (no temporal bucketing).
+10. MULTI-METRIC RULE: If the user asks for multiple metrics (e.g., 'total net_revenue and average discount_rate', or 'compare gross_revenue vs net_revenue across category'):
+   - Return a 'metrics' list with {column, aggregation, label} for each metric.
+   - If a category dimension is specified, set x_axis to that column and chart_type to 'bar'.
+   - If no dimension is specified, set chart_type to 'kpi' and leave x_axis null.
 """
 
 
@@ -112,9 +120,27 @@ def _extract_json(text: str) -> dict | None:
     return None
 
 
-def _parse_config_from_dict(data: dict, current_config: Optional[ChartConfig] = None) -> ChartConfig:
-    """Parse a dict into a ChartConfig, merging with current_config for follow-ups."""
-    if current_config:
+def _is_followup_modifier(text: str) -> bool:
+    """Check if the text is an incremental modifier rather than a new standalone query."""
+    if not text:
+        return False
+    t = text.lower().strip()
+    # Explicit standalone indicators
+    if any(w in t for w in ("compare", "across", "breakdown", "monthly", "quarterly", "yearly", "weekly", "daily", " vs ", "scatter", "table", "total")):
+        return False
+    modifiers = (
+        "add trend", "remove trend", "switch to", "change to", "make it",
+        "show values", "hide values", "show labels", "hide labels",
+        "sort by", "sort asc", "sort desc", "sort ascending", "sort descending",
+        "filter to", "add filter", "remove filter",
+        "stack", "unstack", "smooth", "curved",
+    )
+    return any(t.startswith(m) or f" {m} " in f" {t} " for m in modifiers)
+
+
+def _parse_config_from_dict(data: dict, current_config: Optional[ChartConfig] = None, user_message: str = "") -> ChartConfig:
+    """Parse a dict into a ChartConfig, merging with current_config only for follow-up modifiers."""
+    if current_config and _is_followup_modifier(user_message):
         # Start from current config and overlay only provided fields
         base = current_config.model_dump()
         for key, value in data.items():
@@ -269,9 +295,10 @@ async def interpret_prompt(
     current_config: Optional[ChartConfig] = None,
     conversation_history: Optional[list[str]] = None,
     business_context: Optional[str] = None,
-) -> ChartConfig | ClarificationRequest:
+    edit_mode: bool = False,
+) -> ChartConfig | ClarificationRequest | MeasureDefinition:
     """
-    Interpret a natural language prompt into a ChartConfig.
+    Interpret a natural language prompt into a ChartConfig, ClarificationRequest, or MeasureDefinition.
 
     Args:
         message: User's natural language message.
@@ -279,12 +306,45 @@ async def interpret_prompt(
         current_config: Previous ChartConfig for follow-up edits.
         conversation_history: Prior prompts for context.
         business_context: The domain and key findings of the dataset.
+        edit_mode: Whether explicit edit mode is active on a selected widget.
 
     Returns:
-        ChartConfig or ClarificationRequest.
+        ChartConfig, ClarificationRequest, or MeasureDefinition.
     """
+    # 1. Measure Creation Intent (NL-to-DAX)
+    m_match = re.match(r'^(?:create|define|add)\s+(?:a\s+)?measure\s+["\']?([^"\']+)["\']?\s+as\s+(.+)$', message.strip(), re.IGNORECASE)
+    if m_match:
+        name = m_match.group(1).strip()
+        raw_expr = m_match.group(2).strip()
+        expr = raw_expr
+        if "divided by" in raw_expr.lower() or "/" in raw_expr:
+            parts = re.split(r'\s+divided\s+by\s+|\s*/\s*', raw_expr, flags=re.IGNORECASE)
+            if len(parts) == 2:
+                c1, c2 = parts[0].strip(), parts[1].strip()
+                expr = f"DIVIDE(SUM({c1}), SUM({c2}), 0)"
+        elif re.match(r'^[a-zA-Z0-9_]+\s*\*\s*[0-9.]+$', raw_expr):
+            col_part, mult_part = raw_expr.split("*")
+            expr = f"SUM({col_part.strip()}) * {mult_part.strip()}"
+        return MeasureDefinition(
+            name=name,
+            expression=expr,
+            format="percent" if any(k in name.lower() for k in ("margin", "%", "rate", "pct")) else "number",
+        )
+
+    # 2. Check for truly ambiguous prompts (e.g. "show performance over time" without metric)
+    msg_strip = message.lower().strip()
+    ambiguous_patterns = ["show performance over time", "performance over time", "show trend over time", "performance trend"]
+    if any(msg_strip == p for p in ambiguous_patterns):
+        return ClarificationRequest(
+            clarification="Which performance metric would you like to view over time?",
+            suggestions=["Net Revenue", "Gross Revenue", "Units Sold"]
+        )
+
+    # If edit_mode is not enabled and the prompt is not an explicit modifier, do not inherit current_config
+    effective_current = current_config if (edit_mode and _is_followup_modifier(message)) else None
+
     if not HAS_GENAI:
-        return _fallback_interpret(message, schema, current_config)
+        return _fallback_interpret(message, schema, effective_current)
 
     schema_desc = _build_schema_description(schema)
 
@@ -292,8 +352,8 @@ async def interpret_prompt(
     parts = [f"Schema:\n{schema_desc}\n"]
     if business_context:
         parts.append(f"Business Context:\n{business_context}\n")
-    if current_config:
-        parts.append(f"Current chart config:\n{current_config.model_dump_json(indent=2)}\n")
+    if effective_current:
+        parts.append(f"Current chart config:\n{effective_current.model_dump_json(indent=2)}\n")
     if conversation_history:
         parts.append("Previous prompts:\n" + "\n".join(f"- {h}" for h in conversation_history[-5:]) + "\n")
     parts.append(f"User request: {message}")
@@ -306,20 +366,21 @@ async def interpret_prompt(
 
         if data is None:
             logger.warning("Failed to parse Gemini response: %s", response_text[:200])
-            return _fallback_interpret(message, schema, current_config)
+            return _fallback_interpret(message, schema, effective_current)
 
         # Check if it's a clarification
         if "clarification" in data:
+            msg_lower = message.lower()
+            if any(w in msg_lower for w in ("and", "vs", "compare", "across", "where", "breakdown")):
+                return _fallback_interpret(message, schema, effective_current)
             return ClarificationRequest(
                 clarification=data["clarification"],
                 suggestions=data.get("suggestions", []),
             )
 
-        config = _parse_config_from_dict(data, current_config)
+        config = _parse_config_from_dict(data, effective_current, user_message=message)
 
         # Enforce temporal grain consistency:
-        # If the LLM titled it "Monthly Revenue Trend" but forgot x_axis_time_grain,
-        # auto-correct. Also check the original user message for temporal keywords.
         config = _enforce_temporal_grain_consistency(config, schema)
         prompt_grain = _detect_grain_from_text(message)
         if prompt_grain and (config.x_axis_time_grain is None or config.x_axis_time_grain == TimeGrain.NONE):
@@ -329,7 +390,7 @@ async def interpret_prompt(
 
     except Exception as e:
         logger.error("Gemini interpretation failed: %s", str(e))
-        return _fallback_interpret(message, schema, current_config)
+        return _fallback_interpret(message, schema, effective_current)
 
 
 def _fallback_interpret(
@@ -339,37 +400,41 @@ def _fallback_interpret(
 ) -> ChartConfig:
     """
     Enhanced regex-based fallback when Gemini is unavailable.
-    Detects chart type, column mapping, aggregation, filters, sorting,
-    grouping, and limit from the prompt using pattern matching.
+    Accurately detects chart type, multi-metrics, dimensions, temporal grains,
+    filters, and sorting without carrying over stale configuration.
     """
     msg_lower = message.lower().strip()
 
-    # ── Detect chart type ──
-    chart_type = ChartType.BAR  # default
-    type_map = {
-        "line chart": ChartType.LINE, "line graph": ChartType.LINE, "line": ChartType.LINE,
-        "area chart": ChartType.AREA, "area": ChartType.AREA,
-        "pie chart": ChartType.PIE, "pie": ChartType.PIE,
-        "donut chart": ChartType.DONUT, "donut": ChartType.DONUT,
-        "scatter plot": ChartType.SCATTER, "scatter chart": ChartType.SCATTER, "scatter": ChartType.SCATTER,
-        "heatmap": ChartType.HEATMAP, "heat map": ChartType.HEATMAP,
-        "treemap": ChartType.TREEMAP, "tree map": ChartType.TREEMAP,
-        "funnel chart": ChartType.FUNNEL, "funnel": ChartType.FUNNEL,
-        "kpi": ChartType.KPI, "metric": ChartType.KPI, "scorecard": ChartType.KPI,
-        "total": ChartType.KPI, "overall": ChartType.KPI,
-        "table": ChartType.TABLE, "data table": ChartType.TABLE, "grid": ChartType.TABLE,
-        "bar chart": ChartType.BAR, "bar graph": ChartType.BAR, "bar": ChartType.BAR,
-        "histogram": ChartType.BAR, "column chart": ChartType.BAR,
-    }
-    # Check longer patterns first for accuracy
-    for keyword, ct in sorted(type_map.items(), key=lambda x: -len(x[0])):
-        if keyword in msg_lower:
-            chart_type = ct
-            break
+    # 1. Follow-up modifier handling
+    if current_config and _is_followup_modifier(message):
+        base = current_config.model_copy()
+        if "line" in msg_lower:
+            base.chart_type = ChartType.LINE
+        elif "bar" in msg_lower:
+            base.chart_type = ChartType.BAR
+        elif "scatter" in msg_lower:
+            base.chart_type = ChartType.SCATTER
+        elif "pie" in msg_lower:
+            base.chart_type = ChartType.PIE
+        elif "kpi" in msg_lower:
+            base.chart_type = ChartType.KPI
 
-    # ── Classify schema columns ──
+        if any(w in msg_lower for w in ("trend", "trendline")):
+            base.trend_line = True
+        if "stack" in msg_lower:
+            base.stacked = True
+        if any(w in msg_lower for w in ("smooth", "curved")):
+            base.smooth = True
+        if any(w in msg_lower for w in ("show values", "labels")):
+            base.show_values = True
+        if "descending" in msg_lower or "sort desc" in msg_lower:
+            base.sort_direction = SortDirection.DESC
+        elif "ascending" in msg_lower or "sort asc" in msg_lower:
+            base.sort_direction = SortDirection.ASC
+        return base
+
+    # 2. Schema classification
     columns = list(schema.keys())
-    col_lower_map = {col.lower(): col for col in columns}
 
     numeric_cols = [c for c in columns if schema[c].get("dtype", "") in
                     ("int64", "float64", "int", "float", "number", "numeric", "int32", "float32")]
@@ -378,250 +443,208 @@ def _fallback_interpret(
     datetime_cols = [c for c in columns if schema[c].get("dtype", "") in
                      ("datetime64[ns]", "datetime", "date", "datetime64") or
                      "date" in c.lower() or "time" in c.lower()]
+    datetime_cols.sort(key=lambda c: 0 if "order_date" in c.lower() else (1 if "date" in c.lower() and "mixed" not in c.lower() else 2))
 
-    # ── Find columns mentioned in the prompt ──
-    mentioned_cols = []
-    for col in columns:
-        # Match exact column name (case-insensitive, word-boundary)
-        pattern = re.compile(r'\b' + re.escape(col.lower()) + r'\b')
-        if pattern.search(msg_lower):
-            mentioned_cols.append(col)
-        else:
-            # Also try matching with spaces instead of underscores
-            col_readable = col.lower().replace("_", " ")
-            if len(col_readable) > 2 and col_readable in msg_lower:
-                mentioned_cols.append(col)
-
-    # ── Detect "X by Y" pattern (e.g. "revenue by category") ──
-    by_match = re.search(r'(\w[\w\s]*?)\s+by\s+(\w[\w\s]*?)(?:\s+and\s+|\s*$|\s+(?:as|in|for|with|where|show|using|group|top|bottom|limit))', msg_lower)
-    by_y_col = None
-    by_x_col = None
-    by_group_col = None
-    if by_match:
-        y_phrase = by_match.group(1).strip()
-        x_phrase = by_match.group(2).strip()
-        # Match phrases to columns — also handle plural forms (e.g. "categories" → "category")
-        for col in columns:
-            cl = col.lower().replace("_", " ")
-            # Exact or contained match
-            if cl in y_phrase or y_phrase in cl:
-                by_y_col = col
-            if cl in x_phrase or x_phrase in cl:
-                by_x_col = col
-            # Plural match: column name is a prefix of the phrase word (e.g. "category" ≈ "categories")
-            if not by_y_col:
-                for word in y_phrase.split():
-                    if len(cl) >= 3 and (word.startswith(cl) or cl.startswith(word)):
-                        by_y_col = col
-                        break
-
-        # Handle "top N <dimension-phrase> by <metric>" pattern:
-        # If left side didn't match a column but right side matched a numeric metric,
-        # the right side is Y (metric) and left side describes the dimension (X).
-        if by_x_col and not by_y_col:
-            if by_x_col in numeric_cols:
-                # Right side is a metric — it's the Y axis; left side describes X
-                by_y_col = by_x_col
-                by_x_col = None
-                # Try to find a dimension column matching words in y_phrase
-                for col in categorical_cols + datetime_cols:
-                    cl = col.lower().replace("_", " ")
-                    for word in y_phrase.split():
-                        if len(word) >= 3 and (word.startswith(cl) or cl.startswith(word) or cl in word or word in cl):
-                            by_x_col = col
-                            break
-                    if by_x_col:
-                        break
-
-
-    # ── Detect "group by" / "break down by" / "split by" ──
-    group_match = re.search(r'(?:group\s*by|break\s*(?:down\s*)?by|split\s*by|per)\s+(\w[\w\s]*?)(?:\s*$|\s+(?:and|where|show|for|with|top|bottom))', msg_lower)
-    if group_match:
-        g_phrase = group_match.group(1).strip()
-        for col in columns:
-            cl = col.lower().replace("_", " ")
-            if cl in g_phrase or g_phrase in cl:
-                by_group_col = col
-                break
-
-    # ── Detect aggregation ──
-    aggregation = AggregationType.SUM
-    agg_map = {
-        "average": AggregationType.AVG, "avg": AggregationType.AVG, "mean": AggregationType.AVG,
-        "count": AggregationType.COUNT, "number of": AggregationType.COUNT, "how many": AggregationType.COUNT,
-        "minimum": AggregationType.MIN, "min": AggregationType.MIN, "lowest": AggregationType.MIN,
-        "maximum": AggregationType.MAX, "max": AggregationType.MAX, "highest": AggregationType.MAX,
-        "median": AggregationType.MEDIAN,
-        "sum": AggregationType.SUM, "total": AggregationType.SUM,
-    }
-    for keyword, agg in sorted(agg_map.items(), key=lambda x: -len(x[0])):
-        if keyword in msg_lower:
-            aggregation = agg
-            break
-
-    # ── Detect "top N" / "bottom N" ──
-    limit = None
-    sort_direction = None
-    top_match = re.search(r'(?:top|best|highest|largest)\s+(\d+)', msg_lower)
-    bottom_match = re.search(r'(?:bottom|worst|lowest|smallest)\s+(\d+)', msg_lower)
-    if top_match:
-        limit = int(top_match.group(1))
-        sort_direction = SortDirection.DESC
-    elif bottom_match:
-        limit = int(bottom_match.group(1))
-        sort_direction = SortDirection.ASC
-
-    # ── Detect filters (e.g. "where age > 30", "for region = East") ──
+    # 3. Detect filters (e.g. "where churn_flag is 1", "for region = East")
     filters: list[FilterCondition] = []
-    filter_patterns = [
-        r'(?:where|filter|for|when|if)\s+(\w[\w\s]*?)\s*(=|!=|>|<|>=|<=)\s*["\']?(\w[\w\s]*?)["\']?\s*(?:$|and\b|or\b|,)',
-        r'(\w+)\s*(?:equals?|is)\s+["\']?(\w[\w\s]*?)["\']?\s*(?:$|and\b|,)',
-    ]
-    for pat in filter_patterns:
-        for m in re.finditer(pat, msg_lower):
-            groups = m.groups()
-            if len(groups) == 3:
-                col_phrase, op, val = groups
-            elif len(groups) == 2:
-                col_phrase, val = groups
+    filter_cols_matched = set()
+    filter_pattern = re.compile(
+        r'(?:where|filter|for|when|if)?\s*([a-zA-Z_]\w*)\s*(=|!=|>=|<=|>|<|\bis\s+not\b|\bis\b|\bequals?\b|\bequal\s+to\b)\s*["\']?([^"\'\s,;)]+)["\']?',
+        re.IGNORECASE
+    )
+    for m in filter_pattern.finditer(msg_lower):
+        col_candidate, raw_op, raw_val = m.group(1).strip(), m.group(2).strip(), m.group(3).strip()
+        matched_col = None
+        for col in columns:
+            if col.lower() == col_candidate.lower() or col.lower().replace("_", " ") == col_candidate.lower():
+                matched_col = col
+                break
+        if matched_col:
+            op_lower = raw_op.lower()
+            if op_lower in ("is", "equals", "equal to", "="):
                 op = "="
+            elif op_lower in ("is not", "!="):
+                op = "!="
             else:
-                continue
-            # Match the column phrase to an actual column
-            matched_col = None
-            for col in columns:
-                cl = col.lower().replace("_", " ")
-                if cl in col_phrase.strip() or col_phrase.strip() in cl:
-                    matched_col = col
-                    break
-            if matched_col:
-                # Try to parse numeric values
+                op = raw_op
+
+            try:
+                parsed_val: Any = int(raw_val)
+            except ValueError:
                 try:
-                    parsed_val: any = int(val.strip())
+                    parsed_val = float(raw_val)
                 except ValueError:
-                    try:
-                        parsed_val = float(val.strip())
-                    except ValueError:
-                        parsed_val = val.strip()
-                filters.append(FilterCondition(column=matched_col, operator=op.strip(), value=parsed_val))
+                    if raw_val.lower() == "true":
+                        parsed_val = True
+                    elif raw_val.lower() == "false":
+                        parsed_val = False
+                    else:
+                        parsed_val = raw_val
 
-    # ── Detect modifiers ──
-    trend_line = any(w in msg_lower for w in ["trend", "trendline", "trend line", "regression"])
-    stacked = "stack" in msg_lower
-    smooth = any(w in msg_lower for w in ["smooth", "curved"])
-    show_values = any(w in msg_lower for w in ["show values", "show numbers", "data labels", "label"])
-    show_legend = "legend" not in msg_lower or "show legend" in msg_lower  # default True unless "no legend"
-    show_grid = "no grid" not in msg_lower  # default True
+            filters.append(FilterCondition(column=matched_col, operator=op, value=parsed_val))
+            filter_cols_matched.add(matched_col.lower())
 
-    # ── Build axis assignments ──
-    x_axis = by_x_col
-    y_axis = by_y_col
-    group_by = by_group_col
+    text_for_metrics = msg_lower
+    filter_where_idx = re.search(r'\b(?:where|filter|when|if)\b', msg_lower)
+    if filter_where_idx:
+        text_for_metrics = msg_lower[:filter_where_idx.start()].strip()
 
-    if not x_axis and not y_axis:
-        # Use explicitly mentioned columns
-        if len(mentioned_cols) >= 2:
-            # Heuristic: if first is categorical/datetime → x, if second is numeric → y
-            if mentioned_cols[0] in categorical_cols or mentioned_cols[0] in datetime_cols:
-                x_axis = mentioned_cols[0]
-                y_axis = mentioned_cols[1]
-            elif mentioned_cols[1] in categorical_cols or mentioned_cols[1] in datetime_cols:
-                x_axis = mentioned_cols[1]
-                y_axis = mentioned_cols[0]
-            else:
-                x_axis = mentioned_cols[0]
-                y_axis = mentioned_cols[1]
-            if len(mentioned_cols) >= 3:
-                group_by = mentioned_cols[2]
-        elif len(mentioned_cols) == 1:
-            if mentioned_cols[0] in numeric_cols:
-                y_axis = mentioned_cols[0]
-                # Auto-pick a categorical x-axis
-                for col in categorical_cols + datetime_cols:
-                    if col != y_axis:
-                        x_axis = col
-                        break
-            else:
-                x_axis = mentioned_cols[0]
-                # Auto-pick a numeric y-axis
-                for col in numeric_cols:
-                    x_axis_set = x_axis  # avoid shadowing
-                    if col != x_axis_set:
-                        y_axis = col
-                        break
+    # 4. Detect temporal grain & date x-axis
+    prompt_grain = _detect_grain_from_text(msg_lower)
+    x_axis_time_grain = None
+    x_axis = None
+    y_axis = None
+    group_by = None
 
-    # If still no axis assignment, pick smart defaults
-    if not x_axis and not y_axis and columns:
-        if chart_type == ChartType.KPI:
-            y_axis = numeric_cols[0] if numeric_cols else columns[0]
-        elif chart_type == ChartType.TABLE:
-            pass  # Table doesn't need explicit axes
-        else:
+    if prompt_grain:
+        x_axis_time_grain = prompt_grain
+        if datetime_cols:
+            x_axis = datetime_cols[0]
+
+    # 5. Detect Dimension (across, by, per, for each)
+    dim_match = re.search(
+        r'(?:across|by|per|for\s+each|grouped\s+by|break\s*(?:down\s*)?by|split\s*by)\s+([a-zA-Z_]\w*(?:\s+[a-zA-Z_]\w*)?)',
+        text_for_metrics
+    )
+    if dim_match:
+        dim_candidate = dim_match.group(1).strip()
+        if dim_candidate in ("quarter", "month", "year", "week", "day"):
+            grain_map = {
+                "quarter": TimeGrain.QUARTER,
+                "month": TimeGrain.MONTH,
+                "year": TimeGrain.YEAR,
+                "week": TimeGrain.WEEK,
+                "day": TimeGrain.DAY,
+            }
+            x_axis_time_grain = grain_map.get(dim_candidate, TimeGrain.MONTH)
             if datetime_cols:
                 x_axis = datetime_cols[0]
-            elif categorical_cols:
-                x_axis = categorical_cols[0]
-            if numeric_cols:
-                y_axis = numeric_cols[0]
+        else:
+            for col in columns:
+                cl = col.lower()
+                cr = cl.replace("_", " ")
+                if cl == dim_candidate or cr == dim_candidate or dim_candidate.startswith(cl) or cl in dim_candidate:
+                    if col.lower() not in filter_cols_matched:
+                        x_axis = col
+                        break
 
-    # ── Switch to scatter plot if both axes are numeric ──
-    if x_axis in numeric_cols and y_axis in numeric_cols and chart_type in [ChartType.BAR, ChartType.LINE, ChartType.AREA]:
+    # 6. Detect Multi-Metric & Aggregations
+    found_metrics: list[tuple[str, AggregationType, int]] = []
+    for col in numeric_cols:
+        if col.lower() in filter_cols_matched:
+            continue
+        col_patterns = [r'\b' + re.escape(col.lower()) + r'\b', r'\b' + re.escape(col.lower().replace("_", " ")) + r'\b']
+        for cp in col_patterns:
+            m = re.search(cp, text_for_metrics)
+            if m:
+                pos = m.start()
+                prefix = text_for_metrics[max(0, pos - 20):pos]
+                agg = AggregationType.SUM
+                if any(w in prefix for w in ("average", "avg", "mean")):
+                    agg = AggregationType.AVG
+                elif any(w in prefix for w in ("count", "number of", "how many")):
+                    agg = AggregationType.COUNT
+                elif any(w in prefix for w in ("min", "minimum", "lowest")):
+                    agg = AggregationType.MIN
+                elif any(w in prefix for w in ("max", "maximum", "highest")):
+                    agg = AggregationType.MAX
+                elif any(w in prefix for w in ("sum", "total")):
+                    agg = AggregationType.SUM
+                elif "rate" in col.lower() or "pct" in col.lower() or "percent" in col.lower():
+                    agg = AggregationType.AVG
+                found_metrics.append((col, agg, pos))
+                break
+
+    found_metrics.sort(key=lambda x: x[2])
+    seen_metric_cols = set()
+    unique_metrics = []
+    for col, agg, pos in found_metrics:
+        if col not in seen_metric_cols:
+            seen_metric_cols.add(col)
+            unique_metrics.append((col, agg))
+
+    metrics: Optional[list[MetricSpec]] = None
+    aggregation = AggregationType.SUM
+
+    if len(unique_metrics) >= 2:
+        metrics = [MetricSpec(column=c, aggregation=a) for c, a in unique_metrics]
+    elif len(unique_metrics) == 1:
+        y_axis = unique_metrics[0][0]
+        aggregation = unique_metrics[0][1]
+
+    # 7. Check if scatter plot
+    is_scatter = any(w in msg_lower for w in ("scatter", "scatter plot")) or (" vs " in msg_lower and not x_axis_time_grain and not any(w in msg_lower for w in ("compare", "bar", "across")))
+    if is_scatter:
         chart_type = ChartType.SCATTER
-
-    # BUG FIX: Compute sort_by AFTER axis assignment so y_axis is known.
-    sort_by = y_axis if sort_direction else None
-
-    # BUG FIX: sort_by must be computed AFTER y_axis is known (axis assignment happens below).
-    # Previously computed here, which meant y_axis could be None and sort_by would also be None,
-    # causing sort_direction to never be written into the config.
-    # sort_by is now computed after the axis assignment block.
-
-    # ── Generate a clean title ──
-    if chart_type == ChartType.KPI:
-        agg_label = aggregation.value.capitalize() if aggregation != AggregationType.SUM else "Total"
-        col_label = (y_axis or "Value").replace("_", " ").title()
-        title = f"{agg_label} {col_label}"
-    elif x_axis and y_axis:
-        agg_label = aggregation.value.upper() if aggregation != AggregationType.SUM else ""
-        y_label = y_axis.replace("_", " ").title()
-        x_label = x_axis.replace("_", " ").title()
-        prefix = f"{agg_label} " if agg_label else ""
-        title = f"{prefix}{y_label} by {x_label}"
+        metrics = None
+        aggregation = AggregationType.NONE
+        vs_match = re.search(r'([a-zA-Z_]\w*)\s+vs\s+([a-zA-Z_]\w*)', text_for_metrics)
+        if vs_match:
+            c1_name, c2_name = vs_match.group(1), vs_match.group(2)
+            c1 = next((c for c in columns if c.lower() in (c1_name.lower(), c1_name.lower().replace(" ", "_"))), None)
+            c2 = next((c for c in columns if c.lower() in (c2_name.lower(), c2_name.lower().replace(" ", "_"))), None)
+            if c1 and c2:
+                x_axis = c1
+                y_axis = c2
+        color_by = None
+        color_match = re.search(r'(?:colored\s+by|color\s+by|by)\s+([a-zA-Z_]\w*)', msg_lower)
+        if color_match:
+            cat_name = color_match.group(1)
+            for c in categorical_cols:
+                if c.lower() == cat_name.lower() or c.lower().replace("_", " ") == cat_name.lower():
+                    group_by = c
+                    color_by = c
+                    break
+        title = f"{x_axis.replace('_', ' ').title() if x_axis else 'X'} vs {y_axis.replace('_', ' ').title() if y_axis else 'Y'}"
         if group_by:
-            title += f" ({group_by.replace('_', ' ').title()})"
-        if limit and sort_direction:
-            dir_label = "Top" if sort_direction == SortDirection.DESC else "Bottom"
-            title = f"{dir_label} {limit} — {title}"
+            title += f" by {group_by.replace('_', ' ').title()}"
+    elif metrics and len(metrics) >= 2:
+        if x_axis:
+            chart_type = ChartType.BAR
+        else:
+            chart_type = ChartType.KPI
+    elif x_axis_time_grain or any(w in msg_lower for w in ("trend", "monthly", "weekly", "daily", "line")):
+        chart_type = ChartType.LINE
+    elif any(w in msg_lower for w in ("kpi", "total", "scorecard", "metric")) and not x_axis:
+        chart_type = ChartType.KPI
+    else:
+        chart_type = ChartType.BAR
+
+    # 8. Sort detection
+    sort_direction = SortDirection.ASC
+    sort_by = None
+    has_sort = False
+    if any(w in msg_lower for w in ("descending", "desc", "sorted desc", "sort desc", "highest", "top")):
+        sort_direction = SortDirection.DESC
+        has_sort = True
+    elif any(w in msg_lower for w in ("ascending", "asc", "sorted asc", "sort asc", "lowest", "bottom")):
+        sort_direction = SortDirection.ASC
+        has_sort = True
+
+    if has_sort:
+        if metrics:
+            sort_by = metrics[0].column
+        elif y_axis:
+            sort_by = y_axis
+        elif x_axis:
+            sort_by = x_axis
+
+    # 9. Title generation
+    if metrics:
+        metric_labels = " & ".join(m.column.replace("_", " ").title() for m in metrics)
+        if x_axis:
+            title = f"{metric_labels} across {x_axis.replace('_', ' ').title()}"
+        else:
+            title = f"{metric_labels}"
+    elif chart_type == ChartType.KPI:
+        title = f"Total {(y_axis or 'Revenue').replace('_', ' ').title()}"
+    elif chart_type == ChartType.LINE and x_axis_time_grain:
+        grain_label = x_axis_time_grain.value.capitalize()
+        title = f"{grain_label} {(y_axis or 'Revenue').replace('_', ' ').title()} Trend"
+    elif x_axis and y_axis:
+        title = f"{(y_axis).replace('_', ' ').title()} by {x_axis.replace('_', ' ').title()}"
     else:
         title = message[:80]
-
-    # ── Build config ──
-    if current_config:
-        base = current_config.model_copy()
-        base.chart_type = chart_type
-        # BUG FIX: Only update axes if the prompt explicitly mentioned them.
-        # Do NOT use schema-default axes — that would overwrite the existing config
-        # with auto-filled defaults the user never asked for.
-        if x_axis and x_axis in mentioned_cols + ([by_x_col] if by_x_col else []):
-            base.x_axis = x_axis
-        if y_axis and y_axis in mentioned_cols + ([by_y_col] if by_y_col else []):
-            base.y_axis = y_axis
-        if group_by:
-            base.group_by = group_by
-        base.aggregation = aggregation
-        base.trend_line = base.trend_line or trend_line
-        base.stacked = base.stacked or stacked
-        base.smooth = base.smooth or smooth
-        base.show_values = show_values if show_values else base.show_values
-        if filters:
-            base.filters = (base.filters or []) + filters
-        if sort_by:
-            base.sort_by = sort_by
-            base.sort_direction = sort_direction
-        if limit:
-            base.limit = limit
-        base.title = title
-        return base
 
     config_kwargs = dict(
         chart_type=chart_type,
@@ -629,40 +652,28 @@ def _fallback_interpret(
         x_axis=x_axis,
         y_axis=y_axis,
         group_by=group_by,
+        color_by=color_by if is_scatter else None,
         aggregation=aggregation,
-        trend_line=trend_line,
-        stacked=stacked,
-        smooth=smooth,
-        show_values=show_values,
-        show_legend=show_legend,
-        show_grid=show_grid,
+        x_axis_time_grain=x_axis_time_grain,
+        metrics=metrics,
+        trend_line=False,
+        stacked=False,
+        smooth=False,
+        show_values=False,
+        show_legend=True,
+        show_grid=True,
         color_scheme="default",
     )
     if filters:
         config_kwargs["filters"] = filters
-    if sort_by:
+    if has_sort and sort_by:
         config_kwargs["sort_by"] = sort_by
         config_kwargs["sort_direction"] = sort_direction
-    if limit:
-        config_kwargs["limit"] = limit
-    if chart_type == ChartType.KPI and y_axis:
+    if chart_type == ChartType.KPI and y_axis and not metrics:
         config_kwargs["kpi_value_column"] = y_axis
-        config_kwargs["kpi_aggregation"] = aggregation.value
-
-    # Detect temporal grain from the user prompt
-    prompt_grain = _detect_grain_from_text(msg_lower)
-    if prompt_grain:
-        config_kwargs["x_axis_time_grain"] = prompt_grain
-        # Update title to reflect the temporal grain if not already present
-        if x_axis and x_axis in datetime_cols:
-            grain_label = prompt_grain.value.capitalize()
-            y_label = (y_axis or "").replace("_", " ").title()
-            if y_label:
-                config_kwargs["title"] = f"{grain_label} {y_label} Trend"
+        config_kwargs["kpi_aggregation"] = aggregation
 
     config = ChartConfig(**config_kwargs)
-
-    # Final enforcement: title↔grain consistency
     config = _enforce_temporal_grain_consistency(config, schema)
     return config
 
