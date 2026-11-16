@@ -24,6 +24,7 @@ from state import TTLStore, get_stored_dataframe, get_stored_data
 
 from dashboard.chart_config_models import (
     ChartConfig,
+    ChartType,
     InterpretRequest,
     InterpretResponse,
     QueryRequest,
@@ -31,10 +32,29 @@ from dashboard.chart_config_models import (
     DashboardModel,
     ClarificationRequest,
     FilterCondition,
+    MeasureDefinition,
 )
 from dashboard.prompt_interpreter import interpret_prompt, suggest_follow_ups
 from dashboard.config_to_sql import config_to_sql
 from dashboard.auto_generator import generate_initial_dashboard
+from dashboard.measure_engine import MeasureEngine
+from dashboard.ai_analytics import (
+    ForecastRequest,
+    ForecastResponse,
+    run_forecast,
+    ExplainPointRequest,
+    ExplainPointResponse,
+    explain_point_delta,
+    DecompositionTreeRequest,
+    DecompositionTreeResponse,
+    compute_decomposition_tree,
+    KeyInfluencerRequest,
+    KeyInfluencerResponse,
+    compute_key_influencers,
+    SmartNarrativeRequest,
+    SmartNarrativeResponse,
+    generate_smart_narrative,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +137,7 @@ def _get_table_name(file_id: str) -> str:
 
 @router.post("/api/dashboard/interpret")
 async def interpret(request: InterpretRequest):
-    """Interpret a natural language prompt into a ChartConfig."""
+    """Interpret a natural language prompt into a ChartConfig or MeasureDefinition."""
     schema = _get_schema_for_file(request.file_id)
     business_context = _get_business_context(request.file_id)
 
@@ -127,11 +147,20 @@ async def interpret(request: InterpretRequest):
         current_config=request.current_config,
         conversation_history=request.conversation_history,
         business_context=business_context,
+        edit_mode=request.edit_mode,
     )
+
+    if isinstance(result, MeasureDefinition):
+        return InterpretResponse(
+            success=True,
+            intent="create_measure",
+            measure=result,
+        )
 
     if isinstance(result, ClarificationRequest):
         return InterpretResponse(
             success=True,
+            intent="clarify",
             clarification=result,
         )
 
@@ -143,6 +172,7 @@ async def interpret(request: InterpretRequest):
         data = _execute_sql(request.file_id, sql)
         return InterpretResponse(
             success=True,
+            intent="modify_chart" if request.edit_mode else "create_chart",
             config=config,
             sql=sql,
             data=data,
@@ -151,6 +181,7 @@ async def interpret(request: InterpretRequest):
         logger.warning("SQL execution failed after interpretation: %s", e)
         return InterpretResponse(
             success=False,
+            intent="modify_chart" if request.edit_mode else "create_chart",
             error=str(e),
             config=config,
             sql=None,
@@ -189,6 +220,15 @@ async def auto_generate(request: AutoGenerateRequest):
     results = []
     table_name = _get_table_name(request.file_id)
     for config in configs:
+        if config.chart_type == ChartType.SMART_NARRATIVE:
+            results.append({
+                "config": config.model_dump(),
+                "sql": None,
+                "data": None,
+                "success": True,
+            })
+            continue
+
         try:
             sql = config_to_sql(config, table_name)
             data = _execute_sql(request.file_id, sql)
@@ -215,6 +255,154 @@ async def suggest(request: SuggestPromptsRequest):
     schema = _get_schema_for_file(request.file_id)
     suggestions = await suggest_follow_ups(schema, request.current_config)
     return {"suggestions": suggestions}
+
+
+# ──────────────────────────────────────────
+# AI Analytics & Super-Visual Endpoints
+# ──────────────────────────────────────────
+
+@router.post("/api/dashboard/forecast", response_model=ForecastResponse)
+async def forecast_endpoint(request: ForecastRequest):
+    """Run time-series forecasting with confidence intervals and anomaly detection."""
+    df = get_stored_dataframe(request.file_id)
+    if df is None:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    try:
+        return run_forecast(
+            df=df,
+            date_col=request.date_column,
+            val_col=request.value_column,
+            time_grain=request.time_grain,
+            periods=request.periods,
+            confidence=request.confidence,
+            agg=request.aggregation,
+        )
+    except Exception as e:
+        logger.error("Forecast failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/dashboard/explain-point", response_model=ExplainPointResponse)
+async def explain_point_endpoint(request: ExplainPointRequest):
+    """Explain root-cause dimensional drivers for a clicked data point."""
+    df = get_stored_dataframe(request.file_id)
+    if df is None:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    try:
+        return explain_point_delta(
+            df=df,
+            clicked_point=request.clicked_point,
+            dimension_col=request.dimension_column,
+            metric_col=request.metric_column,
+            agg=request.aggregation,
+            time_grain=request.time_grain,
+        )
+    except Exception as e:
+        logger.error("Explain point failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/dashboard/decomposition-tree", response_model=DecompositionTreeResponse)
+async def decomposition_tree_endpoint(request: DecompositionTreeRequest):
+    """Compute interactive decomposition tree node splits."""
+    df = get_stored_dataframe(request.file_id)
+    if df is None:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    try:
+        return compute_decomposition_tree(
+            df=df,
+            metric_col=request.metric_column,
+            agg=request.aggregation,
+            current_path=request.current_path,
+            split_dimension=request.split_dimension,
+            split_strategy=request.split_strategy,
+        )
+    except Exception as e:
+        logger.error("Decomposition tree failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/dashboard/key-influencers", response_model=KeyInfluencerResponse)
+async def key_influencers_endpoint(request: KeyInfluencerRequest):
+    """Compute feature drivers and lift multipliers for an outcome."""
+    df = get_stored_dataframe(request.file_id)
+    if df is None:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    try:
+        return compute_key_influencers(
+            df=df,
+            target_col=request.target_column,
+            target_value=request.target_value,
+        )
+    except Exception as e:
+        logger.error("Key influencers failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/dashboard/narrative", response_model=SmartNarrativeResponse)
+async def smart_narrative_endpoint(request: SmartNarrativeRequest):
+    """Generate dynamic, data-grounded narrative bullets."""
+    df = get_stored_dataframe(request.file_id)
+    if df is None:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    try:
+        return generate_smart_narrative(
+            df=df,
+            current_config=request.current_config,
+        )
+    except Exception as e:
+        logger.error("Smart narrative failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class MeasureCreateRequest(BaseModel):
+    file_id: str
+    name: str
+    expression: str
+    format: str = "number"
+    description: Optional[str] = None
+
+
+@router.post("/api/dashboard/measure/create")
+async def create_measure_endpoint(request: MeasureCreateRequest):
+    """Validate, test, and register a custom measure."""
+    valid, err = MeasureEngine.validate_expression(request.expression)
+    if not valid:
+        raise HTTPException(status_code=400, detail=f"Invalid measure expression: {err}")
+
+    # Test execution in DuckDB to ensure syntax is valid
+    df = get_stored_dataframe(request.file_id)
+    if df is not None:
+        try:
+            import duckdb
+            compiled = MeasureEngine.compile_measure(request.expression)
+            conn = duckdb.connect(":memory:")
+            conn.register("t", df)
+            conn.execute(f"SELECT {compiled} FROM t").fetchone()
+        except Exception as exec_err:
+            raise HTTPException(status_code=400, detail=f"Measure execution test failed: {exec_err}")
+
+    return {
+        "success": True,
+        "measure": {
+            "name": request.name,
+            "expression": request.expression,
+            "format": request.format,
+            "description": request.description,
+            "category": "custom",
+        }
+    }
+
+
+class MeasureValidateRequest(BaseModel):
+    expression: str
+
+
+@router.post("/api/dashboard/measure/validate")
+async def validate_measure_endpoint(request: MeasureValidateRequest):
+    """Validate a DAX-style expression syntax."""
+    valid, err = MeasureEngine.validate_expression(request.expression)
+    return {"valid": valid, "error": err}
 
 
 def _execute_sql(file_id: str, sql: str) -> list[dict]:
