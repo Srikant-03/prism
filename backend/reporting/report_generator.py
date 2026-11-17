@@ -196,8 +196,18 @@ class ReportGenerator:
             high_null_cols = sum(1 for c in columns if isinstance(c, dict) and c.get("null_percentage", 0) > 30)
             if high_null_cols:
                 readiness_issues.append(f"{high_null_cols} feature(s) with >30% missing values")
-            if profile.get("duplicate_row_count", 0) > 0:
-                readiness_issues.append(f"{profile['duplicate_row_count']:,} duplicate rows")
+            else:
+                any_null_cols = sum(1 for c in columns if isinstance(c, dict) and c.get("null_percentage", 0) > 0)
+                if any_null_cols:
+                    readiness_issues.append(f"{any_null_cols} feature(s) with missing values")
+
+            dup_count = profile.get("duplicate_rows_count") if profile.get("duplicate_rows_count") is not None else profile.get("duplicate_row_count", 0)
+            if dup_count > 0:
+                readiness_issues.append(f"{dup_count:,} duplicate rows")
+
+            constant_cols = sum(1 for c in columns if isinstance(c, dict) and c.get("distinct_count", 0) <= 1 and c.get("non_null_count", 0) > 0)
+            if constant_cols > 0:
+                readiness_issues.append(f"{constant_cols} constant feature(s) with zero variance")
 
             if readiness_issues:
                 parts.append(
@@ -219,7 +229,7 @@ class ReportGenerator:
         cols = profile.get("total_columns", 0)
         mem = profile.get("memory_size_bytes", 0) / (1024 * 1024)
         domain = profile.get("estimated_domain", "Unknown")
-        dup = profile.get("duplicate_row_count", 0)
+        dup = profile.get("duplicate_rows_count") if profile.get("duplicate_rows_count") is not None else profile.get("duplicate_row_count", 0)
 
         content = (
             f"The dataset's memory footprint is approximately **{mem:.2f} MB**. "
@@ -239,15 +249,22 @@ class ReportGenerator:
                 t = str(t).replace("SemanticType.", "").lower()
                 type_counts[t] = type_counts.get(t, 0) + 1
 
-        # Compute summary stats for intro
-        num_numeric = sum(1 for c in columns if isinstance(c, dict) and c.get("inferred_dtype", c.get("dtype", "")) in ("int64", "float64", "int32", "float32"))
-        num_cat = sum(1 for c in columns if isinstance(c, dict) and c.get("inferred_dtype", c.get("dtype", "")) in ("object", "category", "string", "bool"))
+        # Compute summary stats for intro (must accurately sum to total columns)
+        num_numeric = sum(1 for c in columns if isinstance(c, dict) and any(k in str(c.get("inferred_dtype", c.get("dtype", ""))).lower() for k in ["int", "float"]))
+        num_dt = sum(1 for c in columns if isinstance(c, dict) and ("datetime" in str(c.get("inferred_dtype", c.get("dtype", ""))).lower() or "datetime" in str(c.get("semantic_type", "")).lower()))
+        num_cat = sum(1 for c in columns if isinstance(c, dict) and not ("datetime" in str(c.get("inferred_dtype", c.get("dtype", ""))).lower() or "datetime" in str(c.get("semantic_type", "")).lower()) and any(k in str(c.get("inferred_dtype", c.get("dtype", ""))).lower() for k in ["object", "category", "string", "bool"]))
+        
+        # If any remain unclassified, ensure sum matches len(columns)
+        total_counted = num_numeric + num_cat + num_dt
+        if total_counted < len(columns):
+            num_cat += (len(columns) - total_counted)
+
         avg_null = 0
         if columns:
             avg_null = sum(c.get("null_percentage", 0) for c in columns if isinstance(c, dict)) / len(columns)
 
         content += (
-            f" The feature space is composed of **{num_numeric}** numeric and **{num_cat}** categorical variables. "
+            f" The feature space is composed of **{num_numeric}** numeric, **{num_cat}** categorical, and **{num_dt}** datetime variables (total: {len(columns)}). "
             f"Average feature-level missing rate is **{avg_null:.2f}%**."
         )
 
@@ -363,16 +380,22 @@ class ReportGenerator:
             "rows": rows_data,
         }]
 
-        # Numeric summary sub-table
+        # Numeric summary sub-table (exclude IDs, booleans, flags, and columns lacking genuine numeric stats)
         numeric_rows = []
         for c in columns[:50]:
             if not isinstance(c, dict):
+                continue
+            sem_type = str(c.get("semantic_type", "")).replace("SemanticType.", "").lower()
+            if sem_type in ("id_key", "boolean", "uuid", "hashed", "free_text", "url", "email", "phone"):
+                continue
+            col_name_lower = c.get("name", "").lower()
+            if any(k in col_name_lower for k in ["_id", "id_", "seq_", "uuid", "flag"]):
                 continue
             dtype = c.get("inferred_dtype", c.get("dtype", ""))
             if dtype not in ("int64", "float64", "int32", "float32"):
                 continue
             num = c.get("numeric") or {}
-            if not isinstance(num, dict):
+            if not isinstance(num, dict) or not num or num.get("mean") is None:
                 continue
             pcts = num.get("percentiles") if isinstance(num.get("percentiles"), dict) else {}
             std_val = num.get("std_dev") if num.get("std_dev") is not None else num.get("std", 0)
@@ -879,23 +902,40 @@ class ReportGenerator:
                 )
 
             # ── Skewness handling ──
-            skewed_cols = []
+            strictly_pos_skewed = []
+            non_pos_skewed = []
             for c in columns:
                 if not isinstance(c, dict):
                     continue
                 num = c.get("numeric") or {}
                 if isinstance(num, dict) and num.get("skewness") is not None and abs(num["skewness"]) > 2:
-                    skewed_cols.append(c.get("name", ""))
-            if skewed_cols:
+                    min_val = num.get("min", 0)
+                    if min_val is not None and min_val > 0:
+                        strictly_pos_skewed.append(c.get("name", ""))
+                    else:
+                        non_pos_skewed.append(c.get("name", ""))
+
+            if strictly_pos_skewed:
                 recs.append(
-                    f"Highly skewed features ({', '.join(skewed_cols[:5])}) should be transformed using "
+                    f"Highly skewed positive features ({', '.join(strictly_pos_skewed[:5])}) should be transformed using "
                     f"log, sqrt, or Box-Cox transforms before training linear models, SVMs, or KNN."
                 )
+            if non_pos_skewed:
+                recs.append(
+                    f"Features with zero/negative values ({', '.join(non_pos_skewed[:5])}) cannot use standard log or Box-Cox transforms; "
+                    f"apply Yeo-Johnson or shift transformations (e.g. log1p with offset) instead."
+                )
 
-            # ── High cardinality categoricals ──
-            high_card = [c.get("name", "") for c in columns 
-                         if isinstance(c, dict) and c.get("inferred_dtype", c.get("dtype", "")) in ("object", "string", "category")
-                         and c.get("distinct_count", c.get("unique_count", 0)) > 50]
+            # ── High cardinality categoricals (never recommend Target Encoding on IDs/dates/emails/currency) ──
+            excluded_sem = ("id_key", "datetime", "email", "url", "free_text", "json", "currency", "phone", "hashed", "uuid")
+            high_card = [
+                c.get("name", "") for c in columns 
+                if isinstance(c, dict) 
+                and c.get("inferred_dtype", c.get("dtype", "")) in ("object", "string", "category")
+                and str(c.get("semantic_type", "")).replace("SemanticType.", "").lower() not in excluded_sem
+                and not any(k in c.get("name", "").lower() for k in ["_id", "id_", "uuid", "email", "date", "time", "json", "notes", "text", "seq_"])
+                and c.get("distinct_count", c.get("unique_count", 0)) > 50
+            ]
             if high_card:
                 recs.append(
                     f"High-cardinality categorical features ({', '.join(high_card[:5])}) will cause dimensionality explosion with one-hot encoding. "
@@ -1106,47 +1146,84 @@ class ReportExporter:
         def sanitize_text(text: str) -> str:
             if not isinstance(text, str):
                 text = str(text)
-            # Replace common unsupported FPDF unicode chars
-            return text.replace("—", "-").replace("×", "x").replace("…", "...").replace("’", "'").replace("‘", "'").replace("•", "-").replace("“", '"').replace("”", '"')
+            return (
+                text.replace("—", "-")
+                .replace("–", "-")
+                .replace("×", "x")
+                .replace("…", "...")
+                .replace("’", "'")
+                .replace("‘", "'")
+                .replace("“", '"')
+                .replace("”", '"')
+                .replace("•", "-")
+                .replace("ℹ️", "[i]")
+                .replace("⚠️", "[!]")
+                .encode("latin-1", "replace")
+                .decode("latin-1")
+            )
 
         # Title
-        pdf.set_font("Arial", "B", 16)
-        pdf.cell(0, 12, sanitize_text(report.title), ln=True, align="C")
-        pdf.set_font("Arial", "", 10)
-        pdf.cell(0, 6, sanitize_text(f"Generated: {report.generated_at}"), ln=True, align="C")
+        pdf.set_font("Helvetica", "B", 16)
+        pdf.cell(0, 12, sanitize_text(report.title), new_x="LMARGIN", new_y="NEXT", align="C")
+        pdf.set_font("Helvetica", "", 10)
+        pdf.cell(0, 6, sanitize_text(f"Generated: {report.generated_at}"), new_x="LMARGIN", new_y="NEXT", align="C")
         pdf.ln(8)
 
         for section in report.sections:
-            pdf.set_font("Arial", "B", 13)
-            pdf.cell(0, 10, sanitize_text(section.title), ln=True)
-            pdf.set_font("Arial", "", 10)
+            pdf.set_font("Helvetica", "B", 13)
+            pdf.cell(0, 10, sanitize_text(section.title), new_x="LMARGIN", new_y="NEXT")
+            pdf.set_font("Helvetica", "", 10)
             # Clean markdown bold markers
             text = section.content.replace("**", "")
             pdf.multi_cell(0, 5, sanitize_text(text))
             pdf.ln(3)
 
-            for table in section.tables:
-                pdf.set_font("Arial", "B", 10)
-                pdf.cell(0, 7, sanitize_text(table.get("title", "")), ln=True)
+            # Render horizontal bar charts if present
+            for chart in section.charts:
+                c_title = sanitize_text(chart.get("title", ""))
+                c_data = chart.get("data", [])
+                if chart.get("type") == "bar" and c_data:
+                    pdf.set_font("Helvetica", "B", 10)
+                    pdf.cell(0, 7, c_title, new_x="LMARGIN", new_y="NEXT")
+                    pdf.set_font("Helvetica", "", 8)
+                    bar_max_w = 90.0
+                    for item in c_data[:10]:
+                        lbl = sanitize_text(str(item.get("label", "")))[:25]
+                        val = float(item.get("value", 0.0))
+                        pct = max(0.0, min(100.0, val))
+                        pdf.cell(50, 5, lbl)
+                        x = pdf.get_x()
+                        y = pdf.get_y()
+                        pdf.set_fill_color(226, 232, 240)
+                        pdf.rect(x, y + 1, bar_max_w, 3, "F")
+                        pdf.set_fill_color(99, 102, 241)
+                        pdf.rect(x, y + 1, bar_max_w * (pct / 100.0), 3, "F")
+                        pdf.set_x(x + bar_max_w + 3)
+                        pdf.cell(20, 5, f"{val:.1f}%", new_x="LMARGIN", new_y="NEXT")
+                    pdf.ln(3)
 
-                headers = table.get("headers", [])
+            # Render tables with FPDF2 native table wrapping
+            for table in section.tables:
+                t_title = sanitize_text(table.get("title", ""))
+                if t_title:
+                    pdf.set_font("Helvetica", "B", 10)
+                    pdf.cell(0, 7, t_title, new_x="LMARGIN", new_y="NEXT")
+
+                headers = [sanitize_text(str(h).replace("SemanticType.", "")) for h in table.get("headers", [])]
                 rows_data = table.get("rows", [])
                 if not headers:
                     continue
 
-                col_w = min(185 // max(1, len(headers)), 60)
-                pdf.set_font("Arial", "B", 8)
-                for h in headers:
-                    h_str = str(h).replace("SemanticType.", "")
-                    pdf.cell(col_w, 6, sanitize_text(h_str[:30]), border=1)
-                pdf.ln()
-
-                pdf.set_font("Arial", "", 8)
-                for row in rows_data[:30]:
-                    for val in row:
-                        val_str = str(val).replace("SemanticType.", "")
-                        pdf.cell(col_w, 5, sanitize_text(val_str[:45]), border=1)
-                    pdf.ln()
+                pdf.set_font("Helvetica", "", 8)
+                with pdf.table(line_height=pdf.font_size * 2.2, borders_layout="SINGLE_TOP_LINE") as tab:
+                    head_row = tab.row()
+                    for h in headers:
+                        head_row.cell(h)
+                    for row in rows_data[:35]:
+                        r = tab.row()
+                        for val in row:
+                            val_str = sanitize_text(str(val).replace("SemanticType.", ""))
+                            r.cell(val_str)
                 pdf.ln(3)
 
         return bytes(pdf.output())
