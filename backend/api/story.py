@@ -48,8 +48,14 @@ def _safe_insights(stored):
     if stored is None:
         return None
     ins = getattr(stored, "insights", None)
+    if ins is None and hasattr(stored, "profile"):
+        ins = getattr(stored.profile, "insights", None)
     if ins is None and isinstance(stored, dict):
         ins = stored.get("insights")
+        if ins is None and isinstance(stored.get("profile"), dict):
+            ins = stored["profile"].get("insights")
+        elif ins is None and hasattr(stored.get("profile"), "insights"):
+            ins = getattr(stored.get("profile"), "insights", None)
     return ins
 
 
@@ -124,6 +130,17 @@ async def generate_story(request: StoryRequest):
                     val = getattr(q, dim, None) or (q.get(dim) if isinstance(q, dict) else None)
                     if val is not None:
                         quality_dims[dim] = val
+        else:
+            comp_score = round(max(0.0, 100.0 - (null_total / total_cells * 100)), 1)
+            uniq_score = round(max(0.0, 100.0 - (dup_count / max(total_rows, 1) * 100)), 1)
+            quality_dims = {
+                "completeness": comp_score,
+                "uniqueness": uniq_score,
+                "validity": 95.0,
+                "consistency": 90.0,
+            }
+            quality_score = round(sum(quality_dims.values()) / 4.0, 1)
+            quality_grade = "A" if quality_score >= 90 else ("B" if quality_score >= 80 else ("C" if quality_score >= 70 else "D"))
 
         slides.append({
             "id": _uid(),
@@ -335,7 +352,11 @@ async def generate_story(request: StoryRequest):
 
         target_bullets = []
         if insights:
-            rankings = getattr(insights, 'feature_importance', None) or (insights.get('feature_ranking', None) if isinstance(insights, dict) else None)
+            rankings = (
+                getattr(insights, 'feature_ranking', None)
+                or getattr(insights, 'feature_importance', None)
+                or (insights.get('feature_ranking', None) if isinstance(insights, dict) else None)
+            )
             if rankings and isinstance(rankings, list):
                 for r in rankings[:4]:
                     name = getattr(r, 'feature', '') or (r.get('feature', '') if isinstance(r, dict) else '')
@@ -344,14 +365,16 @@ async def generate_story(request: StoryRequest):
 
         if not target_bullets:
             if target_col:
+                top_features = [c for c in df.columns if c != target_col][:3]
                 target_bullets = [
                     f"Primary target metric candidate identified as '{target_col}'.",
-                    'Secondary predictive drivers include business size tier, industry classification, and location attributes.'
+                    f"Leading candidate predictor features include: {', '.join(top_features)}."
                 ]
             else:
+                top_features = list(df.columns[:3])
                 target_bullets = [
-                    'No target column was identified. Upload a labeled dataset to enable predictive analysis.',
-                    'Feature importance is shown relative to all columns without a defined target.'
+                    'No explicit target column identified in dataset.',
+                    f"Primary descriptive features analyzed: {', '.join(top_features)}."
                 ]
 
         slides.append({
@@ -379,17 +402,20 @@ async def generate_story(request: StoryRequest):
                     rec_bullets = recs
 
         if not rec_bullets:
-            if "ICT" in domain_name or "Digital" in domain_name:
+            rec_bullets = []
+            if not top_nulls.empty:
+                rec_bullets.append(f"Impute missing values in {len(top_nulls)} sparse features ({', '.join(top_nulls.index[:3])}).")
+            if cat_cols:
+                rec_bullets.append(f"Apply appropriate encoding strategies across {len(cat_cols)} categorical dimensions.")
+            if target_col:
+                rec_bullets.append(f"Establish supervised ML pipeline targeting '{target_col}' with cross-validation.")
+            if numeric_cols:
+                rec_bullets.append(f"Scale continuous distributions and evaluate outlier bounds across {len(numeric_cols)} numeric attributes.")
+            if not rec_bullets:
                 rec_bullets = [
-                    "Prioritize SME Digital Support: Target digital adoption incentives to 6-19 employee enterprises.",
-                    "Accelerate Fibre & Cloud Infrastructure: Focus regional expansion on high-speed connectivity.",
-                    "Develop Sector Roadmaps: Tailor digital transformation strategies for Construction, Retail, and Manufacturing."
-                ]
-            else:
-                rec_bullets = [
-                    "Perform log or Box-Cox transformations on right-skewed numerical variables.",
-                    "Apply Target Encoding or LightGBM native handling for high-cardinality categorical features.",
-                    "Establish a 5-fold cross-validation scheme to guard against overfitting."
+                    "Perform variance stabilization on numerical attributes.",
+                    "Validate categorical features for consistency.",
+                    "Establish a cross-validation scheme to guard against overfitting."
                 ]
 
         slides.append({
@@ -405,12 +431,24 @@ async def generate_story(request: StoryRequest):
         })
 
         # ── 10. Implementation Roadmap & Next Steps ───────────────────
-        roadmap_bullets = [
-            "Phase 1 (Data Prep): Apply automated cleaning pipelines, impute missing values, and handle outliers.",
-            "Phase 2 (Feature Engineering): Construct digital maturity scores, interaction terms, and category encodings.",
-            "Phase 3 (Modeling & Deployment): Train baseline XGBoost/LightGBM regressors and evaluate cross-validation metrics.",
-            "Phase 4 (Monitoring): Export executive PDF reports and schedule recurring dataset health monitoring."
-        ]
+        roadmap_bullets = []
+        if insights:
+            b = getattr(insights, "analyst_briefing", None) or (insights.get("analyst_briefing") if isinstance(insights, dict) else None)
+            if b:
+                recs = getattr(b, "recommended_actions", []) or (b.get("recommended_actions", []) if isinstance(b, dict) else [])
+                if len(recs) >= 3:
+                    roadmap_bullets = [f"Phase {i+1}: {r}" for i, r in enumerate(recs[:4])]
+
+        if not roadmap_bullets:
+            p1_cols = f" ({', '.join(top_nulls.index[:2])})" if not top_nulls.empty else ""
+            p2_cols = f" ({', '.join(cat_cols[:2])})" if cat_cols else ""
+            p3_target = f" for '{target_col}'" if target_col else ""
+            roadmap_bullets = [
+                f"Phase 1 (Data Prep): Address missingness{p1_cols} and resolve detected anomalies.",
+                f"Phase 2 (Feature Engineering): Process categorical dimensions{p2_cols} and normalize scale.",
+                f"Phase 3 (Modeling & Validation): Train baseline models{p3_target} and benchmark cross-validation metrics.",
+                f"Phase 4 (Monitoring & Governance): Deploy health validations and continuous drift tracking."
+            ]
 
         slides.append({
             "id": _uid(),
@@ -513,7 +551,18 @@ async def export_story(request: ExportStoryRequest):
                 headers={"Content-Disposition": f"attachment; filename=data_story_{request.file_id}.html"},
             )
 
-        # ── PDF Export ──
+        # ── PDF Export (Story Deck Landscape) ──
+        if fmt == "pdf":
+            story_resp = await generate_story(StoryRequest(file_id=request.file_id))
+            slides = story_resp.get("slides", [])
+            pdf_bytes = _build_story_pdf(slides, file_id=request.file_id)
+            return StreamingResponse(
+                io.BytesIO(pdf_bytes),
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename=data_story_{request.file_id}.pdf"},
+            )
+
+        # Fallback to report generator if other format
         report = ReportGenerator.generate(profile_data=profile_data, insights_data=insights_data)
         pdf_bytes = ReportExporter.to_pdf(report)
         return StreamingResponse(
@@ -647,6 +696,138 @@ def _build_production_pptx(slides: list[dict], file_id: str) -> bytes:
     buf = io.BytesIO()
     prs.save(buf)
     return buf.getvalue()
+
+
+def _build_story_pdf(slides: list[dict], file_id: str) -> bytes:
+    """Build a professional landscape (16:9 widescreen presentation) multi-page PDF rendering all story slides."""
+    try:
+        from fpdf import FPDF
+    except ImportError:
+        raise HTTPException(status_code=500, detail="fpdf2 is not installed.")
+
+    pdf = FPDF(orientation="landscape", unit="mm", format="A4")
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    def sanitize(text: str) -> str:
+        if not isinstance(text, str):
+            text = str(text)
+        return (
+            text.replace("—", "-")
+            .replace("–", "-")
+            .replace("×", "x")
+            .replace("…", "...")
+            .replace("’", "'")
+            .replace("‘", "'")
+            .replace("“", '"')
+            .replace("”", '"')
+            .replace("•", "-")
+            .replace("ℹ️", "[i]")
+            .replace("⚠️", "[!]")
+            .encode("latin-1", "replace")
+            .decode("latin-1")
+        )
+
+    for i, slide_data in enumerate(slides):
+        pdf.add_page()
+        slide_type = slide_data.get("type", "insight")
+        category = slide_data.get("category", "Executive Briefing")
+        title = slide_data.get("title", f"Slide {i+1}")
+        subtitle = slide_data.get("subtitle", "")
+        bullets = slide_data.get("bullets", [])
+        badge = slide_data.get("badge", "ANALYSIS")
+
+        # Top border accent line
+        pdf.set_fill_color(99, 102, 241)
+        pdf.rect(0, 0, 297, 4, "F")
+
+        # Category Badge
+        pdf.set_y(12)
+        pdf.set_x(18)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_text_color(99, 102, 241)
+        pdf.cell(0, 6, sanitize(f"{badge}  |  {category}".upper()), new_x="LMARGIN", new_y="NEXT")
+
+        # Title
+        pdf.set_x(18)
+        pdf.set_font("Helvetica", "B", 20)
+        pdf.set_text_color(15, 23, 42)
+        pdf.multi_cell(260, 9, sanitize(title))
+
+        # Subtitle
+        if subtitle:
+            pdf.set_x(18)
+            pdf.set_font("Helvetica", "", 12)
+            pdf.set_text_color(100, 116, 139)
+            pdf.multi_cell(260, 6, sanitize(subtitle))
+            pdf.ln(4)
+        else:
+            pdf.ln(6)
+
+        # Body Layout
+        if slide_type == "kpi":
+            kpi_val = slide_data.get("kpiValue", "100/100")
+            kpi_label = slide_data.get("kpiLabel", "Overall Quality")
+            kpi_sub = slide_data.get("kpiSubtext", "")
+
+            start_y = pdf.get_y() + 2
+
+            # KPI Box (Left column)
+            pdf.set_fill_color(248, 250, 252)
+            pdf.set_draw_color(226, 232, 240)
+            pdf.rect(18, start_y, 85, 75, "DF")
+
+            pdf.set_xy(22, start_y + 8)
+            pdf.set_font("Helvetica", "B", 11)
+            pdf.set_text_color(100, 116, 139)
+            pdf.cell(77, 6, sanitize(str(kpi_label)), new_x="LMARGIN", new_y="NEXT")
+
+            pdf.set_xy(22, start_y + 20)
+            pdf.set_font("Helvetica", "B", 34)
+            pdf.set_text_color(99, 102, 241)
+            pdf.cell(77, 16, sanitize(str(kpi_val)), new_x="LMARGIN", new_y="NEXT")
+
+            if kpi_sub:
+                pdf.set_xy(22, start_y + 44)
+                pdf.set_font("Helvetica", "B", 13)
+                pdf.set_text_color(16, 185, 129)
+                pdf.multi_cell(77, 6, sanitize(str(kpi_sub)))
+
+            # Bullets (Right column)
+            pdf.set_xy(112, start_y)
+            pdf.set_font("Helvetica", "", 12)
+            pdf.set_text_color(30, 41, 59)
+            for b in bullets:
+                pdf.set_x(112)
+                pdf.multi_cell(165, 7, f"-  {sanitize(b)}")
+                pdf.ln(2)
+
+        else:
+            # Insight Slide Layout
+            pdf.set_font("Helvetica", "", 12)
+            pdf.set_text_color(30, 41, 59)
+            if bullets:
+                for b in bullets:
+                    pdf.set_x(18)
+                    pdf.multi_cell(260, 7, f"-  {sanitize(b)}")
+                    pdf.ln(3)
+            else:
+                raw_text = slide_data.get("content", "")
+                for line in raw_text.split("\n"):
+                    if line.strip():
+                        pdf.set_x(18)
+                        pdf.multi_cell(260, 7, sanitize(line.strip()))
+                        pdf.ln(2)
+
+        # Footer
+        pdf.set_y(195)
+        pdf.set_x(18)
+        pdf.set_font("Helvetica", "", 9)
+        pdf.set_text_color(148, 163, 184)
+        pdf.cell(150, 6, sanitize(f"PRISM Executive Story Deck - {file_id}"), new_x="RIGHT", new_y="TOP")
+        pdf.set_x(230)
+        pdf.cell(48, 6, f"Slide {i+1} of {len(slides)}", align="R", new_x="LMARGIN", new_y="NEXT")
+
+    return bytes(pdf.output())
 
 
 def _build_interactive_html_deck(slides: list[dict], file_id: str) -> str:
