@@ -155,3 +155,87 @@ def test_dashboard_crud_lifecycle(client, auth_headers, uploaded_file_id):
     # Verify deleted
     get_del = client.get(f"/api/dashboards/{dash_id}", headers=auth_headers)
     assert get_del.status_code == 404
+
+
+def test_dashboard_multi_page_persistence_and_share(client, auth_headers, uploaded_file_id):
+    """Test multi-page dashboard report persistence with bookmarks, measures, and read-only share view."""
+    multi_page_payload = {
+        "title": "Multi-Page Corporate BI Report",
+        "description": "Cross-page executive analytics",
+        "file_id": uploaded_file_id,
+        "pages": [
+            {
+                "id": "p1",
+                "title": "Executive Summary",
+                "widgets": [
+                    {
+                        "id": "w1",
+                        "config": {
+                            "chart_type": "kpi",
+                            "title": "Total Net Revenue",
+                            "x_axis": "",
+                            "y_axis": "net_revenue",
+                            "color_scheme": "default",
+                            "show_legend": False,
+                            "show_grid": False,
+                            "show_values": True,
+                        },
+                    }
+                ],
+            },
+            {
+                "id": "p2",
+                "title": "Product Decomposition",
+                "widgets": [],
+            },
+        ],
+        "measures": [
+            {
+                "name": "Margin_Rate",
+                "expression": "SUM(net_revenue) / SUM(gross_revenue)",
+                "format": "percentage",
+                "is_calculated": True,
+            }
+        ],
+        "bookmarks": [
+            {
+                "id": "bm-1",
+                "name": "Q1 Performance View",
+                "activePageId": "p1",
+                "crossFilters": {"region": "North America"},
+                "visibleVisualIds": ["w1"],
+                "createdAt": 1700000000,
+            }
+        ],
+    }
+
+    # Save multi-page report
+    save_resp = client.post("/api/dashboards", json=multi_page_payload, headers=auth_headers)
+    assert save_resp.status_code == 200, save_resp.text
+    saved = save_resp.json()
+    assert saved["status"] == "saved"
+    dash_id = saved["id"]
+
+    # Load via standard endpoint
+    get_resp = client.get(f"/api/dashboards/{dash_id}", headers=auth_headers)
+    assert get_resp.status_code == 200
+    report = get_resp.json()
+    assert report["title"] == "Multi-Page Corporate BI Report"
+    assert len(report["pages"]) == 2
+    assert report["pages"][0]["title"] == "Executive Summary"
+    assert len(report["measures"]) == 1
+    assert report["measures"][0]["name"] == "Margin_Rate"
+    assert len(report["bookmarks"]) == 1
+    assert report["bookmarks"][0]["name"] == "Q1 Performance View"
+
+    # Load via read-only share view
+    share_resp = client.get(f"/api/dashboards/share/{dash_id}", headers=auth_headers)
+    assert share_resp.status_code == 200
+    share_data = share_resp.json()
+    assert share_data["readonly"] is True
+    assert share_data["id"] == dash_id
+    assert len(share_data["pages"]) == 2
+
+    # Cleanup
+    del_resp = client.delete(f"/api/dashboards/{dash_id}", headers=auth_headers)
+    assert del_resp.status_code == 200

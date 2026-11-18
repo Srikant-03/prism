@@ -17,8 +17,12 @@ os.environ["DATA_INTEL_API_KEY"] = "test-key-for-ci"
 os.environ["DEBUG"] = "false"
 
 from main import app
+from config import AppConfig
+from api.dependencies import _failed_attempts
 
-API_KEY = "test-key-for-ci"
+# Ensure AppConfig.API_KEY matches test key
+AppConfig.API_KEY = "test-key-for-ci"
+API_KEY = AppConfig.API_KEY
 HEADERS = {"X-API-Key": API_KEY}
 
 
@@ -27,6 +31,7 @@ HEADERS = {"X-API-Key": API_KEY}
 @pytest_asyncio.fixture
 async def client():
     """Async HTTP client wired to the FastAPI app."""
+    _failed_attempts.clear()  # reset any lockout state between tests
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
