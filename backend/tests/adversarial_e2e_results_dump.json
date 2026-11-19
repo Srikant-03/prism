@@ -1,0 +1,415 @@
+{
+  "shape": [
+    245,
+    27
+  ],
+  "null_count": 127,
+  "completeness": 98.08,
+  "domain": "E-commerce / Retail Transaction",
+  "domain_confidence": 0.5,
+  "columns": [
+    {
+      "name": "sequential_row_id",
+      "semantic_type": "id_key",
+      "null_count": 0,
+      "null_pct": 0.0,
+      "quality_score": 100.0,
+      "unique_count": 240
+    },
+    {
+      "name": "txn_uuid",
+      "semantic_type": "id_key",
+      "null_count": 0,
+      "null_pct": 0.0,
+      "quality_score": 100.0,
+      "unique_count": 240
+    },
+    {
+      "name": "dup_txn_uuid",
+      "semantic_type": "id_key",
+      "null_count": 0,
+      "null_pct": 0.0,
+      "quality_score": 100.0,
+      "unique_count": 240
+    },
+    {
+      "name": "order_date",
+      "semantic_type": "datetime",
+      "null_count": 0,
+      "null_pct": 0.0,
+      "quality_score": 100.0,
+      "unique_count": 240
+    },
+    {
+      "name": "order_month_name",
+      "semantic_type": "categorical_nominal",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "quality_score": 100.0,
+      "unique_count": 12
+    },
+    {
+      "name": "order_quarter",
+      "semantic_type": "categorical_nominal",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "quality_score": 100.0,
+      "unique_count": 4
+    },
+    {
+      "name": "order_year",
+      "semantic_type": "numeric_discrete",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "quality_score": 100.0,
+      "unique_count": 2
+    },
+    {
+      "name": "ship_date_mixed",
+      "semantic_type": "datetime",
+      "null_count": 11,
+      "null_pct": 4.49,
+      "quality_score": 95.0,
+      "unique_count": 230
+    },
+    {
+      "name": "region",
+      "semantic_type": "categorical_nominal",
+      "null_count": 21,
+      "null_pct": 8.57,
+      "quality_score": 78.0,
+      "unique_count": 14
+    },
+    {
+      "name": "country_code",
+      "semantic_type": "categorical_nominal",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "quality_score": 100.0,
+      "unique_count": 4
+    },
+    {
+      "name": "product_category",
+      "semantic_type": "categorical_nominal",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "quality_score": 100.0,
+      "unique_count": 7
+    },
+    {
+      "name": "is_enterprise",
+      "semantic_type": "categorical_nominal",
+      "null_count": 27,
+      "null_pct": 11.02,
+      "quality_score": 89.0,
+      "unique_count": 8
+    },
+    {
+      "name": "loyalty_tier_code",
+      "semantic_type": "numeric_discrete",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "quality_score": 100.0,
+      "unique_count": 4
+    },
+    {
+      "name": "unit_price_raw",
+      "semantic_type": "currency",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "quality_score": 90.0,
+      "unique_count": 239
+    },
+    {
+      "name": "units_sold",
+      "semantic_type": "numeric_continuous",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "quality_score": 100.0,
+      "unique_count": 25
+    },
+    {
+      "name": "discount_rate",
+      "semantic_type": "percentage",
+      "null_count": 24,
+      "null_pct": 9.8,
+      "quality_score": 95.0,
+      "unique_count": 6
+    },
+    {
+      "name": "gross_revenue",
+      "semantic_type": "numeric_continuous",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "quality_score": 100.0,
+      "unique_count": 239
+    },
+    {
+      "name": "net_revenue",
+      "semantic_type": "numeric_continuous",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "quality_score": 100.0,
+      "unique_count": 239
+    },
+    {
+      "name": "net_revenue_eur",
+      "semantic_type": "numeric_continuous",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "quality_score": 100.0,
+      "unique_count": 239
+    },
+    {
+      "name": "shipping_weight",
+      "semantic_type": "categorical_nominal",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "quality_score": 100.0,
+      "unique_count": 233
+    },
+    {
+      "name": "constant_status",
+      "semantic_type": "categorical_nominal",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "quality_score": 100.0,
+      "unique_count": 1
+    },
+    {
+      "name": "rare_audit_flag",
+      "semantic_type": "boolean",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "quality_score": 100.0,
+      "unique_count": 2
+    },
+    {
+      "name": "customer_email",
+      "semantic_type": "email",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "quality_score": 90.0,
+      "unique_count": 227
+    },
+    {
+      "name": "customer_notes",
+      "semantic_type": "categorical_nominal",
+      "null_count": 29,
+      "null_pct": 11.84,
+      "quality_score": 95.0,
+      "unique_count": 1
+    },
+    {
+      "name": "metadata_json",
+      "semantic_type": "categorical_nominal",
+      "null_count": 0,
+      "null_pct": 0.0,
+      "quality_score": 100.0,
+      "unique_count": 3
+    },
+    {
+      "name": "post_churn_refund",
+      "semantic_type": "numeric_continuous",
+      "null_count": 0,
+      "null_pct": 0.0,
+      "quality_score": 100.0,
+      "unique_count": 28
+    },
+    {
+      "name": "churn_flag",
+      "semantic_type": "boolean",
+      "null_count": 0,
+      "null_pct": 0.0,
+      "quality_score": 100.0,
+      "unique_count": 2
+    }
+  ],
+  "formulas": [
+    {
+      "dependent": "net_revenue",
+      "operands": [
+        "gross_revenue",
+        "discount_rate"
+      ],
+      "formula_expr": "net_revenue = gross_revenue * (1 - discount_rate)",
+      "description": "`net_revenue` is deterministically derived from `gross_revenue` and `discount_rate`.",
+      "match_ratio": 1.0,
+      "sample_size": 221
+    }
+  ],
+  "target": {
+    "target_column": "churn_flag",
+    "problem_type": "binary_classification",
+    "confidence": 0.95,
+    "distribution": {
+      "0": 0.8857142857142857,
+      "1": 0.11428571428571428
+    }
+  },
+  "cleaning": {
+    "high_null_rows": 1,
+    "missing_actions": [
+      "Apply impute mode to 'ship_date_mixed'.",
+      "Apply impute mode to 'region'.",
+      "Apply impute mode to 'is_enterprise'.",
+      "'discount_rate' has 24 missing values. Imputation strategy requires semantic analysis; interpolation is not automatically justified.",
+      "Apply impute mode to 'customer_notes'.",
+      "Remove these sparse rows as they provide minimal usable information."
+    ],
+    "type_actions": [
+      "Parse 'order_date' as datetime, handling mixed formats per-cell.",
+      "Parse 'ship_date_mixed' as datetime, handling mixed formats per-cell.",
+      "Standardize 'is_enterprise' to True/False boolean type.",
+      "Parse 'unit_price_raw' to numeric, removing currency symbols and separators.",
+      "Validate and lowercase email addresses in 'customer_email'.",
+      "Parse 'metadata_json' JSON and expand into sub-columns.",
+      "Convert 'churn_flag' to categorical type for correct downstream treatment."
+    ],
+    "outlier_actions": [
+      "Apply replace boundary to 'gross_revenue'.",
+      "Apply replace boundary to 'net_revenue'.",
+      "Apply replace boundary to 'net_revenue_eur'.",
+      "Review 10 multivariate outlier rows across 10 numeric predictor columns."
+    ]
+  },
+  "semantic_model": {
+    "measures": [
+      "Total Loyalty Tier Code",
+      "Total Units Sold",
+      "Avg Discount Rate",
+      "Total Gross Revenue",
+      "Total Net Revenue",
+      "Total Net Revenue Eur",
+      "Total Post Churn Refund",
+      "Net Margin %",
+      "Net Revenue YTD",
+      "Net Revenue MoM %"
+    ],
+    "categoricals": [
+      "order_month_name",
+      "order_quarter",
+      "order_year",
+      "ship_date_mixed",
+      "product_category",
+      "is_enterprise",
+      "unit_price_raw",
+      "shipping_weight",
+      "constant_status",
+      "rare_audit_flag",
+      "customer_email",
+      "customer_notes",
+      "metadata_json",
+      "churn_flag"
+    ],
+    "numerics": [
+      "loyalty_tier_code",
+      "units_sold",
+      "discount_rate",
+      "gross_revenue",
+      "net_revenue",
+      "net_revenue_eur",
+      "post_churn_refund"
+    ],
+    "hierarchies": [
+      "id='96ada802' name='Calendar Hierarchy' levels=['order_year', 'order_quarter', 'order_month_name', 'order_date'] hierarchy_type='date'",
+      "id='0d71b5ee' name='Geographic Hierarchy' levels=['region', 'country_code'] hierarchy_type='geographic'"
+    ]
+  },
+  "key_influencers": {
+    "guarded": [
+      "post_churn_refund"
+    ],
+    "baseline_rate": 0.1143,
+    "drivers": [
+      {
+        "feature": "order_month_name",
+        "condition": "is 'October'",
+        "impact": "8.8x more likely",
+        "multiplier": 8.75,
+        "segment_size": 13,
+        "target_rate": 1.0
+      },
+      {
+        "feature": "is_enterprise",
+        "condition": "is 'Yes'",
+        "impact": "8.8x more likely",
+        "multiplier": 8.75,
+        "segment_size": 28,
+        "target_rate": 1.0
+      },
+      {
+        "feature": "order_month_name",
+        "condition": "is 'January'",
+        "impact": "4.7x more likely",
+        "multiplier": 4.69,
+        "segment_size": 28,
+        "target_rate": 0.5357
+      },
+      {
+        "feature": "order_quarter",
+        "condition": "is 'Q4'",
+        "impact": "2.9x more likely",
+        "multiplier": 2.92,
+        "segment_size": 39,
+        "target_rate": 0.3333
+      },
+      {
+        "feature": "order_month_name",
+        "condition": "is 'February'",
+        "impact": "0.0x less likely",
+        "multiplier": 0.0,
+        "segment_size": 28,
+        "target_rate": 0.0
+      },
+      {
+        "feature": "order_month_name",
+        "condition": "is 'April'",
+        "impact": "0.0x less likely",
+        "multiplier": 0.0,
+        "segment_size": 28,
+        "target_rate": 0.0
+      },
+      {
+        "feature": "order_month_name",
+        "condition": "is 'May'",
+        "impact": "0.0x less likely",
+        "multiplier": 0.0,
+        "segment_size": 28,
+        "target_rate": 0.0
+      },
+      {
+        "feature": "order_month_name",
+        "condition": "is 'March'",
+        "impact": "0.0x less likely",
+        "multiplier": 0.0,
+        "segment_size": 27,
+        "target_rate": 0.0
+      }
+    ]
+  },
+  "forecasting": {
+    "model": "Holt-Winters Exponential Smoothing",
+    "trend": "downward",
+    "points_count": 22,
+    "anomalies_count": 1
+  },
+  "smart_narrative": {
+    "title": "Executive Intelligence Narrative",
+    "bullets": [
+      "Total **Net Revenue** stands at **$6,425,384.44** across **245** recorded transactions.",
+      "Net realization margin is **87.1%** relative to **$7,379,786.61** in Gross Revenue.",
+      "Peak monthly performance occurred in **2025-04** generating **$884,634.68**.",
+      "**Enterprise Software** is the dominant product line, contributing **$2,808,625.61**.",
+      "Overall churn flag rate is **11.4%** of active accounts."
+    ],
+    "kpis": {
+      "total_rows": 245,
+      "total_net_revenue": 6425384.4399999995,
+      "net_margin_pct": 87.06734733079227,
+      "peak_month": "2025-04",
+      "peak_revenue": 884634.6799999998,
+      "churn_rate_pct": 11.428571428571429
+    }
+  }
+}
