@@ -1,0 +1,1896 @@
+{
+  "ingestion": {
+    "file_name": "prism_adversarial_e2e_test.csv",
+    "rows": 245,
+    "columns": 27,
+    "total_cells": 6615,
+    "total_nans": 127,
+    "completeness_pct": 98.08,
+    "missingness_pct": 1.92,
+    "malformed_total_issues": 0,
+    "malformed_details": [],
+    "encoding": "utf-8",
+    "delimiter": ",",
+    "row_200_null_count": 20,
+    "row_200_null_pct": 74.07
+  },
+  "columns_taxonomy": [
+    {
+      "name": "sequential_row_id",
+      "semantic_type": "id_key",
+      "null_count": 0,
+      "null_pct": 0.0,
+      "distinct_count": 240,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    {
+      "name": "txn_uuid",
+      "semantic_type": "id_key",
+      "null_count": 0,
+      "null_pct": 0.0,
+      "distinct_count": 240,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "TXN-10000",
+        "TXN-10001",
+        "TXN-10002"
+      ]
+    },
+    {
+      "name": "dup_txn_uuid",
+      "semantic_type": "id_key",
+      "null_count": 0,
+      "null_pct": 0.0,
+      "distinct_count": 240,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "TXN-10000",
+        "TXN-10001",
+        "TXN-10002"
+      ]
+    },
+    {
+      "name": "order_date",
+      "semantic_type": "datetime",
+      "null_count": 0,
+      "null_pct": 0.0,
+      "distinct_count": 240,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "2024-01-01 00:00:00",
+        "2024-02-02 00:00:00",
+        "2024-03-03 00:00:00"
+      ]
+    },
+    {
+      "name": "order_month_name",
+      "semantic_type": "categorical_nominal",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "distinct_count": 12,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "January",
+        "February",
+        "March"
+      ]
+    },
+    {
+      "name": "order_quarter",
+      "semantic_type": "categorical_nominal",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "distinct_count": 4,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "Q1",
+        "Q1",
+        "Q1"
+      ]
+    },
+    {
+      "name": "order_year",
+      "semantic_type": "numeric_discrete",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "distinct_count": 2,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "2024.0",
+        "2024.0",
+        "2024.0"
+      ]
+    },
+    {
+      "name": "ship_date_mixed",
+      "semantic_type": "datetime",
+      "null_count": 11,
+      "null_pct": 4.49,
+      "distinct_count": 230,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "2024-02-05 00:00:00",
+        "2024-03-06 00:00:00",
+        "2024-04-07 00:00:00"
+      ]
+    },
+    {
+      "name": "region",
+      "semantic_type": "categorical_nominal",
+      "null_count": 21,
+      "null_pct": 8.57,
+      "distinct_count": 14,
+      "quality_score": 78.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "north america",
+        "  North America ",
+        "USA"
+      ]
+    },
+    {
+      "name": "country_code",
+      "semantic_type": "categorical_nominal",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "distinct_count": 4,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "US",
+        "US",
+        "US"
+      ]
+    },
+    {
+      "name": "product_category",
+      "semantic_type": "categorical_nominal",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "distinct_count": 7,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "Electronics",
+        "Enterprise Software",
+        "Cloud Services"
+      ]
+    },
+    {
+      "name": "is_enterprise",
+      "semantic_type": "categorical_nominal",
+      "null_count": 27,
+      "null_pct": 11.02,
+      "distinct_count": 8,
+      "quality_score": 89.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "Yes",
+        "No",
+        "TRUE"
+      ]
+    },
+    {
+      "name": "loyalty_tier_code",
+      "semantic_type": "numeric_discrete",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "distinct_count": 4,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "1.0",
+        "2.0",
+        "3.0"
+      ]
+    },
+    {
+      "name": "unit_price_raw",
+      "semantic_type": "currency",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "distinct_count": 239,
+      "quality_score": 90.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "$629.80",
+        "USD 4951.61",
+        "1667.2"
+      ]
+    },
+    {
+      "name": "units_sold",
+      "semantic_type": "numeric_discrete",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "distinct_count": 25,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "11.0",
+        "19.0",
+        "3.0"
+      ]
+    },
+    {
+      "name": "discount_rate",
+      "semantic_type": "percentage",
+      "null_count": 24,
+      "null_pct": 9.8,
+      "distinct_count": 6,
+      "quality_score": 95.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "0.1",
+        "0.25",
+        "0.15"
+      ]
+    },
+    {
+      "name": "gross_revenue",
+      "semantic_type": "numeric_continuous",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "distinct_count": 239,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "6927.8",
+        "94080.59",
+        "5001.66"
+      ]
+    },
+    {
+      "name": "net_revenue",
+      "semantic_type": "numeric_continuous",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "distinct_count": 239,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "5542.24",
+        "84672.53",
+        "3751.24"
+      ]
+    },
+    {
+      "name": "net_revenue_eur",
+      "semantic_type": "numeric_continuous",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "distinct_count": 239,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "5098.8608",
+        "77898.7276",
+        "3451.1408"
+      ]
+    },
+    {
+      "name": "shipping_weight",
+      "semantic_type": "categorical_nominal",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "distinct_count": 233,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "9.15 kg",
+        "7160 g",
+        "1.32 kg"
+      ]
+    },
+    {
+      "name": "constant_status",
+      "semantic_type": "categorical_nominal",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "distinct_count": 1,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "ACTIVE",
+        "ACTIVE",
+        "ACTIVE"
+      ]
+    },
+    {
+      "name": "rare_audit_flag",
+      "semantic_type": "boolean",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "distinct_count": 2,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "0.0",
+        "0.0",
+        "0.0"
+      ]
+    },
+    {
+      "name": "customer_email",
+      "semantic_type": "email",
+      "null_count": 1,
+      "null_pct": 0.41,
+      "distinct_count": 227,
+      "quality_score": 90.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "  USER_0@Example.COM ",
+        "client1@enterprise.org",
+        "client2@enterprise.org"
+      ]
+    },
+    {
+      "name": "customer_notes",
+      "semantic_type": "categorical_nominal",
+      "null_count": 29,
+      "null_pct": 11.84,
+      "distinct_count": 1,
+      "quality_score": 95.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "Renewed annual contract smoothly; account manager Priya Sharma confirmed SLA satisfaction.",
+        "Renewed annual contract smoothly; account manager Priya Sharma confirmed SLA satisfaction.",
+        "Renewed annual contract smoothly; account manager Priya Sharma confirmed SLA satisfaction."
+      ]
+    },
+    {
+      "name": "metadata_json",
+      "semantic_type": "categorical_nominal",
+      "null_count": 0,
+      "null_pct": 0.0,
+      "distinct_count": 3,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "{\"channel\": \"web\", \"priority\": 1}",
+        "{\"channel\": \"direct\", \"priority\": 2}",
+        "{\"channel\": \"partner\", \"priority\": 3}"
+      ]
+    },
+    {
+      "name": "post_churn_refund",
+      "semantic_type": "numeric_continuous",
+      "null_count": 0,
+      "null_pct": 0.0,
+      "distinct_count": 28,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "4433.79",
+        "0.0",
+        "0.0"
+      ]
+    },
+    {
+      "name": "churn_flag",
+      "semantic_type": "boolean",
+      "null_count": 0,
+      "null_pct": 0.0,
+      "distinct_count": 2,
+      "quality_score": 100.0,
+      "is_unique": false,
+      "inferred_domain": null,
+      "sample_values": [
+        "1",
+        "0",
+        "0"
+      ]
+    }
+  ],
+  "keys": {
+    "primary_key_candidates": [],
+    "foreign_key_candidates": [],
+    "surrogate_keys": [
+      "sequential_row_id",
+      "txn_uuid",
+      "dup_txn_uuid"
+    ]
+  },
+  "correlation_and_associations": {
+    "strongest_pairs": [
+      {
+        "col1": "sequential_row_id",
+        "col2": "txn_uuid",
+        "score": -1.0,
+        "metric": "Pearson",
+        "is_significant": true
+      },
+      {
+        "col1": "sequential_row_id",
+        "col2": "dup_txn_uuid",
+        "score": -1.0,
+        "metric": "Pearson",
+        "is_significant": true
+      },
+      {
+        "col1": "txn_uuid",
+        "col2": "dup_txn_uuid",
+        "score": 1.0,
+        "metric": "Pearson",
+        "is_significant": true
+      },
+      {
+        "col1": "net_revenue",
+        "col2": "net_revenue_eur",
+        "score": 1.0,
+        "metric": "Spearman",
+        "is_significant": true
+      },
+      {
+        "col1": "order_month_name",
+        "col2": "order_quarter",
+        "score": 1.0,
+        "metric": "Functional Dependency",
+        "is_significant": true
+      },
+      {
+        "col1": "order_month_name",
+        "col2": "metadata_json",
+        "score": 1.0,
+        "metric": "Functional Dependency",
+        "is_significant": true
+      },
+      {
+        "col1": "region",
+        "col2": "country_code",
+        "score": 1.0,
+        "metric": "Functional Dependency",
+        "is_significant": true
+      },
+      {
+        "col1": "is_enterprise",
+        "col2": "metadata_json",
+        "score": 1.0,
+        "metric": "Functional Dependency",
+        "is_significant": true
+      },
+      {
+        "col1": "order_date",
+        "col2": "order_month_name",
+        "score": 1.0,
+        "metric": "Deterministic Derivation",
+        "is_significant": true
+      },
+      {
+        "col1": "order_date",
+        "col2": "order_quarter",
+        "score": 1.0,
+        "metric": "Deterministic Derivation",
+        "is_significant": true
+      },
+      {
+        "col1": "order_date",
+        "col2": "order_year",
+        "score": 1.0,
+        "metric": "Deterministic Derivation",
+        "is_significant": true
+      },
+      {
+        "col1": "ship_date_mixed",
+        "col2": "order_month_name",
+        "score": 1.0,
+        "metric": "Deterministic Derivation",
+        "is_significant": true
+      }
+    ],
+    "vif_multicollinearity": {
+      "sequential_row_id": 10000.0,
+      "txn_uuid": 10000.0,
+      "dup_txn_uuid": 10000.0,
+      "order_year": 1.1,
+      "loyalty_tier_code": 1.02,
+      "unit_price_raw": 22.43,
+      "units_sold": 2.04,
+      "discount_rate": 1.79,
+      "gross_revenue": 483.34,
+      "net_revenue": 10000.0,
+      "net_revenue_eur": 10000.0,
+      "rare_audit_flag": 1.05,
+      "post_churn_refund": 2.37,
+      "churn_flag": 2.27
+    },
+    "mutual_information_top": [
+      {
+        "target": "churn_flag",
+        "feature": "post_churn_refund",
+        "mi_score": 0.3523
+      },
+      {
+        "target": "churn_flag",
+        "feature": "metadata_json",
+        "mi_score": 0.0792
+      },
+      {
+        "target": "churn_flag",
+        "feature": "order_year",
+        "mi_score": 0.0725
+      },
+      {
+        "target": "churn_flag",
+        "feature": "unit_price_raw",
+        "mi_score": 0.0131
+      },
+      {
+        "target": "churn_flag",
+        "feature": "sequential_row_id",
+        "mi_score": 0.0
+      },
+      {
+        "target": "churn_flag",
+        "feature": "txn_uuid",
+        "mi_score": 0.0
+      },
+      {
+        "target": "churn_flag",
+        "feature": "dup_txn_uuid",
+        "mi_score": 0.0
+      },
+      {
+        "target": "churn_flag",
+        "feature": "loyalty_tier_code",
+        "mi_score": 0.0
+      },
+      {
+        "target": "churn_flag",
+        "feature": "units_sold",
+        "mi_score": 0.0
+      }
+    ]
+  },
+  "formula_discovery": [
+    {
+      "dependent": "net_revenue",
+      "operands": [
+        "gross_revenue",
+        "discount_rate"
+      ],
+      "operation": "percentage",
+      "formula_expr": "net_revenue = gross_revenue * (1 - discount_rate)",
+      "description": "`net_revenue` is deterministically derived from `gross_revenue` and `discount_rate`.",
+      "match_ratio": 1.0,
+      "sample_size": 221
+    }
+  ],
+  "target_discovery": {
+    "target_column": "churn_flag",
+    "problem_type": "binary_classification",
+    "confidence": 0.95,
+    "class_distribution": {
+      "0": 0.8857142857142857,
+      "1": 0.11428571428571428
+    },
+    "justification": "Detected as target candidate because: Column name strongly suggests a target variable; Column name contains a weak target indicator; Boolean feature is a natural classification target; Positioned as the last column in the dataset."
+  },
+  "cleaning_engine": {
+    "total_actions": 76,
+    "high_null_rows_detected": 1,
+    "actions_summary": [
+      {
+        "category": "type_correction",
+        "action_type": "standardize_booleans",
+        "targets": [
+          "is_enterprise"
+        ],
+        "recommendation": "Standardize 'is_enterprise' to True/False boolean type.",
+        "reasoning": "Current dtype is 'object' but content matches boolean pattern with 100% confidence. 0 values cannot be parsed."
+      },
+      {
+        "category": "duplicates",
+        "action_type": "remove_exact_duplicates",
+        "targets": [
+          "sequential_row_id",
+          "txn_uuid",
+          "dup_txn_uuid",
+          "order_date",
+          "order_month_name",
+          "order_quarter",
+          "order_year",
+          "ship_date_mixed",
+          "region",
+          "country_code",
+          "product_category",
+          "is_enterprise",
+          "loyalty_tier_code",
+          "unit_price_raw",
+          "units_sold",
+          "discount_rate",
+          "gross_revenue",
+          "net_revenue",
+          "net_revenue_eur",
+          "shipping_weight",
+          "constant_status",
+          "rare_audit_flag",
+          "customer_email",
+          "customer_notes",
+          "metadata_json",
+          "post_churn_refund",
+          "churn_flag"
+        ],
+        "recommendation": "Remove duplicate rows, keeping the first occurrence of each.",
+        "reasoning": "Exact duplicate rows carry no additional information and inflate dataset statistics.  Removing them is safe unless duplicates are semantically meaningful (e.g. repeated transactions)."
+      },
+      {
+        "category": "duplicates",
+        "action_type": "drop_duplicate_column",
+        "targets": [
+          "dup_txn_uuid"
+        ],
+        "recommendation": "Drop column 'dup_txn_uuid' (keeping 'txn_uuid').",
+        "reasoning": "Keeping both columns is redundant.  'txn_uuid' is retained as the more descriptive name."
+      },
+      {
+        "category": "feature_selection",
+        "action_type": "drop_zero_variance",
+        "targets": [
+          "constant_status",
+          "customer_notes"
+        ],
+        "recommendation": "Drop 2 zero-variance column(s): constant_status, customer_notes.",
+        "reasoning": "Columns with a single value carry no information for any analysis or model."
+      },
+      {
+        "category": "data_leakage",
+        "action_type": "flag_leakage_predictor",
+        "targets": [
+          "is_enterprise"
+        ],
+        "recommendation": "\u26a0 CRITICAL: Remove 'is_enterprise' \u2014 likely data leakage.",
+        "reasoning": "A feature that near-perfectly predicts the target is almost certainly leaking information from the future or from the target itself."
+      },
+      {
+        "category": "data_leakage",
+        "action_type": "flag_leakage_predictor",
+        "targets": [
+          "post_churn_refund"
+        ],
+        "recommendation": "\u26a0 CRITICAL: Remove 'post_churn_refund' \u2014 likely data leakage.",
+        "reasoning": "A feature that near-perfectly predicts the target is almost certainly leaking information from the future or from the target itself."
+      },
+      {
+        "category": "data_standardization",
+        "action_type": "standardize_whitespace",
+        "targets": [
+          "region"
+        ],
+        "recommendation": "Strip and normalize whitespace in 'region'.",
+        "reasoning": "Whitespace inconsistencies cause silent matching failures and duplicate categories."
+      },
+      {
+        "category": "data_standardization",
+        "action_type": "standardize_whitespace",
+        "targets": [
+          "customer_email"
+        ],
+        "recommendation": "Strip and normalize whitespace in 'customer_email'.",
+        "reasoning": "Whitespace inconsistencies cause silent matching failures and duplicate categories."
+      },
+      {
+        "category": "type_correction",
+        "action_type": "expand_json",
+        "targets": [
+          "metadata_json"
+        ],
+        "recommendation": "Parse 'metadata_json' JSON and expand into sub-columns.",
+        "reasoning": "Current dtype is 'object' but content matches json_blob pattern with 100% confidence. 0 values cannot be parsed."
+      },
+      {
+        "category": "type_correction",
+        "action_type": "flag_integer_categories",
+        "targets": [
+          "churn_flag"
+        ],
+        "recommendation": "Convert 'churn_flag' to categorical type for correct downstream treatment.",
+        "reasoning": "Current dtype is 'int64' but content matches categorical_int pattern with 70% confidence. 0 values cannot be parsed."
+      },
+      {
+        "category": "type_correction",
+        "action_type": "validate_structured",
+        "targets": [
+          "customer_email"
+        ],
+        "recommendation": "Validate and lowercase email addresses in 'customer_email'.",
+        "reasoning": "Current dtype is 'object' but content matches email pattern with 95% confidence. 0 values cannot be parsed."
+      },
+      {
+        "category": "type_correction",
+        "action_type": "parse_currency",
+        "targets": [
+          "unit_price_raw"
+        ],
+        "recommendation": "Parse 'unit_price_raw' to numeric, removing currency symbols and separators.",
+        "reasoning": "Current dtype is 'object' but content matches currency pattern with 75% confidence. 61 values cannot be parsed."
+      },
+      {
+        "category": "duplicates",
+        "action_type": "drop_derived_column",
+        "targets": [
+          "net_revenue_eur"
+        ],
+        "recommendation": "Consider dropping 'net_revenue_eur' as it is derivable from 'net_revenue'.",
+        "reasoning": "Derived columns add multicollinearity without new information. However, the derived column may carry business meaning."
+      },
+      {
+        "category": "duplicates",
+        "action_type": "merge_near_duplicates",
+        "targets": [
+          "txn_uuid"
+        ],
+        "recommendation": "Review and standardize near-duplicate values in 'txn_uuid'.",
+        "reasoning": "Inconsistent representations of the same entity inflate cardinality and confuse downstream models."
+      },
+      {
+        "category": "duplicates",
+        "action_type": "merge_near_duplicates",
+        "targets": [
+          "dup_txn_uuid"
+        ],
+        "recommendation": "Review and standardize near-duplicate values in 'dup_txn_uuid'.",
+        "reasoning": "Inconsistent representations of the same entity inflate cardinality and confuse downstream models."
+      },
+      {
+        "category": "missing_values",
+        "action_type": "impute_mode",
+        "targets": [
+          "customer_notes"
+        ],
+        "recommendation": "Apply impute mode to 'customer_notes'.",
+        "reasoning": "Categorical column \u2014 mode imputation fills with the most frequent value."
+      },
+      {
+        "category": "missing_values",
+        "action_type": "impute_mode",
+        "targets": [
+          "is_enterprise"
+        ],
+        "recommendation": "Apply impute mode to 'is_enterprise'.",
+        "reasoning": "Categorical column \u2014 mode imputation fills with the most frequent value."
+      },
+      {
+        "category": "missing_values",
+        "action_type": "impute_constant",
+        "targets": [
+          "discount_rate"
+        ],
+        "recommendation": "'discount_rate' has 24 missing values. Imputation strategy requires semantic analysis; interpolation is not automatically justified.",
+        "reasoning": "'discount_rate' has 24 missing values. Imputation strategy requires semantic analysis; interpolation is not automatically justified. The dataset is not chronologically ordered (order_date.is_monotonic_increasing = False). The dataset contains repeated dates (5 duplicate timestamps). Promotional features are discrete business decisions rather than continuous physical time series. Missing discounts typically indicate 0% (no promotion active) or require business policy review."
+      },
+      {
+        "category": "missing_values",
+        "action_type": "impute_mode",
+        "targets": [
+          "region"
+        ],
+        "recommendation": "Apply impute mode to 'region'.",
+        "reasoning": "Categorical column \u2014 mode imputation fills with the most frequent value."
+      },
+      {
+        "category": "missing_values",
+        "action_type": "ffill",
+        "targets": [
+          "ship_date_mixed"
+        ],
+        "recommendation": "Apply ffill to 'ship_date_mixed'.",
+        "reasoning": "Temporal column with gaps \u2014 forward fill preserves time ordering."
+      },
+      {
+        "category": "missing_values",
+        "action_type": "drop_rows",
+        "targets": [
+          "sequential_row_id",
+          "txn_uuid",
+          "dup_txn_uuid",
+          "order_date",
+          "order_month_name",
+          "order_quarter",
+          "order_year",
+          "ship_date_mixed",
+          "region",
+          "country_code",
+          "product_category",
+          "is_enterprise",
+          "loyalty_tier_code",
+          "unit_price_raw",
+          "units_sold",
+          "discount_rate",
+          "gross_revenue",
+          "net_revenue",
+          "net_revenue_eur",
+          "shipping_weight",
+          "constant_status",
+          "rare_audit_flag",
+          "customer_email",
+          "customer_notes",
+          "metadata_json",
+          "post_churn_refund",
+          "churn_flag"
+        ],
+        "recommendation": "Remove these sparse rows as they provide minimal usable information.",
+        "reasoning": "Rows with >50% null values are unlikely to contribute meaningful signal.  The threshold is dynamically set based on the number of columns (27)."
+      },
+      {
+        "category": "outliers",
+        "action_type": "replace_boundary",
+        "targets": [
+          "gross_revenue"
+        ],
+        "recommendation": "Apply replace boundary to 'gross_revenue'.",
+        "reasoning": "1 value(s) violate business constraints / domain ranges. Replacing with boundary values corrects invalid data."
+      },
+      {
+        "category": "outliers",
+        "action_type": "replace_boundary",
+        "targets": [
+          "net_revenue"
+        ],
+        "recommendation": "Apply replace boundary to 'net_revenue'.",
+        "reasoning": "1 value(s) violate business constraints / domain ranges. Replacing with boundary values corrects invalid data."
+      },
+      {
+        "category": "outliers",
+        "action_type": "replace_boundary",
+        "targets": [
+          "net_revenue_eur"
+        ],
+        "recommendation": "Apply replace boundary to 'net_revenue_eur'.",
+        "reasoning": "1 value(s) violate business constraints / domain ranges. Replacing with boundary values corrects invalid data."
+      },
+      {
+        "category": "outliers",
+        "action_type": "flag_outlier",
+        "targets": [
+          "sequential_row_id",
+          "order_year",
+          "loyalty_tier_code",
+          "units_sold",
+          "discount_rate",
+          "gross_revenue",
+          "net_revenue",
+          "net_revenue_eur",
+          "rare_audit_flag",
+          "post_churn_refund"
+        ],
+        "recommendation": "Review 10 multivariate outlier rows across 10 numeric predictor columns.",
+        "reasoning": "Multivariate outliers are points that look normal in any single dimension but are unusual when all predictor features are considered together. Consensus across multiple algorithms increases confidence."
+      },
+      {
+        "category": "text_preprocessing",
+        "action_type": "extract_text_features",
+        "targets": [
+          "customer_notes"
+        ],
+        "recommendation": "Extract 10 numeric features from 'customer_notes'.",
+        "reasoning": "Numeric features enable quantitative analysis of text without NLP models. Features include token/char counts, capitalization patterns, sentiment polarity, and subjectivity."
+      },
+      {
+        "category": "text_preprocessing",
+        "action_type": "drop_raw_text",
+        "targets": [
+          "customer_notes"
+        ],
+        "recommendation": "Drop raw text column 'customer_notes' after extracting features.",
+        "reasoning": "Raw text columns are not directly usable by most ML algorithms. After extracting numeric features and/or TF-IDF vectors, the original text can be dropped to reduce memory."
+      },
+      {
+        "category": "text_preprocessing",
+        "action_type": "normalize_text",
+        "targets": [
+          "customer_notes"
+        ],
+        "recommendation": "Normalize text in 'customer_notes': lowercase, trim whitespace, remove special characters, expand contractions.",
+        "reasoning": "Text normalization creates a consistent representation for analysis. HTML and Markdown are presentation artifacts not semantic content."
+      },
+      {
+        "category": "text_preprocessing",
+        "action_type": "remove_stopwords",
+        "targets": [
+          "customer_notes"
+        ],
+        "recommendation": "Remove stopwords and apply stemming/lemmatization to 'customer_notes'.",
+        "reasoning": "Stopword removal reduces noise for text analysis. Language 'en' stopwords will be used."
+      },
+      {
+        "category": "categorical_encoding",
+        "action_type": "one_hot_encode",
+        "targets": [
+          "region"
+        ],
+        "recommendation": "Apply one hot encode to 'region'.",
+        "reasoning": "Nominal column with 14 unique values (\u2264 20 threshold). One-hot encoding is the standard approach for nominal features with manageable cardinality."
+      },
+      {
+        "category": "categorical_encoding",
+        "action_type": "one_hot_encode",
+        "targets": [
+          "order_month_name"
+        ],
+        "recommendation": "Apply one hot encode to 'order_month_name'.",
+        "reasoning": "Nominal column with 12 unique values (\u2264 20 threshold). One-hot encoding is the standard approach for nominal features with manageable cardinality."
+      },
+      {
+        "category": "categorical_encoding",
+        "action_type": "one_hot_encode",
+        "targets": [
+          "is_enterprise"
+        ],
+        "recommendation": "Apply one hot encode to 'is_enterprise'.",
+        "reasoning": "Nominal column with 8 unique values (\u2264 20 threshold). One-hot encoding is the standard approach for nominal features with manageable cardinality."
+      },
+      {
+        "category": "categorical_encoding",
+        "action_type": "one_hot_encode",
+        "targets": [
+          "product_category"
+        ],
+        "recommendation": "Apply one hot encode to 'product_category'.",
+        "reasoning": "Nominal column with 7 unique values (\u2264 20 threshold). One-hot encoding is the standard approach for nominal features with manageable cardinality."
+      },
+      {
+        "category": "categorical_encoding",
+        "action_type": "one_hot_encode",
+        "targets": [
+          "order_quarter"
+        ],
+        "recommendation": "Apply one hot encode to 'order_quarter'.",
+        "reasoning": "Nominal column with 4 unique values (\u2264 20 threshold). One-hot encoding is the standard approach for nominal features with manageable cardinality."
+      },
+      {
+        "category": "categorical_encoding",
+        "action_type": "one_hot_encode",
+        "targets": [
+          "country_code"
+        ],
+        "recommendation": "Apply one hot encode to 'country_code'.",
+        "reasoning": "Nominal column with 4 unique values (\u2264 20 threshold). One-hot encoding is the standard approach for nominal features with manageable cardinality."
+      },
+      {
+        "category": "categorical_encoding",
+        "action_type": "one_hot_encode",
+        "targets": [
+          "metadata_json"
+        ],
+        "recommendation": "Apply one hot encode to 'metadata_json'.",
+        "reasoning": "Nominal column with 3 unique values (\u2264 20 threshold). One-hot encoding is the standard approach for nominal features with manageable cardinality."
+      },
+      {
+        "category": "datetime_engineering",
+        "action_type": "time_series_features",
+        "targets": [
+          "ship_date_mixed",
+          "sequential_row_id",
+          "order_year",
+          "loyalty_tier_code",
+          "units_sold",
+          "discount_rate",
+          "gross_revenue",
+          "net_revenue",
+          "net_revenue_eur",
+          "rare_audit_flag",
+          "post_churn_refund",
+          "churn_flag"
+        ],
+        "recommendation": "Generate time-series features (lags, rolling stats) for 11 numeric columns.",
+        "reasoning": "Time-series features capture temporal dependencies. Rolling statistics smooth noise, lag features capture autocorrelation, and lead features can serve as forecasting targets."
+      },
+      {
+        "category": "datetime_engineering",
+        "action_type": "extract_datetime",
+        "targets": [
+          "order_date"
+        ],
+        "recommendation": "Extract 8 temporal features from 'order_date'.",
+        "reasoning": "Only components with actual variance in the data are extracted. Constant components (e.g., all same year) are excluded to avoid zero-variance features."
+      },
+      {
+        "category": "datetime_engineering",
+        "action_type": "extract_datetime",
+        "targets": [
+          "ship_date_mixed"
+        ],
+        "recommendation": "Extract 8 temporal features from 'ship_date_mixed'.",
+        "reasoning": "Only components with actual variance in the data are extracted. Constant components (e.g., all same year) are excluded to avoid zero-variance features."
+      },
+      {
+        "category": "datetime_engineering",
+        "action_type": "derive_datetime_flags",
+        "targets": [
+          "order_date"
+        ],
+        "recommendation": "Add 7 derived boolean flags from 'order_date'.",
+        "reasoning": "Boolean flags enable partitioning by business-relevant periods."
+      },
+      {
+        "category": "datetime_engineering",
+        "action_type": "derive_datetime_flags",
+        "targets": [
+          "ship_date_mixed"
+        ],
+        "recommendation": "Add 7 derived boolean flags from 'ship_date_mixed'.",
+        "reasoning": "Boolean flags enable partitioning by business-relevant periods."
+      },
+      {
+        "category": "datetime_engineering",
+        "action_type": "compute_elapsed_time",
+        "targets": [
+          "order_date"
+        ],
+        "recommendation": "Compute elapsed time since minimum value in 'order_date'.",
+        "reasoning": "Elapsed time features capture temporal distance and aging patterns."
+      },
+      {
+        "category": "datetime_engineering",
+        "action_type": "compute_elapsed_time",
+        "targets": [
+          "ship_date_mixed"
+        ],
+        "recommendation": "Compute elapsed time since minimum value in 'ship_date_mixed'.",
+        "reasoning": "Elapsed time features capture temporal distance and aging patterns."
+      },
+      {
+        "category": "feature_scaling",
+        "action_type": "standard_scale",
+        "targets": [
+          "sequential_row_id"
+        ],
+        "recommendation": "Apply standard scale to 'sequential_row_id'.",
+        "reasoning": "Column 'sequential_row_id' is approximately normal (skew=0.01). StandardScaler (Z-score) is the standard choice."
+      },
+      {
+        "category": "feature_scaling",
+        "action_type": "standard_scale",
+        "targets": [
+          "order_year"
+        ],
+        "recommendation": "Apply standard scale to 'order_year'.",
+        "reasoning": "Column 'order_year' is a discrete datetime component. StandardScaler centers and standardizes the component for modeling."
+      },
+      {
+        "category": "feature_scaling",
+        "action_type": "standard_scale",
+        "targets": [
+          "loyalty_tier_code"
+        ],
+        "recommendation": "Apply standard scale to 'loyalty_tier_code'.",
+        "reasoning": "Column 'loyalty_tier_code' is approximately normal (skew=0.00). StandardScaler (Z-score) is the standard choice."
+      },
+      {
+        "category": "feature_scaling",
+        "action_type": "standard_scale",
+        "targets": [
+          "units_sold"
+        ],
+        "recommendation": "Apply standard scale to 'units_sold'.",
+        "reasoning": "Column 'units_sold' is approximately normal (skew=-0.19). StandardScaler (Z-score) is the standard choice."
+      },
+      {
+        "category": "feature_scaling",
+        "action_type": "minmax_scale",
+        "targets": [
+          "discount_rate"
+        ],
+        "recommendation": "Apply minmax scale to 'discount_rate'.",
+        "reasoning": "Column 'discount_rate' is already bounded [0, 1]. MinMaxScaler maintains this natural range."
+      },
+      {
+        "category": "feature_scaling",
+        "action_type": "yeojohnson_transform",
+        "targets": [
+          "gross_revenue"
+        ],
+        "recommendation": "Apply yeojohnson transform to 'gross_revenue'.",
+        "reasoning": "Column 'gross_revenue' is a financial metric with skewness (skew=10.09) containing non-positive values. Yeo-Johnson normalizes without discarding negative values."
+      },
+      {
+        "category": "feature_scaling",
+        "action_type": "yeojohnson_transform",
+        "targets": [
+          "net_revenue"
+        ],
+        "recommendation": "Apply yeojohnson transform to 'net_revenue'.",
+        "reasoning": "Column 'net_revenue' is a financial metric with skewness (skew=9.36) containing non-positive values. Yeo-Johnson normalizes without discarding negative values."
+      },
+      {
+        "category": "feature_scaling",
+        "action_type": "yeojohnson_transform",
+        "targets": [
+          "net_revenue_eur"
+        ],
+        "recommendation": "Apply yeojohnson transform to 'net_revenue_eur'.",
+        "reasoning": "Column 'net_revenue_eur' is a financial metric with skewness (skew=9.36) containing non-positive values. Yeo-Johnson normalizes without discarding negative values."
+      },
+      {
+        "category": "feature_scaling",
+        "action_type": "minmax_scale",
+        "targets": [
+          "rare_audit_flag"
+        ],
+        "recommendation": "Apply minmax scale to 'rare_audit_flag'.",
+        "reasoning": "Column 'rare_audit_flag' is already bounded [0, 1]. MinMaxScaler maintains this natural range."
+      },
+      {
+        "category": "feature_scaling",
+        "action_type": "maxabs_scale",
+        "targets": [
+          "post_churn_refund"
+        ],
+        "recommendation": "Apply maxabs scale to 'post_churn_refund'.",
+        "reasoning": "Column 'post_churn_refund' is sparse (>30% zeros). MaxAbsScaler preserves sparsity and zero structure."
+      },
+      {
+        "category": "feature_scaling",
+        "action_type": "minmax_scale",
+        "targets": [
+          "churn_flag"
+        ],
+        "recommendation": "Apply minmax scale to 'churn_flag'.",
+        "reasoning": "Column 'churn_flag' is already bounded [0, 1]. MinMaxScaler maintains this natural range."
+      },
+      {
+        "category": "feature_selection",
+        "action_type": "suggest_pca",
+        "targets": [],
+        "recommendation": "Consider PCA with 8 components on predictor features (retains 95% explained variance, 20% dimensionality reduction).",
+        "reasoning": "PCA is NOT applied automatically -- this is informational only. PCA reduces predictor feature dimensionality while keeping the target variable strictly separated."
+      },
+      {
+        "category": "feature_selection",
+        "action_type": "drop_low_mutual_info",
+        "targets": [
+          "sequential_row_id",
+          "units_sold",
+          "discount_rate",
+          "gross_revenue",
+          "net_revenue",
+          "net_revenue_eur",
+          "rare_audit_flag"
+        ],
+        "recommendation": "Drop 7 feature(s) with negligible target correlation.",
+        "reasoning": "Features with near-zero mutual information with the target provide no predictive value."
+      },
+      {
+        "category": "feature_selection",
+        "action_type": "drop_high_vif",
+        "targets": [
+          "net_revenue",
+          "net_revenue_eur",
+          "gross_revenue"
+        ],
+        "recommendation": "Iteratively remove features with highest VIF until all remaining have VIF < 10.0.",
+        "reasoning": "High VIF (>10) indicates severe multicollinearity among predictor features -- the feature can be nearly perfectly predicted by other features. This inflates regression coefficients and reduces model stability."
+      },
+      {
+        "category": "feature_selection",
+        "action_type": "cluster_features",
+        "targets": [
+          "net_revenue",
+          "net_revenue_eur"
+        ],
+        "recommendation": "Retain 1 cluster representatives, drop 2 redundant features.",
+        "reasoning": "Features within a cluster are highly correlated -- keeping only the representative preserves information while reducing dimensionality."
+      },
+      {
+        "category": "feature_selection",
+        "action_type": "drop_near_zero_variance",
+        "targets": [
+          "rare_audit_flag"
+        ],
+        "recommendation": "Consider dropping 1 near-constant column(s).",
+        "reasoning": "Columns where >95% of values are identical provide minimal discriminative power. Threshold auto-justified by dataset size (245 rows)."
+      },
+      {
+        "category": "feature_selection",
+        "action_type": "drop_high_correlation",
+        "targets": [
+          "net_revenue"
+        ],
+        "recommendation": "Drop 'net_revenue' (lower importance) and keep 'gross_revenue'.",
+        "reasoning": "Highly correlated features (r=0.9970) provide redundant information. Dropping the less important one reduces multicollinearity without losing predictive power."
+      },
+      {
+        "category": "feature_selection",
+        "action_type": "drop_high_correlation",
+        "targets": [
+          "net_revenue_eur"
+        ],
+        "recommendation": "Drop 'net_revenue_eur' (lower importance) and keep 'gross_revenue'.",
+        "reasoning": "Highly correlated features (r=0.9970) provide redundant information. Dropping the less important one reduces multicollinearity without losing predictive power."
+      },
+      {
+        "category": "feature_selection",
+        "action_type": "flag_derived_redundancy",
+        "targets": [
+          "metadata_json"
+        ],
+        "recommendation": "Consider dropping `metadata_json` (or `order_month_name`) to eliminate redundant information and reduce dimensionality.",
+        "reasoning": "`metadata_json` is deterministically determined by `order_month_name` in this dataset. Keeping both may introduce redundant information."
+      },
+      {
+        "category": "feature_selection",
+        "action_type": "flag_derived_redundancy",
+        "targets": [
+          "country_code"
+        ],
+        "recommendation": "Consider dropping `country_code` (or `region`) to eliminate redundant information and reduce dimensionality.",
+        "reasoning": "`country_code` is deterministically determined by `region` in this dataset. Keeping both may introduce redundant information."
+      },
+      {
+        "category": "feature_selection",
+        "action_type": "flag_derived_redundancy",
+        "targets": [
+          "net_revenue"
+        ],
+        "recommendation": "Consider dropping `net_revenue` (or one of its components) to eliminate exact mathematical redundancy and multicollinearity.",
+        "reasoning": "`net_revenue` is deterministically derived from `gross_revenue` and `discount_rate`. Keeping all three may introduce redundant information and exact multicollinearity."
+      },
+      {
+        "category": "class_imbalance",
+        "action_type": "smote_nc",
+        "targets": [
+          "churn_flag"
+        ],
+        "recommendation": "Apply smote nc to balance classes.",
+        "reasoning": "Moderate imbalance (7.75:1) with mixed numeric/categorical features. SMOTE-NC handles both feature types when generating synthetic samples."
+      },
+      {
+        "category": "class_imbalance",
+        "action_type": "class_weights",
+        "targets": [
+          "churn_flag"
+        ],
+        "recommendation": "Use class weights instead of resampling.",
+        "reasoning": "Class weighting is the least invasive approach \u2014 it doesn't modify the data but instructs the model to penalize minority class errors proportionally. Works with most classifiers."
+      },
+      {
+        "category": "data_standardization",
+        "action_type": "standardize_casing",
+        "targets": [
+          "region"
+        ],
+        "recommendation": "Standardize 'region' to title case.",
+        "reasoning": "Inconsistent casing causes duplicate categories and matching failures."
+      },
+      {
+        "category": "data_standardization",
+        "action_type": "consolidate_synonyms",
+        "targets": [
+          "region"
+        ],
+        "recommendation": "Consolidate synonym variants into canonical forms.",
+        "reasoning": "Multiple representations of the same entity inflate cardinality and reduce model accuracy."
+      },
+      {
+        "category": "data_standardization",
+        "action_type": "standardize_casing",
+        "targets": [
+          "is_enterprise"
+        ],
+        "recommendation": "Standardize 'is_enterprise' to upper case.",
+        "reasoning": "Inconsistent casing causes duplicate categories and matching failures."
+      },
+      {
+        "category": "data_standardization",
+        "action_type": "consolidate_synonyms",
+        "targets": [
+          "is_enterprise"
+        ],
+        "recommendation": "Consolidate synonym variants into canonical forms.",
+        "reasoning": "Multiple representations of the same entity inflate cardinality and reduce model accuracy."
+      },
+      {
+        "category": "data_standardization",
+        "action_type": "standardize_casing",
+        "targets": [
+          "unit_price_raw"
+        ],
+        "recommendation": "Standardize 'unit_price_raw' to mixed case.",
+        "reasoning": "Inconsistent casing causes duplicate categories and matching failures."
+      },
+      {
+        "category": "data_standardization",
+        "action_type": "standardize_currency_format",
+        "targets": [
+          "unit_price_raw"
+        ],
+        "recommendation": "Separate or convert mixed currencies in 'unit_price_raw'.",
+        "reasoning": "Mixed currencies in a single column prevent numeric analysis."
+      },
+      {
+        "category": "data_standardization",
+        "action_type": "standardize_casing",
+        "targets": [
+          "customer_email"
+        ],
+        "recommendation": "Standardize 'customer_email' to lower case.",
+        "reasoning": "Inconsistent casing causes duplicate categories and matching failures."
+      },
+      {
+        "category": "data_standardization",
+        "action_type": "standardize_email",
+        "targets": [
+          "customer_email"
+        ],
+        "recommendation": "Standardize emails in 'customer_email' (lowercase, strip, validate).",
+        "reasoning": "Email standardization prevents duplicate accounts and improves data quality."
+      },
+      {
+        "category": "data_standardization",
+        "action_type": "standardize_precision",
+        "targets": [
+          "net_revenue_eur"
+        ],
+        "recommendation": "Round 'net_revenue_eur' to 3 decimal places.",
+        "reasoning": "Inconsistent excess precision can introduce calculation noise and affect comparisons."
+      },
+      {
+        "category": "data_standardization",
+        "action_type": "standardize_precision",
+        "targets": [
+          "post_churn_refund"
+        ],
+        "recommendation": "Round 'post_churn_refund' to 0 decimal places.",
+        "reasoning": "Inconsistent excess precision can introduce calculation noise and affect comparisons."
+      }
+    ]
+  },
+  "sql_engine_execution": {
+    "test_query": "SELECT \"product_category\", COUNT(*) AS \"orders\", SUM(\"net_revenue\") AS \"net_revenue\", AVG(\"discount_rate\") AS \"avg_discount\" FROM \"prism_table\" WHERE \"churn_flag\" = 0 GROUP BY \"product_category\" ORDER BY \"net_revenue\" DESC",
+    "status": "success",
+    "duration_ms": 12,
+    "row_count": 8,
+    "rows_sample": [
+      {
+        "product_category": "Enterprise Software",
+        "orders": 44,
+        "net_revenue": 2512029.39,
+        "avg_discount": 0.110256
+      },
+      {
+        "product_category": "Consulting",
+        "orders": 41,
+        "net_revenue": 1295362.58,
+        "avg_discount": 0.132895
+      },
+      {
+        "product_category": "Electronics",
+        "orders": 41,
+        "net_revenue": 910348.07,
+        "avg_discount": 0.118919
+      },
+      {
+        "product_category": "Cloud Services",
+        "orders": 43,
+        "net_revenue": 824318.63,
+        "avg_discount": 0.112821
+      },
+      {
+        "product_category": "Hardware",
+        "orders": 42,
+        "net_revenue": 106106.16,
+        "avg_discount": 0.135
+      }
+    ]
+  },
+  "semantic_model": {
+    "measures_count": 9,
+    "measures_list": [
+      "Total Units Sold",
+      "Avg Discount Rate",
+      "Total Gross Revenue",
+      "Total Net Revenue",
+      "Total Net Revenue Eur",
+      "Total Post Churn Refund",
+      "Net Margin %",
+      "Net Revenue YTD",
+      "Net Revenue MoM %"
+    ],
+    "hierarchies": [
+      "id='719428b4' name='Calendar Hierarchy' levels=['order_year', 'order_quarter', 'order_month_name', 'order_date'] hierarchy_type='date'",
+      "id='4aa2b761' name='Geographic Hierarchy' levels=['region', 'country_code'] hierarchy_type='geographic'",
+      "id='8f4e0301' name='Category Hierarchy' levels=['product_category', 'loyalty_tier_code'] hierarchy_type='categorical'"
+    ],
+    "computed_measure_values": {
+      "Total Units Sold": 3199.0,
+      "Avg Discount Rate": 0.121267,
+      "Total Gross Revenue": 7379786.61,
+      "Total Net Revenue": 6425384.44,
+      "Total Net Revenue Eur": 5911353.6848,
+      "Total Post Churn Refund": 573801.11,
+      "Net Margin %": 0.870673,
+      "Net Revenue YTD": 11084.48,
+      "Net Revenue MoM %": null
+    }
+  },
+  "ai_dashboard": {
+    "auto_widgets_count": 6,
+    "auto_widgets": [
+      {
+        "title": "Total Net Revenue",
+        "chart_type": "kpi",
+        "x_axis": null,
+        "y_axis": "net_revenue",
+        "metrics": null
+      },
+      {
+        "title": "Total Gross Revenue",
+        "chart_type": "kpi",
+        "x_axis": null,
+        "y_axis": "gross_revenue",
+        "metrics": null
+      },
+      {
+        "title": "Monthly Net Revenue Trend",
+        "chart_type": "line",
+        "x_axis": "order_date",
+        "y_axis": "net_revenue",
+        "metrics": null
+      },
+      {
+        "title": "Gross vs Net Revenue by Product Category",
+        "chart_type": "bar",
+        "x_axis": "product_category",
+        "y_axis": null,
+        "metrics": [
+          "gross_revenue",
+          "net_revenue"
+        ]
+      },
+      {
+        "title": "Discount Rate vs Net Revenue",
+        "chart_type": "scatter",
+        "x_axis": "discount_rate",
+        "y_axis": "net_revenue",
+        "metrics": null
+      },
+      {
+        "title": "Executive Smart Narrative",
+        "chart_type": "smart_narrative",
+        "x_axis": null,
+        "y_axis": null,
+        "metrics": null
+      }
+    ],
+    "nl_prompt_interpreted": {
+      "prompt": "compare gross_revenue vs net_revenue across product_category where churn_flag is 1",
+      "chart_type": "bar",
+      "metrics": [
+        "gross_revenue",
+        "net_revenue"
+      ],
+      "filters": [
+        {
+          "col": "churn_flag",
+          "op": "=",
+          "val": 1
+        }
+      ],
+      "generated_sql": "SELECT \"product_category\", SUM(\"gross_revenue\") AS \"gross_revenue\", SUM(\"net_revenue\") AS \"net_revenue\"\nFROM \"prism_table\"\nWHERE \"churn_flag\" = 1 AND \"product_category\" IS NOT NULL\nGROUP BY \"product_category\"",
+      "sql_execution_sample": [
+        {
+          "product_category": "Hardware",
+          "gross_revenue": 10998.08,
+          "net_revenue": 9664.43
+        },
+        {
+          "product_category": "Electronics",
+          "gross_revenue": 55523.86,
+          "net_revenue": 46745.47
+        },
+        {
+          "product_category": "Cloud Services",
+          "gross_revenue": 159993.25,
+          "net_revenue": 150403.78
+        },
+        {
+          "product_category": "Consulting",
+          "gross_revenue": 238251.99,
+          "net_revenue": 213841.47
+        }
+      ]
+    }
+  },
+  "ai_analytics": {
+    "forecasting": {
+      "model_name": "Holt-Winters Exponential Smoothing",
+      "trend": "downward",
+      "points_count": 22,
+      "anomalies_detected": 1,
+      "sample_points": [
+        {
+          "date": "2025-05",
+          "actual": 312025.03,
+          "forecast": 257696.5,
+          "anomaly": false
+        },
+        {
+          "date": "2025-06",
+          "actual": 302724.32,
+          "forecast": 248991.15,
+          "anomaly": false
+        },
+        {
+          "date": "2025-07",
+          "actual": null,
+          "forecast": 240282.85,
+          "anomaly": false
+        },
+        {
+          "date": "2025-08",
+          "actual": null,
+          "forecast": 231305.89,
+          "anomaly": false
+        },
+        {
+          "date": "2025-09",
+          "actual": null,
+          "forecast": 222328.93,
+          "anomaly": false
+        },
+        {
+          "date": "2025-10",
+          "actual": null,
+          "forecast": 213351.97,
+          "anomaly": false
+        }
+      ]
+    },
+    "key_influencers": {
+      "target": "churn_flag",
+      "baseline_rate": 0.1143,
+      "guarded_leakage_columns": [
+        "post_churn_refund"
+      ],
+      "drivers": [
+        {
+          "feature": "order_month_name",
+          "condition": "is 'October'",
+          "impact": "8.8x more likely",
+          "multiplier": 8.75,
+          "target_rate": 1.0,
+          "segment_size": 13
+        },
+        {
+          "feature": "is_enterprise",
+          "condition": "is 'Yes'",
+          "impact": "8.8x more likely",
+          "multiplier": 8.75,
+          "target_rate": 1.0,
+          "segment_size": 28
+        },
+        {
+          "feature": "order_month_name",
+          "condition": "is 'January'",
+          "impact": "4.7x more likely",
+          "multiplier": 4.69,
+          "target_rate": 0.5357,
+          "segment_size": 28
+        },
+        {
+          "feature": "order_quarter",
+          "condition": "is 'Q4'",
+          "impact": "2.9x more likely",
+          "multiplier": 2.92,
+          "target_rate": 0.3333,
+          "segment_size": 39
+        },
+        {
+          "feature": "order_month_name",
+          "condition": "is 'February'",
+          "impact": "0.0x less likely",
+          "multiplier": 0.0,
+          "target_rate": 0.0,
+          "segment_size": 28
+        },
+        {
+          "feature": "order_month_name",
+          "condition": "is 'April'",
+          "impact": "0.0x less likely",
+          "multiplier": 0.0,
+          "target_rate": 0.0,
+          "segment_size": 28
+        },
+        {
+          "feature": "order_month_name",
+          "condition": "is 'May'",
+          "impact": "0.0x less likely",
+          "multiplier": 0.0,
+          "target_rate": 0.0,
+          "segment_size": 28
+        },
+        {
+          "feature": "order_month_name",
+          "condition": "is 'March'",
+          "impact": "0.0x less likely",
+          "multiplier": 0.0,
+          "target_rate": 0.0,
+          "segment_size": 27
+        }
+      ]
+    },
+    "decomposition_tree": {
+      "root_name": "net_revenue",
+      "root_value": 6425384.44,
+      "dimension_split": "product_category",
+      "nodes_count": 7,
+      "top_nodes": [
+        {
+          "name": "Enterprise Software",
+          "value": 2808625.61,
+          "pct_parent": 43.7
+        },
+        {
+          "name": "Consulting",
+          "value": 1509204.05,
+          "pct_parent": 23.5
+        },
+        {
+          "name": "Cloud Services",
+          "value": 974722.41,
+          "pct_parent": 15.2
+        },
+        {
+          "name": "Electronics",
+          "value": 957093.54,
+          "pct_parent": 14.9
+        },
+        {
+          "name": "Hardware",
+          "value": 115770.59,
+          "pct_parent": 1.8
+        }
+      ]
+    },
+    "smart_narrative": {
+      "title": "Executive Intelligence Narrative",
+      "bullets": [
+        "Total **Net Revenue** stands at **$6,425,384.44** across **245** recorded transactions.",
+        "Net realization margin is **87.1%** relative to **$7,379,786.61** in Gross Revenue.",
+        "Peak monthly performance occurred in **2025-04** generating **$884,634.68**.",
+        "**Enterprise Software** is the dominant product line, contributing **$2,808,625.61**.",
+        "Overall churn flag rate is **11.4%** of active accounts."
+      ],
+      "kpis": {
+        "total_rows": 245,
+        "total_net_revenue": 6425384.4399999995,
+        "net_margin_pct": 87.06734733079227,
+        "peak_month": "2025-04",
+        "peak_revenue": 884634.6799999998,
+        "churn_rate_pct": 11.428571428571429
+      }
+    },
+    "explain_point": {
+      "clicked_point": "2025-04",
+      "current_value": 884634.68,
+      "previous_value": 331993.61,
+      "delta": 552641.07,
+      "delta_percent": 166.46,
+      "top_driver_dimension": "product_category",
+      "top_driver_category": "Electronics",
+      "narrative": "Net Revenue in 2025-04 increased by $552,641.07 (+166.5%) compared to 2025-03. This movement was primarily driven by Electronics (contributing $634,814.22), with TXN-10015 representing an extreme single transaction of $639,993.60."
+    }
+  },
+  "insights_and_anomalies": {
+    "anomalies_count": 28,
+    "anomalies_sample": [
+      {
+        "col": "churn_flag",
+        "type": "Data Leakage",
+        "severity": "Critical",
+        "desc": "'is_enterprise' has a near-perfect association (score=1.00) with the target 'churn_flag'. This is a strong indicator of target leakage \u2014 the feature may encode the target or be computed after the event."
+      },
+      {
+        "col": "post_churn_refund",
+        "type": "Data Leakage",
+        "severity": "Critical",
+        "desc": "'post_churn_refund' has a near-perfect association (score=1.00) with the target 'churn_flag'. This is a strong indicator of target leakage \u2014 the feature may encode the target or be computed after the event."
+      },
+      {
+        "col": "customer_email",
+        "type": "Security",
+        "severity": "Critical",
+        "desc": "Detected potential email PII footprint."
+      },
+      {
+        "col": null,
+        "type": "Correlation",
+        "severity": "High",
+        "desc": "High Multicollinearity detected among numerical features."
+      },
+      {
+        "col": "constant_status",
+        "type": "Variance",
+        "severity": "Medium",
+        "desc": "Column contains only a single constant value."
+      }
+    ],
+    "executive_briefing": {
+      "summary": "This exceptional quality dataset appears to represent an E-commerce / Retail Transaction dataset, consisting of 245 records across 27 attributes. A preliminary Machine Learning setup suggests 'churn_flag' is the likely target for binary classification. It achieved an overall quality grade of 'A' (93.93/100).",
+      "top_risks": [],
+      "opportunities": []
+    }
+  },
+  "story_studio": {
+    "total_slides": 10,
+    "slides_overview": [
+      {
+        "num": 1,
+        "title": "Executive Intelligence Deck: full_audit",
+        "category": "Executive Overview",
+        "badge": "E-COMMERCE / RETAIL TRANSACTION",
+        "bullets": [
+          "Analyzed 245 records and 27 distinct features.",
+          "Domain classified as 'E-commerce / Retail Transaction'."
+        ]
+      },
+      {
+        "num": 2,
+        "title": "Data Health Scorecard",
+        "category": "Data Health",
+        "badge": "GRADE A",
+        "bullets": [
+          "Completeness Score: 98.1/100 - Evaluating missing value density.",
+          "Uniqueness Score: 99.0/100 - Assessing row-level duplication & primary keys."
+        ]
+      },
+      {
+        "num": 3,
+        "title": "Executive Domain Takeaways",
+        "category": "Executive Insights",
+        "badge": "KEY FINDINGS",
+        "bullets": [
+          "Primary Metric Dynamics: 'net_revenue' averages $26,333.54 per record (estimated cumulative total: $6,451,717.98).",
+          "Target Class Distribution: Binary objective 'churn_flag' exhibits class '0': 88.6%, class '1': 11.4%."
+        ]
+      },
+      {
+        "num": 4,
+        "title": "Column Profiling & Cardinality",
+        "category": "Feature Engineering",
+        "badge": "FEATURE SPACE",
+        "bullets": [
+          "Categorical 'txn_uuid': 240 distinct categories (98.0% unique ratio).",
+          "Categorical 'dup_txn_uuid': 240 distinct categories (98.0% unique ratio)."
+        ]
+      },
+      {
+        "num": 5,
+        "title": "Sparsity & Null Value Audit",
+        "category": "Data Cleaning",
+        "badge": "SPARSITY DETECTED",
+        "bullets": [
+          "Feature 'customer_notes': 11.8% missing values (29 rows).",
+          "Feature 'is_enterprise': 11.0% missing values (27 rows)."
+        ]
+      },
+      {
+        "num": 6,
+        "title": "Feature Association & Multicollinearity",
+        "category": "Correlation & Multicollinearity",
+        "badge": "ASSOCIATIONS",
+        "bullets": [
+          "Strong association between 'sequential_row_id' \u2194 'txn_uuid' (Pearson: -1.000).",
+          "Strong association between 'sequential_row_id' \u2194 'dup_txn_uuid' (Pearson: -1.000)."
+        ]
+      },
+      {
+        "num": 7,
+        "title": "Anomaly & Risk Registry",
+        "category": "Risk Assessment",
+        "badge": "RISK REGISTRY",
+        "bullets": [
+          "[CRITICAL RISK] Feature 'churn_flag': 'is_enterprise' has a near-perfect association (score=1.00) with the target 'churn_flag'. This is a strong indicator of target leakage \u2014 the feature may encode the target or be computed after the event.",
+          "[CRITICAL RISK] Feature 'post_churn_refund': 'post_churn_refund' has a near-perfect association (score=1.00) with the target 'churn_flag'. This is a strong indicator of target leakage \u2014 the feature may encode the target or be computed after the event."
+        ]
+      },
+      {
+        "num": 8,
+        "title": "Key Predictive Drivers",
+        "category": "Predictive Intelligence",
+        "badge": "TARGET ANALYSIS",
+        "bullets": [
+          "Predictive Driver 'is_enterprise': Importance Score = 97.0/100.",
+          "Predictive Driver 'post_churn_refund': Importance Score = 79.4/100."
+        ]
+      },
+      {
+        "num": 9,
+        "title": "Actionable Optimization Roadmaps",
+        "category": "Strategic Actions",
+        "badge": "RECOMMENDATIONS",
+        "bullets": [
+          "Target Optimization: Focus retention/conversion interventions on drivers predicting 'churn_flag'.",
+          "Pricing & Margin Optimization: Monitor discount rates against gross and net revenue across customer segments."
+        ]
+      },
+      {
+        "num": 10,
+        "title": "Implementation & Deployment Roadmap",
+        "category": "Execution Plan",
+        "badge": "EXECUTION ROADMAP",
+        "bullets": [
+          "Phase 1: Target Optimization: Focus retention/conversion interventions on drivers predicting 'churn_flag'.",
+          "Phase 2: Pricing & Margin Optimization: Monitor discount rates against gross and net revenue across customer segments."
+        ]
+      }
+    ]
+  },
+  "verification_checks": [
+    {
+      "check": "Ingestion Date Disambiguation",
+      "status": "PASSED",
+      "details": "distinct=230 (expected 230), row3=2024-04-07 (expected 2024-04-07)"
+    },
+    {
+      "check": "VIF & Mutual Information Extraction",
+      "status": "PASSED",
+      "details": "VIF features=14, MI features=9"
+    },
+    {
+      "check": "DecisionEngine Precision & Leakage Guard",
+      "status": "PASSED",
+      "details": "actions=76 (<80), drop_col=['dup_txn_uuid'], leakage=['is_enterprise', 'post_churn_refund']"
+    },
+    {
+      "check": "Story Studio Insights & Scorecard",
+      "status": "PASSED",
+      "details": "anomalies=28, slide2_kpi=93.93/100, total_slides=10"
+    },
+    {
+      "check": "Semantic Model & Measure Precision",
+      "status": "PASSED",
+      "details": "measures_count=9, avg_disc=0.121267, ytd=11084.48"
+    },
+    {
+      "check": "Auto-Dashboard Chart Selection",
+      "status": "PASSED",
+      "details": "widgets=6, kpis=['Total Net Revenue', 'Total Gross Revenue'], scatter_x=discount_rate"
+    },
+    {
+      "check": "DuckDB Float Quantization",
+      "status": "PASSED",
+      "details": "sample net_revenue=2512029.39 (max 6 decimal places)"
+    }
+  ]
+}
