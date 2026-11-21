@@ -1144,3 +1144,281 @@ body,
     opacity: 1;
   }
 }
+
+/* ═══════════════════════════════════════════════════════
+   SPECTRAL METAMORPHOSIS — WARM JEWEL-TONE FLUIDITY
+   ═══════════════════════════════════════════════════════ */
+
+:root {
+  --ease-refraction: cubic-bezier(0.16, 1, 0.24, 1);
+  --spring-natural: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --jewel-ruby: #e11d48;
+  --jewel-rose: #f43f5e;
+  --jewel-vermilion: #ea580c;
+  --jewel-amber: #d97706;
+  --jewel-saffron: #f59e0b;
+  --jewel-gold: #fbbf24;
+  --jewel-emerald: #10b981;
+  --jewel-teal: #14b8a6;
+  --jewel-cyan: #06b6d4;
+  --jewel-sapphire: #3b82f6;
+  --jewel-indigo: #6366f1;
+  --jewel-amethyst: #8b5cf6;
+  --jewel-violet: #a855f7;
+
+  --obsidian-surface: rgba(15, 23, 42, 0.72);
+  --obsidian-dark: rgba(10, 15, 29, 0.88);
+  --obsidian-border: rgba(255, 255, 255, 0.08);
+}
+
+/* Iridescent Moving Border Gradient */
+@keyframes iridescentFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes crucibleAura {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.78;
+    filter: drop-shadow(0 0 16px rgba(244, 63, 94, 0.35));
+  }
+  50% {
+    transform: scale(1.03);
+    opacity: 0.95;
+    filter: drop-shadow(0 0 26px rgba(245, 158, 11, 0.55));
+  }
+}
+
+@keyframes goldDustDrift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translate3d(24px, -12px, 0) scale(1.1);
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate3d(48px, 4px, 0) scale(0.9);
+    opacity: 0.3;
+  }
+}
+
+@keyframes prismLightPulse {
+  0%, 100% {
+    opacity: 0.75;
+    filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.25));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 35px rgba(245, 158, 11, 0.6));
+  }
+}
+
+@keyframes expandWarmWave {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+    filter: blur(14px);
+  }
+  100% {
+    transform: scale(1.25);
+    opacity: 0;
+    filter: blur(0px);
+  }
+}
+
+/* Glass Panels with Jewel Border Accents */
+.prism-glass-panel {
+  background: var(--obsidian-surface);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid var(--obsidian-border);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.36);
+  transition: transform 260ms var(--ease-refraction), box-shadow 260ms var(--ease-refraction), border-color 260ms var(--ease-refraction);
+}
+
+.prism-glass-panel:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* Jewel Metric Cards */
+.jewel-card-ruby {
+  border: 1px solid rgba(225, 29, 72, 0.32) !important;
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.08) 0%, rgba(15, 23, 42, 0.75) 100%) !important;
+  box-shadow: 0 4px 20px rgba(225, 29, 72, 0.12), inset 0 1px 0 rgba(225, 29, 72, 0.25);
+}
+.jewel-card-ruby:hover {
+  box-shadow: 0 8px 30px rgba(225, 29, 72, 0.25), inset 0 1px 0 rgba(225, 29, 72, 0.4);
+}
+
+.jewel-card-amber {
+  border: 1px solid rgba(245, 158, 11, 0.32) !important;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(15, 23, 42, 0.75) 100%) !important;
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.12), inset 0 1px 0 rgba(245, 158, 11, 0.25);
+}
+.jewel-card-amber:hover {
+  box-shadow: 0 8px 30px rgba(245, 158, 11, 0.25), inset 0 1px 0 rgba(245, 158, 11, 0.4);
+}
+
+.jewel-card-emerald {
+  border: 1px solid rgba(16, 185, 129, 0.32) !important;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.75) 100%) !important;
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.12), inset 0 1px 0 rgba(16, 185, 129, 0.25);
+}
+.jewel-card-emerald:hover {
+  box-shadow: 0 8px 30px rgba(16, 185, 129, 0.25), inset 0 1px 0 rgba(16, 185, 129, 0.4);
+}
+
+.jewel-card-cyan {
+  border: 1px solid rgba(6, 182, 212, 0.32) !important;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.08) 0%, rgba(15, 23, 42, 0.75) 100%) !important;
+  box-shadow: 0 4px 20px rgba(6, 182, 212, 0.12), inset 0 1px 0 rgba(6, 182, 212, 0.25);
+}
+
+.jewel-card-violet {
+  border: 1px solid rgba(139, 92, 246, 0.32) !important;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(15, 23, 42, 0.75) 100%) !important;
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.12), inset 0 1px 0 rgba(139, 92, 246, 0.25);
+}
+
+/* Iridescent Luminous Border Wrapper */
+.iridescent-border-wrapper {
+  position: relative;
+  border-radius: 18px;
+  padding: 1.5px;
+  background: linear-gradient(90deg, #f43f5e, #fb923c, #fbbf24, #34d399, #22d3ee, #818cf8, #c084fc, #f43f5e);
+  background-size: 300% 300%;
+  animation: iridescentFlow 10s ease infinite;
+  box-shadow: 0 0 24px rgba(244, 63, 94, 0.18), 0 0 40px rgba(34, 211, 238, 0.12);
+}
+
+.iridescent-border-content {
+  border-radius: 17px;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(20px);
+}
+
+/* Staggered Row Cascade */
+.cascade-row {
+  opacity: 0;
+  transform: translate3d(0, 18px, 0);
+  filter: blur(3px);
+  animation: cascadeIn 500ms var(--ease-refraction) forwards;
+}
+
+@keyframes cascadeIn {
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    filter: blur(0px);
+  }
+}
+
+/* Semantic Essence Jewel Badges */
+.jewel-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.4;
+}
+
+.jewel-badge-id {
+  background: rgba(245, 158, 11, 0.14);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.jewel-badge-datetime {
+  background: rgba(168, 85, 247, 0.14);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+}
+
+.jewel-badge-categorical {
+  background: rgba(16, 185, 129, 0.14);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.jewel-badge-percentage {
+  background: rgba(244, 63, 94, 0.14);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.35);
+}
+
+.jewel-badge-currency {
+  background: rgba(234, 88, 12, 0.14);
+  color: #fb923c;
+  border: 1px solid rgba(234, 88, 12, 0.35);
+}
+
+.jewel-badge-target {
+  background: rgba(225, 29, 72, 0.2);
+  color: #f43f5e;
+  border: 1px solid rgba(225, 29, 72, 0.5);
+  box-shadow: 0 0 10px rgba(225, 29, 72, 0.25);
+}
+
+/* Metamorphic State Pill */
+.state-pill {
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.state-pill-preserved {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+
+.state-pill-isolated {
+  background: rgba(225, 29, 72, 0.1);
+  border-color: rgba(225, 29, 72, 0.3);
+  color: #fb7185;
+}
+
+.state-pill-aligned {
+  background: rgba(168, 85, 247, 0.1);
+  border-color: rgba(168, 85, 247, 0.3);
+  color: #c084fc;
+}
+
+.state-pill-grouped {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #34d399;
+}
+
+.state-pill-imputed {
+  background: rgba(234, 88, 12, 0.1);
+  border-color: rgba(234, 88, 12, 0.3);
+  color: #fb923c;
+}
+
+.state-pill-normalized {
+  background: rgba(6, 182, 212, 0.1);
+  border-color: rgba(6, 182, 212, 0.3);
+  color: #22d3ee;
+}
