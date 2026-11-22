@@ -3,8 +3,45 @@
  * Mirrors the backend Pydantic models in chart_config_models.py.
  */
 
-export type ChartType = 'bar' | 'line' | 'area' | 'pie' | 'donut' | 'scatter' | 'heatmap' | 'treemap' | 'funnel' | 'kpi' | 'table';
-export type AggregationType = 'sum' | 'avg' | 'count' | 'min' | 'max' | 'median' | 'none';
+export type ChartType =
+    | 'kpi'
+    | 'multi_kpi'
+    | 'gauge'
+    | 'bullet'
+    | 'bar'
+    | 'stacked_bar'
+    | 'stacked_bar_100'
+    | 'column'
+    | 'stacked_column'
+    | 'stacked_column_100'
+    | 'line'
+    | 'area'
+    | 'stacked_area'
+    | 'ribbon'
+    | 'combo_bar_line'
+    | 'combo_stacked_line'
+    | 'pie'
+    | 'donut'
+    | 'treemap'
+    | 'sunburst'
+    | 'funnel'
+    | 'waterfall'
+    | 'scatter'
+    | 'bubble'
+    | 'histogram'
+    | 'boxplot'
+    | 'heatmap'
+    | 'table'
+    | 'matrix'
+    | 'bubble_map'
+    | 'choropleth_map'
+    | 'decomposition_tree'
+    | 'key_influencers'
+    | 'smart_narrative'
+    | 'qa_visual'
+    | 'slicer';
+
+export type AggregationType = 'sum' | 'avg' | 'count' | 'distinct_count' | 'min' | 'max' | 'median' | 'stddev' | 'none';
 export type TimeGrain = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'none';
 export type SortDirection = 'asc' | 'desc';
 export type ColorScheme = 'default' | 'dark' | 'vibrant' | 'pastel' | 'monochrome' | 'ocean' | 'sunset' | 'forest';
@@ -16,6 +53,36 @@ export interface FilterCondition {
     values?: any[];
 }
 
+export interface MetricSpec {
+    column: string;
+    aggregation: AggregationType;
+    alias?: string;
+    label?: string;
+    format?: string;
+    y_axis_index?: number;
+    measure_expression?: string;
+}
+
+export interface ReferenceLine {
+    type: 'constant' | 'average' | 'median' | 'min' | 'max' | 'percentile';
+    value?: number;
+    label?: string;
+    color?: string;
+    line_style?: 'solid' | 'dashed' | 'dotted';
+}
+
+export interface ForecastConfig {
+    enabled: boolean;
+    periods?: number;
+    confidence_interval?: number; // 0.80 or 0.95
+    seasonality?: number;
+}
+
+export interface AnomalyDetectionConfig {
+    enabled: boolean;
+    sensitivity?: number; // e.g. 2.5
+}
+
 export interface ChartConfig {
     chart_type: ChartType;
     title: string;
@@ -25,6 +92,11 @@ export interface ChartConfig {
     y_axis_secondary?: string;
     group_by?: string;
     size_by?: string;
+    color_by?: string;
+    play_axis?: string;
+    hierarchy_levels?: string[];
+    active_drill_level?: number;
+    metrics?: MetricSpec[];
     aggregation: AggregationType;
     x_axis_time_grain?: TimeGrain | null;
     filters: FilterCondition[];
@@ -41,6 +113,21 @@ export interface ChartConfig {
     kpi_value_column?: string;
     kpi_comparison_column?: string;
     kpi_aggregation?: AggregationType;
+    conditional_formatting?: any[];
+    reference_lines?: ReferenceLine[];
+    forecast_config?: ForecastConfig;
+    anomaly_detection?: AnomalyDetectionConfig;
+    styling?: Record<string, any>;
+    interactions?: Record<string, any>;
+}
+
+export function formatCompactNumber(value: number | null | undefined): string {
+    if (value === null || value === undefined || isNaN(value)) return '—';
+    const abs = Math.abs(value);
+    if (abs >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)}B`;
+    if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
+    if (abs >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+    return Number.isInteger(value) ? value.toString() : value.toFixed(2);
 }
 
 export interface ClarificationRequest {
@@ -51,10 +138,12 @@ export interface ClarificationRequest {
 export interface InterpretResponse {
     success: boolean;
     error?: string;
+    intent?: 'create_chart' | 'modify_chart' | 'create_measure' | 'clarify' | 'qa_query';
     config?: ChartConfig;
     clarification?: ClarificationRequest;
     sql?: string;
     data?: Record<string, any>[];
+    measure?: MeasureDefinition;
 }
 
 export interface Widget {
@@ -67,6 +156,53 @@ export interface Widget {
     sql?: string;
     loading?: boolean;
     error?: string;
+    hidden?: boolean;
+    locked?: boolean;
+}
+
+export interface HierarchyDefinition {
+    name: string;
+    dimension_type: 'date' | 'geography' | 'category' | 'custom';
+    levels: string[];
+}
+
+export interface MeasureDefinition {
+    name: string;
+    expression: string;
+    format: string;
+    description?: string;
+    folder?: string;
+}
+
+export interface Bookmark {
+    id: string;
+    name: string;
+    page_id?: string;
+    filters?: FilterCondition[];
+    cross_filters?: Record<string, any>;
+    visible_widget_ids?: string[];
+    created_at?: number;
+}
+
+export interface RLSRole {
+    role_name: string;
+    filter_expression: string;
+    assigned_users?: string[];
+}
+
+export interface CrossFilterState {
+    sourceWidgetId: string;
+    column: string;
+    value: any;
+}
+
+export interface DashboardPage {
+    id: string;
+    title: string;
+    widgets: Widget[];
+    order?: number;
+    is_drillthrough_target?: boolean;
+    drillthrough_fields?: string[];
 }
 
 export interface Dashboard {
@@ -74,8 +210,12 @@ export interface Dashboard {
     title: string;
     description: string;
     file_id: string;
+    pages?: DashboardPage[];
     widgets: Widget[];
     global_filters: FilterCondition[];
+    measures?: MeasureDefinition[];
+    bookmarks?: Bookmark[];
+    rls_roles?: RLSRole[];
     created_at: number;
     updated_at: number;
 }
