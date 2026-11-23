@@ -1,23 +1,32 @@
 /**
- * GlobalFilterBar — Date range picker + categorical multi-select chips.
- * Propagates filters to all widgets via callback.
+ * GlobalFilterBar — Date range picker + categorical multi-select chips + Cross-Filter badges.
+ * Propagates global filters and cross-filters to all widgets.
  */
 import React from 'react';
 import { DatePicker, Tag } from 'antd';
 import dayjs from 'dayjs';
-import { FilterOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { FilterOutlined, CloseCircleOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import type { FilterCondition } from '../../types/dashboard';
 
 const { RangePicker } = DatePicker;
 
 interface Props {
     filters: FilterCondition[];
+    crossFilters?: Record<string, any>;
     columns?: string[];
     onFiltersChange: (filters: FilterCondition[]) => void;
+    onRemoveCrossFilter?: (column: string) => void;
+    onClearAllCrossFilters?: () => void;
 }
 
-const GlobalFilterBar: React.FC<Props> = ({ filters, columns = [], onFiltersChange }) => {
-
+const GlobalFilterBar: React.FC<Props> = ({
+    filters,
+    crossFilters = {},
+    columns = [],
+    onFiltersChange,
+    onRemoveCrossFilter,
+    onClearAllCrossFilters,
+}) => {
     const findDateColumn = () => {
         return columns.find(c => c.toLowerCase().includes('date') || c.toLowerCase().includes('time')) || 'date';
     };
@@ -43,10 +52,14 @@ const GlobalFilterBar: React.FC<Props> = ({ filters, columns = [], onFiltersChan
         onFiltersChange(filters.filter((_, i) => i !== idx));
     };
 
+    const crossFilterEntries = Object.entries(crossFilters);
+    const hasAnyFilters = filters.length > 0 || crossFilterEntries.length > 0;
+
     return (
         <div style={{
             display: 'flex', alignItems: 'center', gap: 12, padding: '8px 24px',
             borderBottom: '1px solid rgba(99,102,241,0.08)', flexWrap: 'wrap',
+            background: 'rgba(15, 23, 42, 0.4)',
         }}>
             <FilterOutlined style={{ color: '#64748b' }} />
             <RangePicker
@@ -56,9 +69,10 @@ const GlobalFilterBar: React.FC<Props> = ({ filters, columns = [], onFiltersChan
                 style={{ background: '#1e293b', borderRadius: 8 }}
             />
 
+            {/* Global filter chips */}
             {filters.map((f, i) => (
                 <Tag
-                    key={i}
+                    key={`global-${i}`}
                     closable
                     onClose={() => removeFilter(i)}
                     style={{
@@ -70,9 +84,29 @@ const GlobalFilterBar: React.FC<Props> = ({ filters, columns = [], onFiltersChan
                 </Tag>
             ))}
 
-            {filters.length > 0 && (
+            {/* Cross-filter pills */}
+            {crossFilterEntries.map(([col, val]) => (
                 <Tag
-                    onClick={() => onFiltersChange([])}
+                    key={`cross-${col}`}
+                    closable
+                    onClose={() => onRemoveCrossFilter?.(col)}
+                    color="cyan"
+                    icon={<ThunderboltOutlined />}
+                    style={{
+                        borderRadius: 16,
+                        fontWeight: 500,
+                    }}
+                >
+                    Cross-Filter: {col} = {String(val)}
+                </Tag>
+            ))}
+
+            {hasAnyFilters && (
+                <Tag
+                    onClick={() => {
+                        onFiltersChange([]);
+                        onClearAllCrossFilters?.();
+                    }}
                     style={{ cursor: 'pointer', color: '#ef4444', background: 'transparent', border: 'none' }}
                 >
                     <CloseCircleOutlined /> Clear all

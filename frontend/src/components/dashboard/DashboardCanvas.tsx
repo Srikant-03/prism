@@ -1,5 +1,6 @@
 /**
  * DashboardCanvas — react-grid-layout responsive grid for dashboard widgets.
+ * Supports layout locks, widget hiding, selection state, and cross-filtering.
  */
 import React from 'react';
 import RGL, { WidthProvider } from 'react-grid-layout/legacy';
@@ -8,7 +9,6 @@ import 'react-resizable/css/styles.css';
 import type { Widget } from '../../types/dashboard';
 import WidgetContainer from './WidgetContainer';
 
-// @ts-ignore – legacy HOC wrapper; runtime props are correct
 const GridLayout = WidthProvider(RGL) as any;
 
 interface LayoutItem {
@@ -19,23 +19,48 @@ interface LayoutItem {
     h: number;
     minW?: number;
     minH?: number;
+    static?: boolean;
 }
 
 interface Props {
     widgets: Widget[];
+    editingWidgetId?: string | null;
+    selectedWidgetId?: string | null;
     onLayoutChange?: (layout: LayoutItem[]) => void;
     onEditWidget?: (id: string) => void;
+    onSelectWidget?: (id: string) => void;
     onDuplicateWidget?: (id: string) => void;
     onDeleteWidget?: (id: string) => void;
     onFullscreenWidget?: (id: string) => void;
     onTitleChange?: (id: string, title: string) => void;
+    onFormatWidget?: (id: string) => void;
+    onDrillUp?: (id: string) => void;
+    onDrillDown?: (id: string) => void;
+    onExplainWidget?: (widget: Widget) => void;
+    onCrossFilter?: (column: string, value: any) => void;
 }
 
 const DashboardCanvas: React.FC<Props> = ({
-    widgets, onLayoutChange, onEditWidget, onDuplicateWidget,
-    onDeleteWidget, onFullscreenWidget, onTitleChange,
+    widgets,
+    editingWidgetId,
+    selectedWidgetId,
+    onLayoutChange,
+    onEditWidget,
+    onSelectWidget,
+    onDuplicateWidget,
+    onDeleteWidget,
+    onFullscreenWidget,
+    onTitleChange,
+    onFormatWidget,
+    onDrillUp,
+    onDrillDown,
+    onExplainWidget,
+    onCrossFilter,
 }) => {
-    const layout: LayoutItem[] = widgets.map(w => ({
+    // Filter out hidden widgets
+    const visibleWidgets = widgets.filter(w => !w.hidden);
+
+    const layout: LayoutItem[] = visibleWidgets.map(w => ({
         i: w.id,
         x: w.layout.x,
         y: w.layout.y,
@@ -43,6 +68,7 @@ const DashboardCanvas: React.FC<Props> = ({
         h: w.layout.h,
         minW: 3,
         minH: 2,
+        static: Boolean(w.locked),
     }));
 
     return (
@@ -60,15 +86,23 @@ const DashboardCanvas: React.FC<Props> = ({
                 isDraggable
                 useCSSTransforms
             >
-                {widgets.map(widget => (
+                {visibleWidgets.map(widget => (
                     <div key={widget.id} style={{ overflow: 'hidden' }}>
                         <WidgetContainer
                             widget={widget}
+                            isEditing={widget.id === editingWidgetId}
+                            isSelected={widget.id === selectedWidgetId}
                             onEdit={onEditWidget}
+                            onSelect={onSelectWidget}
                             onDuplicate={onDuplicateWidget}
                             onDelete={onDeleteWidget}
                             onFullscreen={onFullscreenWidget}
                             onTitleChange={onTitleChange}
+                            onFormat={onFormatWidget}
+                            onDrillUp={onDrillUp}
+                            onDrillDown={onDrillDown}
+                            onExplain={onExplainWidget}
+                            onCrossFilter={onCrossFilter}
                         />
                     </div>
                 ))}
