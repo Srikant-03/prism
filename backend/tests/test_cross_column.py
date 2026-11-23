@@ -1,10 +1,13 @@
-import json
+"""
+Tests for cross-column profiling capabilities.
+"""
+import pytest
 import pandas as pd
 import numpy as np
 from profiling.engine import DataProfiler
 
-def run_test():
-    # 1. Create a quick mock dataset
+def test_cross_column_profiling():
+    np.random.seed(42)
     data = {
         'id': range(100),
         'age': np.random.normal(40, 10, 100),
@@ -22,16 +25,13 @@ def run_test():
 
     df = pd.DataFrame(data)
 
-    # 2. Run Engine
+    # Run Profiler
     result = DataProfiler.profile(df, file_id="test_geo_target_corr")
 
-    # 3. Print Results
-    print("Dataset Profile completed successfully.")
-    print("Warnings:", result.warnings)
-    print("Target Detected:", result.profile.cross_analysis['target']['target_column'])
-    print("Has Geo:", result.profile.cross_analysis['geo']['has_geo_patterns'])
-    print("Strongest Correlated Pairs:", [p['col1'] + "-" + p['col2'] + ":" + str(round(p['score'], 2)) for p in result.profile.cross_analysis['correlations']['strongest_pairs'][:3]])
-    print("Has Temporal:", result.profile.cross_analysis['temporal']['has_temporal_patterns'])
-
-if __name__ == "__main__":
-    run_test()
+    assert result is not None
+    assert result.profile is not None
+    assert result.profile.cross_analysis is not None
+    assert "target" in result.profile.cross_analysis
+    assert "geo" in result.profile.cross_analysis
+    assert "correlations" in result.profile.cross_analysis
+    assert "temporal" in result.profile.cross_analysis

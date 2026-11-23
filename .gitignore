@@ -1,8 +1,12 @@
-﻿__pycache__/
+__pycache__/
 *.py[cod]
 *.pyo
 venv/
 .env
+.env.*
+*.env
+backend/.env
+frontend/.env
 *.egg-info/
 dist/
 build/
@@ -17,6 +21,8 @@ Thumbs.db
 backend/uploads/
 backend/temp/
 backend/data/
+uploads/
+temp/
 *.log
 
 # Temp/debug output files

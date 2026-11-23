@@ -110,8 +110,15 @@ class QueryBuilder:
         # GROUP BY
         group_by = spec.get("group_by", [])
         if group_by:
-            gb_cols = ", ".join(_quote(c) for c in group_by)
-            parts.append(f"GROUP BY {gb_cols}")
+            gb_cols = []
+            for c in group_by:
+                if isinstance(c, dict) and "expression" in c:
+                    gb_cols.append(c["expression"])
+                elif isinstance(c, str) and ("(" in c or "||" in c or c.isdigit()):
+                    gb_cols.append(c)
+                else:
+                    gb_cols.append(_quote(str(c)))
+            parts.append(f"GROUP BY {', '.join(gb_cols)}")
 
         # HAVING
         having = spec.get("having", [])
@@ -125,7 +132,10 @@ class QueryBuilder:
         if order_by:
             ob_parts = []
             for ob in order_by:
-                col = _quote(ob["column"]) if not ob.get("is_expression") else ob["column"]
+                if ob.get("is_expression") or (isinstance(ob.get("column"), str) and ("(" in ob["column"] or "||" in ob["column"] or ob["column"].isdigit())):
+                    col = str(ob["column"])
+                else:
+                    col = _quote(ob["column"])
                 direction = ob.get("direction", "ASC").upper()
                 nulls = ob.get("nulls", "")
                 ob_str = f"{col} {direction}"

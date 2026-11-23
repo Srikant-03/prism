@@ -16,9 +16,10 @@ from __future__ import annotations
 
 import time
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
 from state import TTLStore, get_stored_dataframe, get_stored_data
 
 from dashboard.chart_config_models import (
@@ -33,6 +34,7 @@ from dashboard.chart_config_models import (
 )
 from dashboard.prompt_interpreter import interpret_prompt, suggest_follow_ups
 from dashboard.config_to_sql import config_to_sql
+from dashboard.auto_generator import generate_initial_dashboard
 
 logger = logging.getLogger(__name__)
 
@@ -62,16 +64,42 @@ def _get_schema_for_file(file_id: str) -> dict:
     return schema
 
 
+def _get_business_context(file_id: str) -> str:
+    from state import get_profile
+    profile_dict = get_profile(file_id)
+    if not profile_dict:
+        return ""
+    
+    domain = profile_dict.get("estimated_domain", "")
+    
+    # Try to extract insights, handle both dict and pydantic models
+    insights = profile_dict.get("insights", {})
+    if hasattr(insights, 'model_dump'):
+        insights = insights.model_dump()
+        
+    if isinstance(insights, dict):
+        briefing = insights.get("analyst_briefing", {})
+        if briefing:
+            findings = "\n".join(briefing.get("key_findings", []))
+            actions = "\n".join(briefing.get("recommended_actions", []))
+            return f"Domain: {domain}\nKey Findings:\n{findings}\nRecommended Actions:\n{actions}"
+            
+    return f"Domain: {domain}"
+
+
 def _get_table_name(file_id: str) -> str:
     """Get the DuckDB table name for a file_id by querying the SQL engine registry."""
     try:
         from api.sql import get_engine
         engine = get_engine()
-        # Search the engine's table registry for a table with this file_id
-        for tbl_name, meta in engine._tables.items():
-            if meta.get("file_id") == file_id:
-                return tbl_name
-    except Exception as e:
+        # Search the engine's table registry for a table with this file_id.
+        # Guard with hasattr since _tables is a private attribute.
+        tables = getattr(engine, "_tables", None) or getattr(engine, "tables", None)
+        if tables:
+            for tbl_name, meta in tables.items():
+                if isinstance(meta, dict) and meta.get("file_id") == file_id:
+                    return tbl_name
+    except (AttributeError, Exception) as e:
         logger.warning("Could not query SQL engine for table name: %s", e)
 
     # Fallback: check state store
@@ -91,12 +119,14 @@ def _get_table_name(file_id: str) -> str:
 async def interpret(request: InterpretRequest):
     """Interpret a natural language prompt into a ChartConfig."""
     schema = _get_schema_for_file(request.file_id)
+    business_context = _get_business_context(request.file_id)
 
     result = await interpret_prompt(
         message=request.message,
         schema=schema,
         current_config=request.current_config,
         conversation_history=request.conversation_history,
+        business_context=business_context,
     )
 
     if isinstance(result, ClarificationRequest):
@@ -139,6 +169,44 @@ async def query(request: QueryRequest):
     except Exception as e:
         logger.error("Query execution failed: %s", e)
         raise HTTPException(status_code=500, detail="Query execution failed. Please check your data and configuration.")
+
+
+class AutoGenerateRequest(BaseModel):
+    file_id: str
+
+@router.post("/api/dashboard/auto")
+async def auto_generate(request: AutoGenerateRequest):
+    """Automatically generate an initial dashboard based on dataset context."""
+    schema = _get_schema_for_file(request.file_id)
+    business_context = _get_business_context(request.file_id)
+    
+    configs = await generate_initial_dashboard(schema, business_context)
+    
+    # Enforce temporal grain consistency on all auto-generated configs
+    from dashboard.prompt_interpreter import _enforce_temporal_grain_consistency
+    configs = [_enforce_temporal_grain_consistency(c, schema) for c in configs]
+    
+    results = []
+    table_name = _get_table_name(request.file_id)
+    for config in configs:
+        try:
+            sql = config_to_sql(config, table_name)
+            data = _execute_sql(request.file_id, sql)
+            results.append({
+                "config": config.model_dump(),
+                "sql": sql,
+                "data": data,
+                "success": True,
+            })
+        except Exception as e:
+            logger.warning("Auto generated config failed SQL execution: %s", e)
+            results.append({
+                "config": config.model_dump(),
+                "success": False,
+                "error": str(e),
+            })
+            
+    return {"widgets": results}
 
 
 @router.post("/api/dashboard/suggest")
@@ -244,4 +312,4 @@ async def delete_dashboard(dashboard_id: str):
     if dashboard_id not in _dashboard_store:
         raise HTTPException(status_code=404, detail="Dashboard not found")
     del _dashboard_store[dashboard_id]
-    return {"deleted": True}
+    return {"status": "deleted", "deleted": True}

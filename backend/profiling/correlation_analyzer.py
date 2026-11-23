@@ -22,7 +22,7 @@ class CorrelationAnalyzer:
         self.top_k = top_k
         self.vif_threshold = vif_threshold
 
-    def analyze(self, df: pd.DataFrame, dataset_profile: DatasetProfile) -> CorrelationAnalysis:
+    def analyze(self, df: pd.DataFrame, dataset_profile: Optional[DatasetProfile] = None) -> CorrelationAnalysis:
         try:
             def _to_clean_num(series: pd.Series) -> pd.Series:
                 if pd.api.types.is_numeric_dtype(series):
@@ -30,26 +30,36 @@ class CorrelationAnalyzer:
                 clean_s = series.astype(str).str.replace(',', '', regex=False).str.replace('$', '', regex=False).str.strip()
                 return pd.to_numeric(clean_s, errors='coerce')
 
-            # 1. Gather column types by directly testing series content
+            # 1. Detect datetime columns before any categorical partitioning
+            datetime_cols = self._detect_datetime_columns(df, dataset_profile)
+            dt_set = set(datetime_cols)
+
+            # 2. Gather remaining column types
             numeric_cols = []
             categorical_cols = []
             binary_cols = []
 
             for col in df.columns:
+                if col in dt_set:
+                    continue
                 s_clean = _to_clean_num(df[col])
                 non_null_ratio = s_clean.notna().sum() / len(df) if len(df) > 0 else 0
                 if non_null_ratio > 0.4 and s_clean.nunique() > 1:
                     numeric_cols.append(col)
                 elif df[col].nunique() == 2 or pd.api.types.is_bool_dtype(df[col]):
                     binary_cols.append(col)
-                elif df[col].nunique() > 1 and df[col].nunique() <= 500:
-                    categorical_cols.append(col)
+                elif df[col].nunique() > 1:
+                    # Categorical: must NOT be high-cardinality near-unique ID
+                    n_unique = df[col].nunique()
+                    unique_ratio = n_unique / len(df) if len(df) > 0 else 0
+                    if n_unique <= 50 and unique_ratio <= 0.4:
+                        categorical_cols.append(col)
 
-            all_features = list(dict.fromkeys(numeric_cols + categorical_cols + binary_cols))
+            all_features = list(dict.fromkeys(numeric_cols + categorical_cols + binary_cols + datetime_cols))
             all_pairs = []
             matrix = {c: {c2: (1.0 if c == c2 else 0.0) for c2 in all_features} for c in all_features}
 
-            # 2. Numeric - Numeric: Pearson & Spearman
+            # 3. Numeric - Numeric: Pearson & Spearman
             for i in range(len(numeric_cols)):
                 col1 = numeric_cols[i]
                 s1 = _to_clean_num(df[col1])
@@ -84,20 +94,48 @@ class CorrelationAnalyzer:
                                 metric="Spearman", is_significant=(p_s_f < 0.05)
                             ))
 
-            # 3. Categorical - Categorical: Cramér's V
+            # 4. Categorical - Categorical: Bias-corrected Cramér's V (raw datetimes excluded)
+            from profiling.functional_dependency import detect_functional_dependency
             for i in range(len(categorical_cols)):
                 col1 = categorical_cols[i]
                 for j in range(i + 1, len(categorical_cols)):
                     col2 = categorical_cols[j]
-                    c_v = self._cramers_v(df[col1], df[col2])
-                    if c_v is not None:
-                        matrix[col1][col2] = c_v
-                        matrix[col2][col1] = c_v
+                    fd = detect_functional_dependency(df, col1, col2)
+                    if fd:
+                        matrix[col1][col2] = 1.0
+                        matrix[col2][col1] = 1.0
                         all_pairs.append(CorrelationPair(
-                            col1=col1, col2=col2, score=c_v, metric="Cramér's V"
+                            col1=fd.determinant,
+                            col2=fd.dependent,
+                            score=1.0,
+                            metric="Functional Dependency",
+                            is_significant=True,
                         ))
+                    else:
+                        c_v = self._cramers_v(df[col1], df[col2])
+                        if c_v is not None:
+                            matrix[col1][col2] = c_v
+                            matrix[col2][col1] = c_v
+                            all_pairs.append(CorrelationPair(
+                                col1=col1, col2=col2, score=c_v, metric="Cramér's V",
+                                is_significant=(c_v > 0.25)
+                            ))
 
-            # 4. Numeric - Categorical: Eta-squared approximation / Point-biserial
+            # 5. Datetime Analysis: Deterministic Derivations, Grouped Temporal Associations & Numeric Trends
+            for dt_col in datetime_cols:
+                dt_pairs = self._analyze_datetime_relationships(
+                    df=df,
+                    dt_col=dt_col,
+                    other_cols=list(df.columns),
+                    categorical_cols=categorical_cols,
+                    numeric_cols=numeric_cols,
+                )
+                for p in dt_pairs:
+                    matrix[p.col1][p.col2] = p.score
+                    matrix[p.col2][p.col1] = p.score
+                    all_pairs.append(p)
+
+            # 6. Numeric - Categorical: Eta-squared approximation / Point-biserial
             for num_col in numeric_cols:
                 for cat_col in categorical_cols:
                     eta_sq = self._eta_squared(df[num_col], df[cat_col])
@@ -118,19 +156,41 @@ class CorrelationAnalyzer:
                             metric="Point-Biserial", is_significant=(p_val < 0.05) if p_val else False
                         ))
 
-            # 5. Mutual Information (Numeric & Categorical combined sample)
+            # 7. Mutual Information (Numeric & Categorical combined sample)
             try:
                 mi_dict = self._compute_mutual_information(df, numeric_cols, categorical_cols, binary_cols)
             except Exception:
                 mi_dict = {}
 
-            # 6. Multicollinearity (VIF)
+            # 8. Multicollinearity (VIF)
             try:
                 vif_report = self._compute_vif(df, numeric_cols)
             except Exception:
                 vif_report = MulticollinearityReport(has_multicollinearity=False, vif_scores={}, warnings=[])
 
-            # 7. Sort and select top pairs
+            # 8b. Deterministic Formula Dependencies
+            det_formulas = []
+            try:
+                from profiling.formula_detector import detect_formula_dependencies
+                target_col = None
+                if dataset_profile and hasattr(dataset_profile, "cross_analysis"):
+                    ca = getattr(dataset_profile, "cross_analysis", None)
+                    if isinstance(ca, dict):
+                        target_col = ca.get("target", {}).get("target_column")
+                found_formulas = detect_formula_dependencies(df, columns=numeric_cols, target_column=target_col)
+                for f in found_formulas:
+                    det_formulas.append({
+                        "dependent": f.dependent,
+                        "operands": f.operands,
+                        "operation": f.operation,
+                        "formula_expr": f.formula_expr,
+                        "description": f.description,
+                        "match_ratio": f.match_ratio,
+                    })
+            except Exception:
+                det_formulas = []
+
+            # 9. Sort and select top pairs
             best_pairs = {}
             for p in all_pairs:
                 key = tuple(sorted([p.col1, p.col2]))
@@ -144,7 +204,8 @@ class CorrelationAnalyzer:
                 correlation_matrix=matrix,
                 strongest_pairs=top_pairs,
                 multicollinearity=vif_report,
-                mutual_information=mi_dict
+                mutual_information=mi_dict,
+                deterministic_formulas=det_formulas,
             )
         except Exception as e:
             # Generate fallback matrix from present columns instead of returning empty
@@ -157,24 +218,200 @@ class CorrelationAnalyzer:
                 mutual_information={}
             )
 
+    @staticmethod
+    def _detect_datetime_columns(df: pd.DataFrame, dataset_profile: Optional[DatasetProfile] = None) -> list[str]:
+        datetime_cols = set()
+
+        # 1. From dataset_profile metadata if available
+        if dataset_profile:
+            if getattr(dataset_profile, "temporal_columns", None):
+                datetime_cols.update(dataset_profile.temporal_columns)
+            if getattr(dataset_profile, "inferred_schema", None):
+                for col, sem in dataset_profile.inferred_schema.items():
+                    if str(sem).lower() in ("datetime", "date", "duration"):
+                        datetime_cols.add(col)
+            if getattr(dataset_profile, "columns", None):
+                for c in dataset_profile.columns:
+                    sem = getattr(c, "semantic_type", None)
+                    sem_str = sem.value if hasattr(sem, "value") else str(sem or "")
+                    if sem_str.lower() in ("datetime", "date", "duration"):
+                        datetime_cols.add(c.name)
+
+        # 2. Inspect DataFrame series directly
+        for col in df.columns:
+            if col in datetime_cols:
+                continue
+            s = df[col]
+            if pd.api.types.is_datetime64_any_dtype(s) or pd.api.types.is_timedelta64_dtype(s):
+                datetime_cols.add(col)
+                continue
+
+            col_lower = str(col).lower().strip()
+            date_hints = any(h in col_lower for h in ["date", "time", "timestamp", "dob", "created_at", "updated_at"])
+            if date_hints and (pd.api.types.is_object_dtype(s) or pd.api.types.is_string_dtype(s)):
+                non_null = s.dropna()
+                if len(non_null) > 0:
+                    sample = non_null.head(min(len(non_null), 200))
+                    try:
+                        parsed = pd.to_datetime(sample, errors="coerce")
+                        if parsed.notna().mean() > 0.7:
+                            datetime_cols.add(col)
+                    except Exception:
+                        pass
+
+        return [c for c in df.columns if c in datetime_cols]
+
+    def _analyze_datetime_relationships(
+        self,
+        df: pd.DataFrame,
+        dt_col: str,
+        other_cols: List[str],
+        categorical_cols: List[str],
+        numeric_cols: List[str],
+    ) -> List[CorrelationPair]:
+        pairs: List[CorrelationPair] = []
+        try:
+            s_dt = pd.to_datetime(df[dt_col], errors='coerce')
+        except Exception:
+            return pairs
+
+        valid_dt = s_dt.notna()
+        if valid_dt.sum() < 3:
+            return pairs
+
+        # 1. Deterministic calendar derivations
+        derived_cols = set()
+        for col in other_cols:
+            if col == dt_col:
+                continue
+            target_s = df[col]
+            is_derived = False
+
+            col_lower = str(col).lower().strip()
+            if any(k in col_lower for k in ["month", "quarter", "year", "weekday", "day"]):
+                try:
+                    if "month_name" in col_lower or col_lower == "monthname":
+                        match_ratio = (s_dt.dt.month_name() == target_s).mean()
+                        if match_ratio > 0.90:
+                            is_derived = True
+                    elif "quarter" in col_lower:
+                        q_str = "Q" + s_dt.dt.quarter.astype(str)
+                        match_ratio = max(
+                            (q_str == target_s.astype(str)).mean(),
+                            (s_dt.dt.quarter == target_s).mean()
+                        )
+                        if match_ratio > 0.90:
+                            is_derived = True
+                    elif col_lower == "year" or col_lower.endswith("_year"):
+                        match_ratio = (s_dt.dt.year == target_s).mean()
+                        if match_ratio > 0.90:
+                            is_derived = True
+                    elif "weekday" in col_lower or "day_name" in col_lower:
+                        match_ratio = max(
+                            (s_dt.dt.day_name() == target_s).mean(),
+                            (s_dt.dt.weekday == target_s).mean()
+                        )
+                        if match_ratio > 0.90:
+                            is_derived = True
+                except Exception:
+                    pass
+
+            if not is_derived:
+                try:
+                    from insights.relationship_classifier import RelationshipClassifier, RelationshipType
+                    rel = RelationshipClassifier.classify_pair(dt_col, col, df=df, score=1.0)
+                    if rel.type == RelationshipType.DERIVED_FEATURE:
+                        is_derived = True
+                except Exception:
+                    pass
+
+            if is_derived:
+                derived_cols.add(col)
+                pairs.append(CorrelationPair(
+                    col1=dt_col, col2=col, score=1.0,
+                    metric="Deterministic Derivation",
+                    is_significant=True,
+                ))
+
+        # 2. Grouped temporal association with nominal categories (not derived)
+        span_days = 0
+        try:
+            span_days = (s_dt.max() - s_dt.min()).days
+        except Exception:
+            pass
+
+        try:
+            if span_days > 365:
+                dt_grouped = s_dt.dt.to_period('M').astype(str)
+            elif span_days >= 60:
+                dt_grouped = s_dt.dt.to_period('W').astype(str)
+            else:
+                dt_grouped = s_dt.dt.day_name()
+        except Exception:
+            dt_grouped = s_dt.dt.to_period('M').astype(str)
+
+        for cat_col in categorical_cols:
+            if cat_col in derived_cols or cat_col == dt_col:
+                continue
+            c_v = self._cramers_v(dt_grouped, df[cat_col])
+            if c_v is not None:
+                pairs.append(CorrelationPair(
+                    col1=dt_col, col2=cat_col, score=c_v,
+                    metric="Temporal Association (Grouped)",
+                    is_significant=(c_v > 0.25)
+                ))
+
+        # 3. Temporal trend with continuous numeric variables
+        try:
+            epoch_s = s_dt.astype('int64') // 10**9
+            for num_col in numeric_cols:
+                if num_col == dt_col or num_col in derived_cols:
+                    continue
+                s_num = pd.to_numeric(df[num_col], errors='coerce')
+                valid = valid_dt & s_num.notna()
+                if valid.sum() > 2:
+                    r, p = stats.pearsonr(epoch_s[valid], s_num[valid])
+                    if not np.isnan(r) and not np.isinf(r):
+                        pairs.append(CorrelationPair(
+                            col1=dt_col, col2=num_col, score=float(r), p_value=float(p),
+                            metric="Temporal Trend",
+                            is_significant=(p < 0.05)
+                        ))
+        except Exception:
+            pass
+
+        return pairs
+
     def _cramers_v(self, x: pd.Series, y: pd.Series) -> Optional[float]:
         try:
-            if len(x) > 2000:
-                df_temp = pd.DataFrame({'x': x, 'y': y}).dropna()
-                if len(df_temp) > 2000:
-                    df_temp = df_temp.sample(2000, random_state=42)
-                x, y = df_temp['x'], df_temp['y']
-
-            confusion = pd.crosstab(x, y)
-            if confusion.shape[0] < 2 or confusion.shape[1] < 2:
+            df_temp = pd.DataFrame({'x': x, 'y': y}).dropna()
+            n = len(df_temp)
+            if n < 3:
                 return None
+
+            if n > 2000:
+                df_temp = df_temp.sample(2000, random_state=42)
+                n = len(df_temp)
+
+            confusion = pd.crosstab(df_temp['x'], df_temp['y'])
+            r, k = confusion.shape
+            if r < 2 or k < 2:
+                return None
+
             chi2, _, _, _ = stats.chi2_contingency(confusion, correction=False)
-            n = confusion.sum().sum()
-            min_dim = min(confusion.shape) - 1
-            if min_dim == 0 or n == 0:
+            phi2 = chi2 / n
+
+            # Bergsma (2013) bias correction for finite-sample degrees-of-freedom inflation
+            phi2_corr = max(0.0, phi2 - ((k - 1) * (r - 1)) / (n - 1))
+            r_corr = r - ((r - 1) ** 2) / (n - 1)
+            k_corr = k - ((k - 1) ** 2) / (n - 1)
+            min_dim = min(r_corr - 1, k_corr - 1)
+
+            if min_dim <= 0:
                 return 0.0
-            res = float(np.sqrt(chi2 / (n * min_dim)))
-            return res if not np.isnan(res) and not np.isinf(res) else None
+
+            res = float(np.sqrt(phi2_corr / min_dim))
+            return min(max(res, 0.0), 1.0) if not np.isnan(res) and not np.isinf(res) else None
         except Exception:
             return None
 
@@ -320,7 +557,7 @@ class CorrelationAnalyzer:
                 # We skip computing VIF for the intercept but need it in the dataset
                 if col == '__intercept__':
                     continue
-                v = variance_inflation_factor(X.values, i)
+                v = _safe_vif(X.values, i)
                 if not np.isnan(v) and not np.isinf(v):
                     vif_scores[col] = float(v)
 
@@ -336,4 +573,20 @@ class CorrelationAnalyzer:
             )
         except Exception:
             return MulticollinearityReport(has_multicollinearity=False, vif_scores={}, warnings=[])
+
+
+def _safe_vif(X_values: np.ndarray, exog_idx: int) -> float:
+    """Compute VIF with R^2 clamped to 0.9999 to prevent divide-by-zero RuntimeWarning."""
+    try:
+        from statsmodels.regression.linear_model import OLS
+        k_vars = X_values.shape[1]
+        x_i = X_values[:, exog_idx]
+        mask = np.arange(k_vars) != exog_idx
+        x_noti = X_values[:, mask]
+        ols_res = OLS(x_i, x_noti).fit()
+        r_squared = float(ols_res.rsquared)
+        r_squared = min(max(r_squared, 0.0), 0.9999)
+        return float(1.0 / (1.0 - r_squared))
+    except Exception:
+        return 1.0
 

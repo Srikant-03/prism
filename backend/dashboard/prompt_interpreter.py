@@ -29,6 +29,7 @@ from dashboard.chart_config_models import (
     SortDirection,
     FilterCondition,
     ClarificationRequest,
+    TimeGrain,
 )
 from llm.api_manager import with_llm_failover, get_active_client
 
@@ -67,6 +68,11 @@ RULES:
    - LEAVE `x_axis` and `group_by` as strictly null if you want a one-dimensional aggregation.
    - Do NOT randomly pick a categorical column like "gender" or "id" to fill the x-axis.
    - If both the intended x-axis and y-axis are continuous numeric columns (e.g., "study hours" and "score"), you MUST use a "scatter" chart. Do not use a "bar" or "line" chart for two numeric coordinates.
+9. TEMPORAL AGGREGATION RULE: If the chart title or user request mentions a temporal granularity ("daily", "weekly", "monthly", "quarterly", "yearly"), you MUST:
+   - Set `x_axis` to the date/time column.
+   - Set `x_axis_time_grain` to the matching grain: "day", "week", "month", "quarter", or "year".
+   - The aggregation level in the SQL MUST match the title exactly. A "Monthly Revenue Trend" must GROUP BY calendar month, NOT by raw date.
+   - x_axis_time_grain: one of "day", "week", "month", "quarter", "year", or null (no temporal bucketing).
 """
 
 
@@ -118,16 +124,26 @@ def _parse_config_from_dict(data: dict, current_config: Optional[ChartConfig] = 
     
     # ── LLM Hallucination Fix ──
     # If comparing two metrics without a specified dimension, the LLM loves to hallucinate one.
-    # For instance if x_axis is 'gender' but 'gender' isn't in the prompt.
+    # Detect columns that look like surrogate/identity keys (e.g., 'id', 'student_id', 'user_id',
+    # 'gender') that were injected purely to make a bar chart work.
     x_axis = data.get("x_axis")
     y_axis = data.get("y_axis")
     y_sec = data.get("y_axis_secondary")
-    
-    # We pass the schema keys in, but since we don't have the prompt here directly, 
-    # we'll rely on the prompt's `ChartConfig` mapping. However we can check if 
-    # the LLM picked a very arbitrary categorical column just to fill the X axis of a bar chart.
-    if x_axis in ["gender", "id", "student_id", "user_id"]:
-        # If the user asked for a metric, and the LLM just threw gender in to make a bar work:
+
+    def _is_likely_hallucinated_dimension(col: Optional[str]) -> bool:
+        """Return True if this column looks like a surrogate/identity key the LLM hallucinated."""
+        if not col:
+            return False
+        col_lower = col.lower().strip()
+        # Exact low-cardinality identity patterns
+        if col_lower in ("id", "gender", "sex"):
+            return True
+        # Ends with '_id' or starts with 'id_' (surrogate key patterns)
+        if col_lower.endswith("_id") or col_lower.startswith("id_"):
+            return True
+        return False
+
+    if _is_likely_hallucinated_dimension(x_axis):
         data["x_axis"] = None
         data["group_by"] = None
         if data.get("chart_type") == "bar" and (y_axis and y_sec):
@@ -138,11 +154,90 @@ def _parse_config_from_dict(data: dict, current_config: Optional[ChartConfig] = 
     return ChartConfig(**{k: v for k, v in data.items() if v is not None})
 
 
+# ── Temporal Grain Consistency ──
+
+# Mapping from title keywords to expected TimeGrain values
+_TITLE_GRAIN_KEYWORDS: dict[str, TimeGrain] = {
+    "daily": TimeGrain.DAY,
+    "day-by-day": TimeGrain.DAY,
+    "per day": TimeGrain.DAY,
+    "each day": TimeGrain.DAY,
+    "weekly": TimeGrain.WEEK,
+    "per week": TimeGrain.WEEK,
+    "each week": TimeGrain.WEEK,
+    "week-over-week": TimeGrain.WEEK,
+    "monthly": TimeGrain.MONTH,
+    "per month": TimeGrain.MONTH,
+    "each month": TimeGrain.MONTH,
+    "month-over-month": TimeGrain.MONTH,
+    "quarterly": TimeGrain.QUARTER,
+    "per quarter": TimeGrain.QUARTER,
+    "each quarter": TimeGrain.QUARTER,
+    "quarter-over-quarter": TimeGrain.QUARTER,
+    "yearly": TimeGrain.YEAR,
+    "annual": TimeGrain.YEAR,
+    "per year": TimeGrain.YEAR,
+    "each year": TimeGrain.YEAR,
+    "year-over-year": TimeGrain.YEAR,
+}
+
+
+def _detect_grain_from_text(text: str) -> Optional[TimeGrain]:
+    """Detect temporal granularity from title or prompt text."""
+    text_lower = text.lower()
+    # Check longer patterns first
+    for keyword, grain in sorted(_TITLE_GRAIN_KEYWORDS.items(), key=lambda x: -len(x[0])):
+        if keyword in text_lower:
+            return grain
+    return None
+
+
+def _enforce_temporal_grain_consistency(
+    config: ChartConfig,
+    schema: Optional[dict] = None,
+) -> ChartConfig:
+    """Post-process: ensure the chart's x_axis_time_grain matches its title.
+
+    If the title says 'Monthly Revenue Trend' but x_axis_time_grain is None,
+    auto-set it to 'month'. Also ensures x_axis is a datetime column.
+    """
+    title_grain = _detect_grain_from_text(config.title or "")
+    if not title_grain:
+        return config
+
+    # Title claims a temporal granularity — enforce it
+    if config.x_axis_time_grain is None or config.x_axis_time_grain == TimeGrain.NONE:
+        config = config.model_copy(update={"x_axis_time_grain": title_grain})
+
+    # Verify x_axis is a datetime column (if schema available)
+    if schema and config.x_axis:
+        col_info = schema.get(config.x_axis, {})
+        dtype = col_info.get("dtype", "").lower()
+        is_datetime = (
+            "date" in dtype or "time" in dtype
+            or "date" in config.x_axis.lower() or "time" in config.x_axis.lower()
+        )
+        if not is_datetime:
+            # x_axis is not datetime — try to find a datetime column in schema
+            for col_name, info in schema.items():
+                col_dtype = info.get("dtype", "").lower()
+                if "date" in col_dtype or "time" in col_dtype or "date" in col_name.lower():
+                    config = config.model_copy(update={"x_axis": col_name})
+                    break
+
+    # Ensure aggregation is set (temporal charts need aggregation)
+    if config.aggregation is None or config.aggregation == AggregationType.NONE:
+        config = config.model_copy(update={"aggregation": AggregationType.SUM})
+
+    return config
+
+
 @with_llm_failover(tier_rpm=5)
 async def _execute_interpretation_prompt(full_prompt: str, system_prompt: str):
+    from config import AppConfig
     client = get_active_client()
     return await client.aio.models.generate_content(
-        model="gemini-2.0-flash",
+        model=AppConfig.llm.MODEL_WORKHORSE,
         contents=[
             {"role": "user", "parts": [{"text": system_prompt}]},
             {"role": "model", "parts": [{"text": "I understand. I will return only valid JSON chart configurations."}]},
@@ -156,9 +251,10 @@ async def _execute_interpretation_prompt(full_prompt: str, system_prompt: str):
 
 @with_llm_failover(tier_rpm=2)
 async def _execute_followup_prompt(prompt: str):
+    from config import AppConfig
     client = get_active_client()
     return await client.aio.models.generate_content(
-        model="gemini-2.0-flash",
+        model=AppConfig.llm.MODEL_TRIAGE,
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.7,
@@ -172,6 +268,7 @@ async def interpret_prompt(
     schema: dict,
     current_config: Optional[ChartConfig] = None,
     conversation_history: Optional[list[str]] = None,
+    business_context: Optional[str] = None,
 ) -> ChartConfig | ClarificationRequest:
     """
     Interpret a natural language prompt into a ChartConfig.
@@ -181,6 +278,7 @@ async def interpret_prompt(
         schema: Dataset schema as {col_name: {dtype, sample_values}}.
         current_config: Previous ChartConfig for follow-up edits.
         conversation_history: Prior prompts for context.
+        business_context: The domain and key findings of the dataset.
 
     Returns:
         ChartConfig or ClarificationRequest.
@@ -192,6 +290,8 @@ async def interpret_prompt(
 
     # Build the user message with context
     parts = [f"Schema:\n{schema_desc}\n"]
+    if business_context:
+        parts.append(f"Business Context:\n{business_context}\n")
     if current_config:
         parts.append(f"Current chart config:\n{current_config.model_dump_json(indent=2)}\n")
     if conversation_history:
@@ -215,7 +315,17 @@ async def interpret_prompt(
                 suggestions=data.get("suggestions", []),
             )
 
-        return _parse_config_from_dict(data, current_config)
+        config = _parse_config_from_dict(data, current_config)
+
+        # Enforce temporal grain consistency:
+        # If the LLM titled it "Monthly Revenue Trend" but forgot x_axis_time_grain,
+        # auto-correct. Also check the original user message for temporal keywords.
+        config = _enforce_temporal_grain_consistency(config, schema)
+        prompt_grain = _detect_grain_from_text(message)
+        if prompt_grain and (config.x_axis_time_grain is None or config.x_axis_time_grain == TimeGrain.NONE):
+            config = config.model_copy(update={"x_axis_time_grain": prompt_grain})
+
+        return config
 
     except Exception as e:
         logger.error("Gemini interpretation failed: %s", str(e))
@@ -290,13 +400,39 @@ def _fallback_interpret(
     if by_match:
         y_phrase = by_match.group(1).strip()
         x_phrase = by_match.group(2).strip()
-        # Match phrases to columns
+        # Match phrases to columns — also handle plural forms (e.g. "categories" → "category")
         for col in columns:
             cl = col.lower().replace("_", " ")
+            # Exact or contained match
             if cl in y_phrase or y_phrase in cl:
                 by_y_col = col
             if cl in x_phrase or x_phrase in cl:
                 by_x_col = col
+            # Plural match: column name is a prefix of the phrase word (e.g. "category" ≈ "categories")
+            if not by_y_col:
+                for word in y_phrase.split():
+                    if len(cl) >= 3 and (word.startswith(cl) or cl.startswith(word)):
+                        by_y_col = col
+                        break
+
+        # Handle "top N <dimension-phrase> by <metric>" pattern:
+        # If left side didn't match a column but right side matched a numeric metric,
+        # the right side is Y (metric) and left side describes the dimension (X).
+        if by_x_col and not by_y_col:
+            if by_x_col in numeric_cols:
+                # Right side is a metric — it's the Y axis; left side describes X
+                by_y_col = by_x_col
+                by_x_col = None
+                # Try to find a dimension column matching words in y_phrase
+                for col in categorical_cols + datetime_cols:
+                    cl = col.lower().replace("_", " ")
+                    for word in y_phrase.split():
+                        if len(word) >= 3 and (word.startswith(cl) or cl.startswith(word) or cl in word or word in cl):
+                            by_x_col = col
+                            break
+                    if by_x_col:
+                        break
+
 
     # ── Detect "group by" / "break down by" / "split by" ──
     group_match = re.search(r'(?:group\s*by|break\s*(?:down\s*)?by|split\s*by|per)\s+(\w[\w\s]*?)(?:\s*$|\s+(?:and|where|show|for|with|top|bottom))', msg_lower)
@@ -432,8 +568,13 @@ def _fallback_interpret(
     if x_axis in numeric_cols and y_axis in numeric_cols and chart_type in [ChartType.BAR, ChartType.LINE, ChartType.AREA]:
         chart_type = ChartType.SCATTER
 
-    # ── Sort by ──
+    # BUG FIX: Compute sort_by AFTER axis assignment so y_axis is known.
     sort_by = y_axis if sort_direction else None
+
+    # BUG FIX: sort_by must be computed AFTER y_axis is known (axis assignment happens below).
+    # Previously computed here, which meant y_axis could be None and sort_by would also be None,
+    # causing sort_direction to never be written into the config.
+    # sort_by is now computed after the axis assignment block.
 
     # ── Generate a clean title ──
     if chart_type == ChartType.KPI:
@@ -458,9 +599,12 @@ def _fallback_interpret(
     if current_config:
         base = current_config.model_copy()
         base.chart_type = chart_type
-        if x_axis:
+        # BUG FIX: Only update axes if the prompt explicitly mentioned them.
+        # Do NOT use schema-default axes — that would overwrite the existing config
+        # with auto-filled defaults the user never asked for.
+        if x_axis and x_axis in mentioned_cols + ([by_x_col] if by_x_col else []):
             base.x_axis = x_axis
-        if y_axis:
+        if y_axis and y_axis in mentioned_cols + ([by_y_col] if by_y_col else []):
             base.y_axis = y_axis
         if group_by:
             base.group_by = group_by
@@ -505,7 +649,22 @@ def _fallback_interpret(
         config_kwargs["kpi_value_column"] = y_axis
         config_kwargs["kpi_aggregation"] = aggregation.value
 
-    return ChartConfig(**config_kwargs)
+    # Detect temporal grain from the user prompt
+    prompt_grain = _detect_grain_from_text(msg_lower)
+    if prompt_grain:
+        config_kwargs["x_axis_time_grain"] = prompt_grain
+        # Update title to reflect the temporal grain if not already present
+        if x_axis and x_axis in datetime_cols:
+            grain_label = prompt_grain.value.capitalize()
+            y_label = (y_axis or "").replace("_", " ").title()
+            if y_label:
+                config_kwargs["title"] = f"{grain_label} {y_label} Trend"
+
+    config = ChartConfig(**config_kwargs)
+
+    # Final enforcement: title↔grain consistency
+    config = _enforce_temporal_grain_consistency(config, schema)
+    return config
 
 
 async def suggest_follow_ups(

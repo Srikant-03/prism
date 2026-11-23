@@ -1,33 +1,41 @@
+"""
+Tests for advanced SQLEngine capabilities: explain, views, and caching.
+"""
 import pandas as pd
 import numpy as np
+import pytest
 from sql.sql_engine import SQLEngine
 
-engine = SQLEngine()
-df = pd.DataFrame({"id": range(20), "name": ["a"]*20, "val": [1.0]*20})
-engine.register_dataframe(df, "test", "raw")
+def test_sql_engine_advanced_features():
+    engine = SQLEngine()
+    df = pd.DataFrame({"id": range(20), "name": ["a"]*20, "val": [1.0]*20})
+    engine.register_dataframe(df, "test", "raw")
 
-# Test explain
-r = engine.explain_query("SELECT * FROM test LIMIT 5")
-print(f"explain: success={r['success']}, nodes={len(r['nodes'])}")
+    # Test explain
+    r = engine.explain_query("SELECT * FROM test LIMIT 5")
+    assert r["success"] is True, f"explain failed: {r}"
+    assert len(r["nodes"]) > 0
 
-# Test views
-r = engine.create_view("top5", "SELECT * FROM test LIMIT 5")
-print(f"create_view: success={r['success']}, name={r.get('view_name')}")
-views = engine.list_views()
-print(f"list_views: {views}")
-r2 = engine.execute("SELECT * FROM top5")
-print(f"query_view: rows={r2['row_count']}")
+    # Test views
+    r = engine.create_view("top5", "SELECT * FROM test LIMIT 5")
+    assert r["success"] is True, f"create_view failed: {r}"
+    assert r.get("view_name") == "top5"
+    views = engine.list_views()
+    assert "top5" in views
+    r2 = engine.execute("SELECT * FROM top5")
+    assert r2["row_count"] == 5
 
-# Test cache
-r3 = engine.execute_cached("SELECT COUNT(*) FROM test")
-print(f"cache_miss: rows={r3['row_count']}, from_cache={r3.get('from_cache', False)}")
-r4 = engine.execute_cached("SELECT COUNT(*) FROM test")
-print(f"cache_hit: rows={r4['row_count']}, from_cache={r4.get('from_cache', False)}")
-n = engine.clear_cache()
-print(f"cache_cleared: {n}")
+    # Test cache
+    r3 = engine.execute_cached("SELECT COUNT(*) FROM test")
+    assert r3["row_count"] == 1
+    assert r3.get("from_cache", False) is False
+    r4 = engine.execute_cached("SELECT COUNT(*) FROM test")
+    assert r4["row_count"] == 1
+    assert r4.get("from_cache", False) is True
+    n = engine.clear_cache()
+    assert n >= 1
 
-# Test drop view
-engine.drop_view("top5")
-views2 = engine.list_views()
-print(f"after_drop: {views2}")
-print("ALL ADVANCED TESTS PASSED")
+    # Test drop view
+    engine.drop_view("top5")
+    views2 = engine.list_views()
+    assert "top5" not in views2

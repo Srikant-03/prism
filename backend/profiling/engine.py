@@ -236,6 +236,19 @@ def _stage_cross_column_assembly(ctx: PipelineContext) -> None:
     )
     ctx.dataset.cross_analysis = cross_profile.model_dump()
 
+    # ── Persist the authoritative target state ──────────────────────────
+    # This is the ONLY write to target_store in the entire codebase.
+    # All downstream modules (ml_readiness, story, feature_ranker) must
+    # read via get_target_state() -- never re-run TargetDetector.analyze().
+    try:
+        from state import set_target_state
+        set_target_state(
+            ctx.file_id,
+            ctx.target_analysis or TargetAnalysis(is_target_detected=False),
+        )
+    except Exception as _e:
+        ctx.warnings.append(f'Target state persistence failed (non-fatal): {_e}')
+
 
 def _stage_insights(ctx: PipelineContext) -> None:
     """Generate quality scores, anomaly detection, feature ranking, and briefing."""

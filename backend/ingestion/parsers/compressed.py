@@ -201,9 +201,10 @@ class CompressedParser(BaseParser):
         config = IngestionConfig()
         config.ensure_dirs()
 
-        # Determine inner filename
+        # Isolate decompression in a private unique temporary directory to prevent race condition collisions (ING-01)
+        temp_dir = Path(tempfile.mkdtemp(dir=str(config.TEMP_DIR)))
         inner_name = self.file_path.stem  # "data.csv" from "data.csv.gz"
-        temp_file = config.TEMP_DIR / inner_name
+        temp_file = temp_dir / inner_name
 
         try:
             with gzip.open(str(self.file_path), "rb") as gz:
@@ -234,9 +235,5 @@ class CompressedParser(BaseParser):
                 justification=f"Failed to decompress GZIP: {str(e)}",
             )
         finally:
-            # Cleanup temp file (but not for ZIP dirs — orchestrator handles that)
-            if temp_file.exists():
-                try:
-                    os.remove(str(temp_file))
-                except Exception:
-                    pass
+            # Cleanup temp directory and all its contents
+            shutil.rmtree(temp_dir, ignore_errors=True)

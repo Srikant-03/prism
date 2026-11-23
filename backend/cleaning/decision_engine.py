@@ -10,6 +10,7 @@ and provides apply_action mechanics for all action types.
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Optional
 
 import pandas as pd
@@ -39,10 +40,29 @@ class DecisionEngine:
     Takes profiling results + raw DataFrame and produces a ranked CleaningPlan.
     """
 
-    def __init__(self, df: pd.DataFrame, file_id: str, profile: Any = None):
+    def __init__(
+        self,
+        df: pd.DataFrame,
+        file_id: str,
+        profile: Any = None,
+        target_column: Optional[str] = None,
+    ):
         self.df = df
         self.file_id = file_id
         self.profile = profile
+        self.target_column = target_column
+
+        if not self.target_column:
+            try:
+                from state import get_target_state
+                ts = get_target_state(file_id)
+                if ts and ts.get("target_column"):
+                    self.target_column = ts.get("target_column")
+            except Exception:
+                pass
+
+        if not self.target_column and self.profile:
+            self.target_column = getattr(self.profile, "target_column", None)
 
     # ── Analyze ───────────────────────────────────────────────────────
     def analyze(self) -> CleaningPlan:
@@ -67,7 +87,9 @@ class DecisionEngine:
         all_actions.extend(missing_actions)
 
         # 3. Outlier detection
-        outlier_handler = OutlierHandler(self.df, self.file_id, profile=self.profile)
+        outlier_handler = OutlierHandler(
+            self.df, self.file_id, profile=self.profile, target_column=self.target_column
+        )
         outlier_actions, outlier_report = outlier_handler.analyze()
         all_actions.extend(outlier_actions)
 
@@ -82,7 +104,9 @@ class DecisionEngine:
         all_actions.extend(text_actions)
 
         # 6. Categorical encoding
-        cat_handler = CategoricalHandler(self.df, self.file_id, profile=self.profile)
+        cat_handler = CategoricalHandler(
+            self.df, self.file_id, profile=self.profile, target_column=self.target_column
+        )
         cat_actions, cat_report = cat_handler.analyze()
         all_actions.extend(cat_actions)
 
@@ -92,7 +116,9 @@ class DecisionEngine:
         all_actions.extend(dt_actions)
 
         # 8. Feature scaling & normalization
-        scaling_handler = ScalingHandler(self.df, self.file_id, profile=self.profile)
+        scaling_handler = ScalingHandler(
+            self.df, self.file_id, profile=self.profile, target_column=self.target_column
+        )
         scaling_actions, scaling_report = scaling_handler.analyze()
         all_actions.extend(scaling_actions)
 
@@ -101,12 +127,15 @@ class DecisionEngine:
             self.df, self.file_id,
             feature_importances=feature_importances,
             profile=self.profile,
+            target_column=self.target_column,
         )
         fs_actions, fs_report = fs_handler.analyze()
         all_actions.extend(fs_actions)
 
         # 10. Class imbalance
-        imb_handler = ImbalanceHandler(self.df, self.file_id, profile=self.profile)
+        imb_handler = ImbalanceHandler(
+            self.df, self.file_id, profile=self.profile, target_column=self.target_column
+        )
         imb_actions, imb_report = imb_handler.analyze()
         all_actions.extend(imb_actions)
 
@@ -116,7 +145,9 @@ class DecisionEngine:
         all_actions.extend(std_actions)
 
         # 12. Data leakage detection
-        leak_handler = LeakageHandler(self.df, self.file_id, profile=self.profile)
+        leak_handler = LeakageHandler(
+            self.df, self.file_id, profile=self.profile, target_column=self.target_column
+        )
         leak_actions, leak_report = leak_handler.analyze()
         all_actions.extend(leak_actions)
 
@@ -267,9 +298,87 @@ class DecisionEngine:
         return df
 
     def _cmd_interpolate(self, df, action, option):
+        """
+        Time-aware, group-safe interpolation:
+        1. Detects date column and explicitly sorts chronologically.
+        2. Preserves original row ordering after transformation.
+        3. Avoids interpolating across unrelated categorical groups.
+        4. Rejects interpolation for promotional/business variables.
+        """
+        orig_index = df.index.copy()
+
+        # Identify date column if present
+        date_col = None
+        for c in df.columns:
+            if pd.api.types.is_datetime64_any_dtype(df[c]):
+                date_col = c
+                break
+        if date_col is None:
+            for c in df.columns:
+                if re.search(r"(?i)(date|timestamp|datetime)", c):
+                    try:
+                        pd.to_datetime(df[c].head(20))
+                        date_col = c
+                        break
+                    except Exception:
+                        pass
+
+        # Identify grouping columns to prevent interpolating across unrelated groups
+        group_cols = [
+            c for c in ["category", "subcategory", "channel", "region", "country", "store", "product_id", "entity_id"]
+            if c in df.columns and c not in action.target_columns
+        ]
+
         for col in action.target_columns:
-            if col in df.columns:
-                df[col] = df[col].interpolate(method="linear")
+            if col not in df.columns:
+                continue
+
+            # Do not interpolate promotional/business variables
+            is_promo_or_business = bool(re.search(
+                r"(?i)(discount|promo|coupon|campaign|revenue|cost|profit|price|fee|commission|sales|amount|units_sold|prospect|lead|order_value|aov|satisfaction|rating|score|return_rate|churn)",
+                col
+            ))
+            if is_promo_or_business:
+                if re.search(r"(?i)(discount|promo|coupon)", col):
+                    df[col] = df[col].fillna(0.0)
+                else:
+                    df[col] = df[col].fillna(df[col].median())
+                continue
+
+            # Explicitly sort by date or use time-aware interpolation
+            if date_col is not None:
+                try:
+                    dt_series = pd.to_datetime(df[date_col], errors="coerce")
+                    temp = df.copy()
+                    temp["__dt__"] = dt_series
+                    temp["__orig_order__"] = np.arange(len(df))
+
+                    # Group-aware interpolation if groups exist
+                    if group_cols:
+                        sort_keys = group_cols + ["__dt__"]
+                        temp = temp.sort_values(by=sort_keys, kind="stable")
+                        temp[col] = temp.groupby(group_cols)[col].transform(
+                            lambda g: g.interpolate(method="linear").ffill().bfill()
+                        )
+                    else:
+                        temp = temp.sort_values(by=["__dt__"], kind="stable")
+                        temp[col] = temp[col].interpolate(method="linear").ffill().bfill()
+
+                    # Preserve original row ordering after transformation
+                    temp = temp.sort_values(by="__orig_order__", kind="stable")
+                    df[col] = temp[col].values
+                except Exception:
+                    df[col] = df[col].interpolate(method="linear")
+            else:
+                if group_cols:
+                    df[col] = df.groupby(group_cols)[col].transform(
+                        lambda g: g.interpolate(method="linear").ffill().bfill()
+                    )
+                else:
+                    df[col] = df[col].interpolate(method="linear")
+
+        # Guarantee original row ordering
+        df = df.reindex(orig_index)
         return df
 
     def _cmd_add_indicator(self, df, action, option):
@@ -547,9 +656,10 @@ class DecisionEngine:
             ActionType.BINARIZE: "binarize",
         }
         method = option or method_map.get(action.action_type, "standard")
+        threshold = action.metadata.get("threshold") if action.metadata else None
         for col in action.target_columns:
             if col in df.columns:
-                df = ScalingHandler.apply_scaling(df, col, method)
+                df = ScalingHandler.apply_scaling(df, col, method, threshold=threshold)
         return df
 
     def _cmd_apply_feature_selection(self, df, action, option):
@@ -565,8 +675,22 @@ class DecisionEngine:
                 "pca_99": action.metadata.get("components_for_99pct", 15),
             }
             n_comp = int(n_map.get(option, 10))
-            numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-            df = FeatureSelectionHandler.apply_pca(df, numeric_cols, n_comp)
+            target = getattr(self, "target_column", None)
+            if not target:
+                try:
+                    from state import get_target_state
+                    ts = get_target_state(self.file_id)
+                    if ts:
+                        target = ts.get("target_column")
+                except Exception:
+                    pass
+            numeric_cols = [
+                c for c in df.select_dtypes(include=[np.number]).columns
+                if c != target
+            ]
+            df = FeatureSelectionHandler.apply_pca(
+                df, numeric_cols, n_comp, target_column=target
+            )
         return df
 
     def _cmd_apply_imbalance(self, df, action, option):
@@ -707,6 +831,8 @@ class DecisionEngine:
         ActionType.DROP_HIGH_VIF: _cmd_apply_feature_selection,
         ActionType.DROP_LOW_MI: _cmd_apply_feature_selection,
         ActionType.CLUSTER_FEATURES: _cmd_apply_feature_selection,
+        ActionType.FLAG_DERIVED_REDUNDANCY: _cmd_apply_feature_selection,
+        ActionType.FLAG_DUPLICATE_FEATURE: _cmd_apply_feature_selection,
         ActionType.SUGGEST_PCA: _cmd_suggest_pca,
         # Class imbalance (all share the same dispatcher)
         ActionType.RANDOM_OVERSAMPLE: _cmd_apply_imbalance,

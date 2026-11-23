@@ -1,30 +1,39 @@
 /**
- * Component tests for key frontend components.
+ * Component tests for key frontend components and dashboard modules.
  * Run with: npm test
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, fireEvent, cleanup } from '@testing-library/react';
+
+import ThemeToggle from '../components/common/ThemeToggle';
+import { ThemeProvider, useTheme } from '../hooks/useTheme';
+import UploadProgress from '../components/upload/UploadProgress';
+import QualityScoreWidget from '../components/common/QualityScoreWidget';
+import PromptBar from '../components/dashboard/PromptBar';
+import GlobalFilterBar from '../components/dashboard/GlobalFilterBar';
 
 
 // ── ThemeToggle tests ──────────────────────────────────────────────
 
 describe('ThemeToggle', () => {
     beforeEach(() => {
+        cleanup();
         localStorage.clear();
         document.documentElement.removeAttribute('data-theme');
+        document.body.innerHTML = '';
     });
 
-    it('renders without crashing', async () => {
-        const ThemeToggle = (await import('../components/common/ThemeToggle')).default;
+    it('renders without crashing', () => {
         const { container } = render(<ThemeToggle />);
-        expect(container.querySelector('button')).toBeTruthy();
+        const button = container.querySelector('button');
+        expect(button).toBeTruthy();
     });
 
-    it('cycles through themes on click', async () => {
-        const ThemeToggle = (await import('../components/common/ThemeToggle')).default;
-        render(<ThemeToggle />);
-        const button = screen.getByRole('button');
+    it('cycles through themes on click', () => {
+        const { container } = render(<ThemeToggle />);
+        const button = container.querySelector('button')!;
+        expect(button).toBeTruthy();
 
         // Default is dark → click → light
         fireEvent.click(button);
@@ -39,10 +48,9 @@ describe('ThemeToggle', () => {
         expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
     });
 
-    it('persists theme to localStorage', async () => {
-        const ThemeToggle = (await import('../components/common/ThemeToggle')).default;
-        render(<ThemeToggle />);
-        const button = screen.getByRole('button');
+    it('persists theme to localStorage', () => {
+        const { container } = render(<ThemeToggle />);
+        const button = container.querySelector('button')!;
 
         fireEvent.click(button);
         expect(localStorage.getItem('theme')).toBe('light');
@@ -53,10 +61,9 @@ describe('ThemeToggle', () => {
 // ── useTheme hook tests ────────────────────────────────────────────
 
 describe('useTheme hook', () => {
-    it('exports a ThemeProvider and useTheme', async () => {
-        const mod = await import('../hooks/useTheme');
-        expect(mod.ThemeProvider).toBeDefined();
-        expect(mod.useTheme).toBeDefined();
+    it('exports a ThemeProvider and useTheme', () => {
+        expect(ThemeProvider).toBeDefined();
+        expect(useTheme).toBeDefined();
     });
 });
 
@@ -64,8 +71,7 @@ describe('useTheme hook', () => {
 // ── UploadProgress tests ───────────────────────────────────────────
 
 describe('UploadProgress', () => {
-    it('renders progress indicators', async () => {
-        const UploadProgress = (await import('../components/upload/UploadProgress')).default;
+    it('renders progress indicators', () => {
         const { container } = render(
             <UploadProgress
                 uploadPct={50}
@@ -80,13 +86,99 @@ describe('UploadProgress', () => {
 // ── QualityScoreWidget tests ───────────────────────────────────────
 
 describe('QualityScoreWidget', () => {
-    it('renders with dimensions', async () => {
-        const QualityScoreWidget = (await import('../components/common/QualityScoreWidget')).default;
+    it('renders with dimensions', () => {
         const dims = [
             { name: 'Completeness', score: 90, maxScore: 100 },
             { name: 'Consistency', score: 85, maxScore: 100 },
         ];
         const { container } = render(<QualityScoreWidget dimensions={dims} />);
         expect(container.firstChild).toBeTruthy();
+    });
+});
+
+
+// ── Flagship Dashboard Component Tests ─────────────────────────────
+
+describe('PromptBar', () => {
+    it('renders input and submits user prompt', () => {
+        let submittedPrompt = '';
+        const { container } = render(
+            <PromptBar
+                onSubmit={(p) => { submittedPrompt = p; }}
+                suggestions={['Monthly Revenue', 'Top Products']}
+            />
+        );
+
+        const input = container.querySelector('input')!;
+        expect(input).toBeTruthy();
+
+        // Type in prompt
+        fireEvent.change(input, { target: { value: 'Quarterly Profit by Region' } });
+
+        // Submit via button or form
+        const submitBtn = container.querySelector('button.ant-btn-primary')!;
+        expect(submitBtn).toBeTruthy();
+        fireEvent.click(submitBtn);
+
+        expect(submittedPrompt).toBe('Quarterly Profit by Region');
+    });
+
+    it('renders clarification alert when provided', () => {
+        const { getByText } = render(
+            <PromptBar
+                onSubmit={() => {}}
+                clarification="Did you mean revenue by month or quarter?"
+            />
+        );
+
+        expect(getByText(/Did you mean revenue by month or quarter/i)).toBeTruthy();
+    });
+
+    it('renders suggestion chips and fills prompt on click', () => {
+        let submittedPrompt = '';
+        const { getByText, container } = render(
+            <PromptBar
+                onSubmit={(p) => { submittedPrompt = p; }}
+                suggestions={['Monthly Trend']}
+            />
+        );
+
+        const chip = getByText('Monthly Trend');
+        expect(chip).toBeTruthy();
+        fireEvent.click(chip);
+
+        const input = container.querySelector('input')!;
+        expect(input.value).toBe('Monthly Trend');
+
+        const submitBtn = container.querySelector('button.ant-btn-primary')!;
+        fireEvent.click(submitBtn);
+        expect(submittedPrompt).toBe('Monthly Trend');
+    });
+});
+
+
+describe('GlobalFilterBar', () => {
+    it('renders filter bar and active filter chips', () => {
+        const filters = [
+            { column: 'category', operator: '=', value: 'Electronics' }
+        ];
+        let updatedFilters: any = null;
+
+        const { getByText, container } = render(
+            <GlobalFilterBar
+                filters={filters}
+                columns={['date', 'category', 'revenue']}
+                onFiltersChange={(f) => { updatedFilters = f; }}
+            />
+        );
+
+        expect(getByText(/category = Electronics/i)).toBeTruthy();
+
+        // Close/remove chip
+        const closeIcon = container.querySelector('.ant-tag-close-icon')!;
+        if (closeIcon) {
+            fireEvent.click(closeIcon);
+            expect(updatedFilters).toEqual([]);
+        }
     });
 });

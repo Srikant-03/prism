@@ -5,6 +5,7 @@
 
 export type ChartType = 'bar' | 'line' | 'area' | 'pie' | 'donut' | 'scatter' | 'heatmap' | 'treemap' | 'funnel' | 'kpi' | 'table';
 export type AggregationType = 'sum' | 'avg' | 'count' | 'min' | 'max' | 'median' | 'none';
+export type TimeGrain = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'none';
 export type SortDirection = 'asc' | 'desc';
 export type ColorScheme = 'default' | 'dark' | 'vibrant' | 'pastel' | 'monochrome' | 'ocean' | 'sunset' | 'forest';
 
@@ -25,6 +26,7 @@ export interface ChartConfig {
     group_by?: string;
     size_by?: string;
     aggregation: AggregationType;
+    x_axis_time_grain?: TimeGrain | null;
     filters: FilterCondition[];
     sort_by?: string;
     sort_direction: SortDirection;

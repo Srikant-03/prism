@@ -9,6 +9,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
     css: true,
+    testTimeout: 20000,
   },
   build: {
     chunkSizeWarningLimit: 1400,
@@ -16,53 +17,32 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) {
-            if (id.includes('/components/sql/')) return 'feature-sql';
-            if (id.includes('/components/profiling/') || id.includes('/components/insights/')) return 'feature-profiling';
-            if (id.includes('/components/cleaning/')) return 'feature-cleaning';
-            if (id.includes('/components/reporting/')) return 'feature-reporting';
-            if (id.includes('/components/comparison/') || id.includes('/components/collab/')) return 'feature-collab';
-            if (id.includes('/components/chat/') || id.includes('/components/grid/')) return 'feature-grid';
-            return undefined;
+            return undefined; // Let Rollup manage application source code graph naturally
           }
 
           // AG Grid — Excel-like data grid
           if (id.includes('ag-grid')) return 'ag-grid';
 
-          // ECharts + zrender — biggest single dep (~1MB minified)
+          // ECharts + zrender — visualization engine
           if (id.includes('echarts') || id.includes('zrender')) return 'echarts';
 
-          // Ant Design icons
-          if (id.includes('@ant-design/icons')) return 'antd-icons';
-
-          // Ant Design core + internal components
+          // Ant Design ecosystem (UI + icons + rc-components)
           if (
-            id.includes('/antd/') ||
-            id.includes('@ant-design/') ||
-            id.includes('@rc-component/') ||
-            id.includes('async-validator') ||
-            id.includes('classnames') ||
-            id.includes('copy-to-clipboard') ||
-            id.includes('scroll-into-view') ||
-            id.includes('compute-scroll-into-view') ||
-            id.includes('toggle-selection') ||
-            id.includes('json2mq') ||
-            id.includes('throttle-debounce')
-          ) return 'antd-ui';
+            id.includes('antd') ||
+            id.includes('@ant-design') ||
+            id.includes('@rc-component') ||
+            id.includes('rc-')
+          ) return 'antd-ecosystem';
+
+          // React ecosystem
+          if (
+            id.includes('/react/') ||
+            id.includes('react-dom') ||
+            id.includes('scheduler')
+          ) return 'react-vendor';
 
           // Recharts + D3
           if (id.includes('recharts') || id.includes('/d3-')) return 'charts';
-
-          // React
-          if (id.includes('react-dom')) return 'react-dom';
-
-          // Runtime libs
-          if (
-            id.includes('@emotion') ||
-            id.includes('stylis') ||
-            id.includes('@babel/runtime') ||
-            id.includes('tslib') ||
-            id.includes('dayjs')
-          ) return 'runtime';
 
           return 'vendor';
         },

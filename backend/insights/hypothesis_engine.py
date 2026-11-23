@@ -284,6 +284,22 @@ def generate_hypotheses(profile: dict, quality: dict = None) -> list[dict]:
             if not feat or feat == target_col:
                 continue
 
+            # Exclude derived features and date components from being flagged as data leakage
+            try:
+                from insights.relationship_classifier import RelationshipClassifier, RelationshipType, _is_date_derived_name
+                if _is_date_derived_name(feat) and _is_date_derived_name(target_col):
+                    continue
+                rel = RelationshipClassifier.classify_pair(
+                    col1=feat,
+                    col2=target_col,
+                    target_column=target_col,
+                    score=float(score) if score <= 1.0 else float(score) / 100.0,
+                )
+                if rel.type == RelationshipType.DERIVED_FEATURE:
+                    continue
+            except Exception:
+                pass
+
             if score > 0.90:
                 hypotheses.append({
                     "id": str(uuid.uuid4())[:8],

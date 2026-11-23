@@ -183,11 +183,39 @@ export interface TimeSeriesComponent {
     timestamps: string[];
 }
 
+export interface EventTrendComponent {
+    feature: string;
+    timestamps: string[];
+    values: number[];
+    rolling_mean: number[];
+    rolling_std: number[];
+    aggregation_used?: string | null;
+    explanation: string;
+}
+
+export interface TemporalDiagnostic {
+    is_regular: boolean;
+    has_duplicates: boolean;
+    duplicate_count: number;
+    total_records: number;
+    unique_timestamps: number;
+    is_monotonically_sorted: boolean;
+    series_type: 'regular_time_series' | 'event_transactions' | string;
+    sampling_summary: string;
+    decomposition_eligible: boolean;
+    decomposition_ineligibility_reason?: string | null;
+    transformation_explanation?: string | null;
+}
+
 export interface TemporalAnalysis {
     has_temporal_patterns: boolean;
     primary_time_col?: string | null;
     decompositions: Record<string, TimeSeriesComponent>;
     detected_periodicities: string[];
+    diagnostic?: TemporalDiagnostic | null;
+    event_trends?: Record<string, EventTrendComponent>;
+    analysis_mode?: 'classical_decomposition' | 'event_trend';
+    transformation_used?: string | null;
 }
 
 export interface GeoAnalysis {

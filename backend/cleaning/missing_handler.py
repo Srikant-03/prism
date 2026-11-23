@@ -5,6 +5,7 @@ most appropriate imputation strategy based on Pillar 1 profiling evidence.
 
 from __future__ import annotations
 
+import re
 from typing import List, Dict, Any, Optional
 
 import numpy as np
@@ -144,19 +145,43 @@ class MissingHandler:
                 [ActionType.BFILL, ActionType.INTERPOLATE, ActionType.DROP_ROWS],
             )
 
-        # Check if numeric with time-ordering context
-        is_numeric = self._is_numeric_col(col)
-        has_temporal_context = self._has_temporal_context()
+        # 4. Check for promotional or business variables requiring domain semantic analysis
+        is_promo = bool(re.search(r"(?i)(discount|promo|coupon|campaign)", col))
+        if is_promo:
+            temporal_meta = self._get_temporal_metadata()
+            unsorted_msg = ""
+            if temporal_meta["has_date_col"]:
+                if not temporal_meta["is_chronologically_ordered"]:
+                    unsorted_msg += f" The dataset is not chronologically ordered ({temporal_meta['date_col']}.is_monotonic_increasing = False)."
+                if temporal_meta["has_repeated_dates"]:
+                    unsorted_msg += f" The dataset contains repeated dates ({temporal_meta['repeated_dates_count']} duplicate timestamps)."
 
-        if is_numeric and has_temporal_context and null_pct < 30:
+            null_count = int(self.df[col].isnull().sum())
+            reasoning = (
+                f"'{col}' has {null_count} missing values. Imputation strategy requires semantic analysis; "
+                f"interpolation is not automatically justified.{unsorted_msg} "
+                f"Promotional features are discrete business decisions rather than continuous physical time series. "
+                f"Missing discounts typically indicate 0% (no promotion active) or require business policy review."
+            )
             return (
-                ActionType.INTERPOLATE,
-                "Numeric column in a time-ordered dataset — linear interpolation "
-                "estimates missing values from surrounding timepoints.",
-                [ActionType.FFILL, ActionType.IMPUTE_MEDIAN, ActionType.IMPUTE_KNN],
+                ActionType.IMPUTE_CONSTANT,
+                reasoning,
+                [ActionType.IMPUTE_MEDIAN, ActionType.ADD_INDICATOR, ActionType.FLAG_ONLY, ActionType.DROP_ROWS],
             )
 
-        # 4. Numeric columns — check distribution for mean vs median
+        # 5. Check if numeric and eligible for time-series interpolation
+        is_numeric = self._is_numeric_col(col)
+        if is_numeric and null_pct < 30:
+            is_eligible, reason_msg = self._check_interpolation_eligibility(col, semantic_type)
+            if is_eligible:
+                return (
+                    ActionType.INTERPOLATE,
+                    "Continuous physical/sensor measurement in a verified chronologically ordered dataset "
+                    "without duplicate timestamps — linear interpolation estimates missing values from surrounding timepoints.",
+                    [ActionType.FFILL, ActionType.IMPUTE_MEDIAN, ActionType.IMPUTE_KNN],
+                )
+
+        # 6. Numeric columns — check distribution for mean vs median
         if is_numeric:
             skewness = self._get_skewness(col, col_profile)
             has_outliers = self._has_outliers(col, col_profile)
@@ -464,25 +489,41 @@ class MissingHandler:
             )
 
         # User options for alternative strategies
-        options = [
-            UserOption(
-                key=cs.recommended_strategy.value,
-                label=cs.recommended_strategy.value.replace("_", " ").title(),
-                is_default=True,
+        if re.search(r"(?i)(discount|promo|coupon|campaign)", col):
+            recommendation = f"'{col}' has {cs.null_count} missing values. Imputation strategy requires semantic analysis; interpolation is not automatically justified."
+            evidence = (
+                f"Column '{col}' has {cs.null_count:,} missing values ({cs.null_pct}%). "
+                f"Imputation strategy requires semantic analysis; interpolation is not automatically justified."
             )
-        ]
-        for alt in cs.alternative_strategies[:3]:
-            options.append(UserOption(
-                key=alt.value,
-                label=alt.value.replace("_", " ").title(),
-            ))
+            options = [
+                UserOption(key="impute_constant", label="Impute 0 (No Discount)", is_default=(cs.recommended_strategy == ActionType.IMPUTE_CONSTANT)),
+                UserOption(key="impute_median", label="Impute Median", is_default=(cs.recommended_strategy == ActionType.IMPUTE_MEDIAN)),
+                UserOption(key="add_indicator", label="Add Indicator + Impute"),
+                UserOption(key="flag_only", label="Flag for Review (Keep Null)"),
+                UserOption(key="drop_rows", label="Drop Missing Rows"),
+            ]
+        else:
+            recommendation = f"Apply {cs.recommended_strategy.value.replace('_', ' ')} to '{col}'."
+            evidence = f"Column '{col}' has {cs.null_count:,} missing values ({cs.null_pct}%). Pattern: {cs.missing_pattern.value}."
+            options = [
+                UserOption(
+                    key=cs.recommended_strategy.value,
+                    label=cs.recommended_strategy.value.replace("_", " ").title(),
+                    is_default=True,
+                )
+            ]
+            for alt in cs.alternative_strategies[:3]:
+                options.append(UserOption(
+                    key=alt.value,
+                    label=alt.value.replace("_", " ").title(),
+                ))
 
         return CleaningAction(
             category=ActionCategory.MISSING_VALUES,
             action_type=cs.recommended_strategy,
             confidence=confidence,
-            evidence=f"Column '{col}' has {cs.null_count:,} missing values ({cs.null_pct}%). Pattern: {cs.missing_pattern.value}.",
-            recommendation=f"Apply {cs.recommended_strategy.value.replace('_', ' ')} to '{col}'.",
+            evidence=evidence,
+            recommendation=recommendation,
             reasoning=cs.reasoning,
             target_columns=[col],
             preview=PreviewSample(
@@ -522,7 +563,7 @@ class MissingHandler:
             elif strategy == ActionType.IMPUTE_ITERATIVE:
                 fill_val = "(MICE estimated)"
             elif strategy == ActionType.IMPUTE_CONSTANT:
-                fill_val = 0
+                fill_val = 0 if pd.api.types.is_numeric_dtype(self.df[col]) else "UNKNOWN"
             elif strategy == ActionType.ADD_INDICATOR:
                 fill_val = "(imputed + indicator)"
             elif strategy == ActionType.FLAG_ONLY:
@@ -550,14 +591,108 @@ class MissingHandler:
     def _is_numeric_col(self, col: str) -> bool:
         return pd.api.types.is_numeric_dtype(self.df[col])
 
+    def _get_temporal_metadata(self) -> dict[str, Any]:
+        """Detect temporal context, chronological ordering, and repeated dates."""
+        date_col = None
+        for c in self.df.columns:
+            if pd.api.types.is_datetime64_any_dtype(self.df[c]):
+                date_col = c
+                break
+
+        if date_col is None:
+            if self.profile and hasattr(self.profile, "temporal_columns") and self.profile.temporal_columns:
+                date_col = self.profile.temporal_columns[0]
+            else:
+                for c in self.df.columns:
+                    if re.search(r"(?i)(date|timestamp|datetime)", c):
+                        date_col = c
+                        break
+
+        if date_col is None or date_col not in self.df.columns:
+            return {
+                "has_date_col": False,
+                "date_col": None,
+                "is_chronologically_ordered": False,
+                "has_repeated_dates": False,
+                "repeated_dates_count": 0,
+            }
+
+        series = self.df[date_col].dropna()
+        if series.empty:
+            return {
+                "has_date_col": True,
+                "date_col": date_col,
+                "is_chronologically_ordered": False,
+                "has_repeated_dates": False,
+                "repeated_dates_count": 0,
+            }
+
+        try:
+            if not pd.api.types.is_datetime64_any_dtype(series):
+                parsed = pd.to_datetime(series, errors="coerce").dropna()
+            else:
+                parsed = series
+            is_sorted = bool(parsed.is_monotonic_increasing)
+            dup_mask = parsed.duplicated()
+            has_duplicates = bool(dup_mask.any())
+            dup_count = int(dup_mask.sum())
+        except Exception:
+            is_sorted = False
+            has_duplicates = False
+            dup_count = 0
+
+        return {
+            "has_date_col": True,
+            "date_col": date_col,
+            "is_chronologically_ordered": is_sorted,
+            "has_repeated_dates": has_duplicates,
+            "repeated_dates_count": dup_count,
+        }
+
+    def _check_interpolation_eligibility(self, col: str, semantic_type: str) -> tuple[bool, str]:
+        """
+        Determine whether temporal interpolation is appropriate for this column.
+        Requires:
+        1. Not a promotional, financial, transactional, or discrete business variable.
+        2. Dataset has a valid date/datetime column.
+        3. Dataset is strictly chronologically ordered (date.is_monotonic_increasing).
+        4. Dataset does not contain duplicate/repeated dates.
+        5. Variable represents a continuous physical/sensor signal that logically varies smoothly over time.
+        """
+        # 1. Promotional / business / transactional / metric check
+        if re.search(r"(?i)(discount|promo|coupon|campaign|revenue|cost|profit|price|fee|commission|sales|amount|bill|invoice|charge|budget|units_sold|prospect|lead|order_value|aov|satisfaction|rating|score|csat|nps|return_rate|churn|tax)", col):
+            return False, "promotional or discrete business metric that does not logically vary continuously over time"
+
+        # Discrete counts / codes / categories
+        if re.search(r"(?i)(id|code|num|count|zip|year|month|day|quarter|week|status|flag)", col):
+            return False, "discrete count or identifier"
+
+        # 2. Temporal column detection
+        temporal_meta = self._get_temporal_metadata()
+        if not temporal_meta["has_date_col"]:
+            return False, "dataset has no temporal context"
+
+        # 3. Chronological ordering check
+        if not temporal_meta["is_chronologically_ordered"]:
+            date_col = temporal_meta["date_col"]
+            return False, f"dataset is not chronologically ordered ({date_col}.is_monotonic_increasing = False)"
+
+        # 4. Repeated dates check
+        if temporal_meta["has_repeated_dates"]:
+            date_col = temporal_meta["date_col"]
+            dup_count = temporal_meta["repeated_dates_count"]
+            return False, f"dataset contains repeated dates ({dup_count} duplicate timestamps in {date_col})"
+
+        # 5. Continuous variation semantics (physical / sensor / continuous telemetry)
+        is_continuous_physical = bool(re.search(r"(?i)(temp|temperature|pressure|speed|velocity|acceleration|voltage|current|sensor|telemetry|altitude|elevation|depth|humidity|flow|vibration|frequency|flux)", col))
+        if not is_continuous_physical:
+            return False, "variable does not represent a continuous physical or environmental time series"
+
+        return True, "chronologically ordered continuous time series"
+
     def _has_temporal_context(self) -> bool:
         """Check if the dataset has datetime columns (indicating time-ordered data)."""
-        if self.profile and hasattr(self.profile, "temporal_columns"):
-            return len(self.profile.temporal_columns) > 0
-        for col in self.df.columns:
-            if pd.api.types.is_datetime64_any_dtype(self.df[col]):
-                return True
-        return False
+        return self._get_temporal_metadata()["has_date_col"]
 
     def _get_skewness(self, col: str, col_profile: dict | None) -> float | None:
         if col_profile and "numeric" in col_profile and col_profile["numeric"]:

@@ -137,6 +137,8 @@ class ActionType(str, enum.Enum):
     FLAG_LEAKAGE_PREDICTOR = "flag_leakage_predictor"
     FLAG_LEAKAGE_ID = "flag_leakage_id"
     FLAG_LEAKAGE_FUTURE = "flag_leakage_future"
+    FLAG_DERIVED_REDUNDANCY = "flag_derived_redundancy"   # date-derived or formulaic columns
+    FLAG_DUPLICATE_FEATURE = "flag_duplicate_feature"     # identical or redundant columns
 
 
 class ActionConfidence(str, enum.Enum):
@@ -197,6 +199,14 @@ class OutlierMethod(str, enum.Enum):
     LOF = "lof"
     TIMESERIES_ENVELOPE = "timeseries_envelope"
     BUSINESS_RULE = "business_rule"
+
+
+class OutlierClassification(str, enum.Enum):
+    """Semantic concept classification for an outlier observation."""
+    STATISTICAL_OUTLIER = "statistical_outlier"
+    CONTEXTUAL_OUTLIER = "contextual_outlier"
+    POTENTIAL_DATA_QUALITY = "potential_data_quality"
+    CONFIRMED_INVALID = "confirmed_invalid"
 
 
 class DetectedType(str, enum.Enum):
@@ -314,13 +324,22 @@ class OutlierDetail(BaseModel):
     row_index: int
     value: float
     detection_methods: list[OutlierMethod] = Field(default_factory=list)
+    classification: OutlierClassification = OutlierClassification.STATISTICAL_OUTLIER
+    classification_reason: str = "Statistically unusual observation; manual review recommended."
     z_score: Optional[float] = None
     modified_z_score: Optional[float] = None
     iqr_multiple: Optional[float] = None
     is_likely_error: bool = False
-    error_likelihood: float = 0.0  # 0–1 probability
+    error_likelihood: float = 0.0  # Non-zero only when confirmed invalid / domain evidence exists
     error_reasoning: str = ""
     context_values: dict[str, Any] = Field(default_factory=dict)
+    # Group-aware (Level 2) contextual analysis fields
+    is_global_outlier: bool = True
+    is_group_outlier: Optional[bool] = None
+    grouping_dimension: Optional[str] = None
+    group_name: Optional[str] = None
+    group_stats: Optional[dict[str, Any]] = None
+    contextual_explanation: Optional[str] = None
 
 
 class ColumnOutlierSummary(BaseModel):
@@ -329,7 +348,15 @@ class ColumnOutlierSummary(BaseModel):
     total_outliers: int = 0
     outlier_pct: float = 0.0
     methods_used: list[OutlierMethod] = Field(default_factory=list)
-    likely_errors: int = 0
+    likely_errors: int = 0  # Strictly confirmed invalid / data-entry errors (evidence-based)
+    statistical_outliers_count: int = 0
+    contextual_outliers_count: int = 0
+    potential_quality_issues_count: int = 0
+    confirmed_invalid_count: int = 0
+    # Group-aware outlier statistics
+    grouping_dimension: Optional[str] = None
+    subgroup_normal_count: int = 0  # Globally unusual but normal for this product group
+    within_group_outliers_count: int = 0  # Unusual even within its peer group
     sample_outliers: list[OutlierDetail] = Field(default_factory=list)
     distribution_stats: dict[str, Any] = Field(default_factory=dict)
     recommended_treatment: ActionType = ActionType.FLAG_OUTLIER

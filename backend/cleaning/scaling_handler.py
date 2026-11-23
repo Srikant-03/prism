@@ -1,6 +1,8 @@
 """
-Scaling Handler — Per-column feature scaling and normalization.
-Selects scaler based on distribution characteristics.
+Scaling Handler -- Per-column feature scaling and normalization.
+Selects scaler based on variable semantics, task type, target/predictor role,
+distribution characteristics, model requirements, and domain thresholds.
+Does not recommend destructive transformations (like binarize) automatically.
 """
 
 from __future__ import annotations
@@ -17,14 +19,47 @@ from cleaning.cleaning_models import (
 
 
 class ScalingHandler:
-    """Per-column feature scaling with distribution-aware method selection."""
+    """Per-column feature scaling with semantic and distribution-aware method selection."""
 
-    def __init__(self, df: pd.DataFrame, file_id: str, profile: Any = None):
+    def __init__(
+        self,
+        df: pd.DataFrame,
+        file_id: str,
+        profile: Any = None,
+        target_column: Optional[str] = None,
+        task_type: Optional[str] = None,
+        model_type: Optional[str] = None,
+        metadata: Optional[dict] = None,
+        business_rules: Optional[list] = None,
+    ):
         self.df = df
         self.file_id = file_id
         self.n_rows = len(df)
         self.n_cols = len(df.columns)
         self.profile = profile
+        self.target_column = target_column
+        self.task_type = task_type
+        self.model_type = model_type
+        self.metadata = metadata or {}
+        self.business_rules = business_rules or []
+
+        # Read target state from shared state if available and not explicitly provided
+        if not self.target_column or not self.task_type:
+            try:
+                from state import get_target_state
+                ts = get_target_state(file_id)
+                if ts:
+                    if not self.target_column:
+                        self.target_column = ts.get("target_column")
+                    if not self.task_type:
+                        self.task_type = ts.get("problem_type") or ts.get("task_type")
+            except Exception:
+                pass
+
+        if not self.target_column and self.profile:
+            self.target_column = getattr(self.profile, "target_column", None)
+        if not self.task_type and self.profile:
+            self.task_type = getattr(self.profile, "task_type", None)
 
     # ── Public entry ──────────────────────────────────────────────────
     def analyze(self) -> tuple[list[CleaningAction], dict]:
@@ -43,9 +78,9 @@ class ScalingHandler:
                 continue
 
             stats = self._compute_stats(series)
-            strategy, reasoning = self._select_scaler(col, stats)
+            strategy, reasoning, threshold = self._select_scaler(col, stats)
 
-            action = self._build_action(col, strategy, reasoning, stats)
+            action = self._build_action(col, strategy, reasoning, stats, threshold=threshold)
             actions.append(action)
             report["scaling_recommendations"].append({
                 "column": col,
@@ -75,81 +110,251 @@ class ScalingHandler:
             "n_unique": int(series.nunique()),
         }
 
+    # ── Semantic type detection ───────────────────────────────────────
+    def _detect_semantic_type(self, col: str, stats: dict) -> str:
+        """Detect column semantic type to prevent destructive transformations."""
+        col_lower = col.lower().strip()
+        mn, mx = stats["min"], stats["max"]
+
+        # 1. Ordinal Rating / Likert Scale (e.g. 1-5, 1-10)
+        if any(w in col_lower for w in ["satisfaction", "rating", "score", "csat", "nps", "stars"]):
+            if mn >= 0 and mx <= 10:
+                return "ORDINAL_RATING"
+
+        # 2. Percentage / Bounded Rate (e.g. 0-100 or 0-1)
+        if any(w in col_lower for w in ["pct", "percent", "percentage", "rate", "ratio", "margin", "discount"]):
+            if mn >= 0 and mx <= 100:
+                return "PERCENTAGE"
+
+        # 3. Monetary / Financial
+        if any(w in col_lower for w in ["revenue", "cost", "profit", "price", "sales", "spend", "expense", "budget", "aov", "avg_order_value"]):
+            return "MONETARY"
+
+        # 4. Count / Volume
+        if any(w in col_lower for w in ["count", "quantity", "qty", "units_sold", "units", "num_", "orders", "clicks", "prospect_count"]):
+            if mn >= 0:
+                return "COUNT"
+
+        # 5. Duration / Latency
+        if any(w in col_lower for w in ["days", "hours", "minutes", "seconds", "duration", "latency", "delay", "turnaround", "response_time"]):
+            if mn >= 0:
+                return "DURATION"
+
+        # 6. Datetime Component
+        if any(w in col_lower for w in ["year", "quarter", "month", "day", "hour"]):
+            if mn >= 0 and mx <= 3000:
+                return "DATETIME_COMPONENT"
+
+        return "GENERIC_CONTINUOUS"
+
+    # ── Explicit binarize checker ─────────────────────────────────────
+    def _is_explicit_binarize_candidate(self, col: str, stats: dict) -> tuple[bool, Optional[float], str]:
+        """
+        Check whether binarization is explicitly justified by business problem requirements,
+        domain thresholds, explicit metadata, or binary classification target cutoff.
+        Never infers binarization from distribution shape or bimodality alone.
+        """
+        # Check explicit domain thresholds
+        domain_thresholds = self.metadata.get("domain_thresholds", {})
+        if col in domain_thresholds:
+            thresh = float(domain_thresholds[col])
+            return True, thresh, f"Explicit domain threshold ({thresh}) configured for '{col}'."
+
+        # Check explicit metadata binarize flags
+        binarize_cols = self.metadata.get("binarize_columns", [])
+        if col in binarize_cols:
+            thresh = float(self.metadata.get("thresholds", {}).get(col, stats["median"]))
+            return True, thresh, f"Explicit business requirement configured to binarize '{col}' at threshold {thresh}."
+
+        # Check documented business rules
+        col_lower = col.lower()
+        for rule in self.business_rules:
+            rule_str = str(rule).lower()
+            if col_lower in rule_str and any(k in rule_str for k in ["binar", "0/1", "binary", "cutoff", "threshold"]):
+                thresh = float(stats["median"])
+                return True, thresh, f"Documented business rule specifies binary condition for '{col}': '{rule}'."
+
+        # Check binary classification target with explicit threshold
+        if (
+            self.task_type in ("binary_classification", "classification")
+            and self.target_column == col
+            and self.metadata.get("binary_target_threshold") is not None
+        ):
+            thresh = float(self.metadata["binary_target_threshold"])
+            return True, thresh, f"Modeling task is binary classification with target cutoff {thresh} for '{col}'."
+
+        return False, None, ""
+
     # ── Scaler selection ──────────────────────────────────────────────
-    def _select_scaler(self, col: str, stats: dict) -> tuple[ActionType, str]:
-        skew = abs(stats["skewness"])
+    def _select_scaler(self, col: str, stats: dict) -> tuple[ActionType, str, Optional[float]]:
+        # 1. Explicit binarization rule check
+        is_explicit, threshold, reason = self._is_explicit_binarize_candidate(col, stats)
+        if is_explicit:
+            return ActionType.BINARIZE, (
+                f"Binarize '{col}' into 0/1 using domain threshold {threshold}. {reason}"
+            ), threshold
+
+        # Do NOT binarize based on distribution shape or bimodality alone.
+        # Continuous variables must preserve granularity and avoid destructive transformations.
+        semantic = self._detect_semantic_type(col, stats)
+        skew_abs = abs(stats["skewness"])
+        skew_raw = stats["skewness"]
         is_positive = stats["is_positive"]
         is_sparse = stats["is_sparse"]
         is_bounded = stats["is_bounded"]
         kurtosis = stats["kurtosis"]
-        q1, q3, iqr = stats["q1"], stats["q3"], stats["q3"] - stats["q1"]
+        outlier_pct = self._estimate_outlier_pct(col, stats)
 
-        # Check for bimodal distribution (for binarization)
-        if self._is_bimodal(col) and stats["n_unique"] > 5:
-            return ActionType.BINARIZE, (
-                f"Column '{col}' appears bimodal — a natural threshold exists for "
-                "splitting into 0/1 categories."
-            )
-
-        # Already [0,1] bounded
+        # 2. Already [0, 1] bounded
         if is_bounded:
             return ActionType.MINMAX_SCALE, (
-                f"Column '{col}' is already bounded [0,1]. MinMaxScaler maintains "
+                f"Column '{col}' is already bounded [0, 1]. MinMaxScaler maintains "
                 "this natural range."
-            )
+            ), None
 
-        # Sparse data → MaxAbsScaler
+        # 3. Sparse data -> MaxAbsScaler
         if is_sparse:
             return ActionType.MAXABS_SCALE, (
                 f"Column '{col}' is sparse (>30% zeros). MaxAbsScaler preserves "
                 "sparsity and zero structure."
-            )
+            ), None
 
-        # Highly skewed, positive → Log1p
-        if skew > 2.0 and is_positive:
+        # 4. Ordinal ratings / Likert scales (e.g. customer_satisfaction [1.0, 5.0])
+        if semantic == "ORDINAL_RATING":
+            return ActionType.MINMAX_SCALE, (
+                f"Column '{col}' has an ordinal rating scale [{stats['min']:.1f}, {stats['max']:.1f}]. "
+                "MinMaxScaler maps values to [0, 1] while preserving relative spacing without "
+                "destroying ordinal information."
+            ), None
+
+        # 5. Percentages / Bounded rates (e.g. discount_pct, return_rate [0, 100])
+        if semantic == "PERCENTAGE":
+            if stats["max"] <= 1.0:
+                return ActionType.MINMAX_SCALE, (
+                    f"Column '{col}' is a percentage bounded [0, 1]. MinMaxScaler preserves "
+                    "natural proportion bounds."
+                ), None
+            elif stats["max"] <= 100.0:
+                if skew_abs < 1.0:
+                    return ActionType.STANDARD_SCALE, (
+                        f"Column '{col}' is a percentage with symmetric distribution (skew={stats['skewness']:.2f}). "
+                        "StandardScaler standardizes the range while preserving continuous variation."
+                    ), None
+                else:
+                    return ActionType.MINMAX_SCALE, (
+                        f"Column '{col}' is a bounded percentage range [0, 100]. MinMaxScaler "
+                        "normalizes the scale to [0, 1]."
+                    ), None
+
+        # 6. Financial / Monetary (revenue, cost, profit, etc.)
+        if semantic == "MONETARY":
+            if skew_raw > 2.0 and is_positive:
+                return ActionType.LOG1P_TRANSFORM, (
+                    f"Column '{col}' is a financial metric with heavy right skew (skew={stats['skewness']:.2f}). "
+                    "Log1p compresses extreme positive values while preserving continuous financial magnitude."
+                ), None
+            elif skew_raw > 1.0 and is_positive and stats["min"] > 0:
+                return ActionType.BOXCOX_TRANSFORM, (
+                    f"Column '{col}' is a positive financial metric (skew={stats['skewness']:.2f}). "
+                    "Box-Cox stabilizes variance and normalizes the distribution without loss of granularity."
+                ), None
+            elif skew_raw > 1.0 and not is_positive:
+                return ActionType.YEOJOHNSON_TRANSFORM, (
+                    f"Column '{col}' is a financial metric with skewness (skew={stats['skewness']:.2f}) "
+                    "containing non-positive values. Yeo-Johnson normalizes without discarding negative values."
+                ), None
+            elif outlier_pct > 5.0 or kurtosis > 5.0:
+                return ActionType.ROBUST_SCALE, (
+                    f"Column '{col}' is a financial metric with significant outliers ({outlier_pct:.1f}% beyond IQR). "
+                    "RobustScaler scales via median and IQR to resist extreme values."
+                ), None
+            elif skew_abs < 1.0:
+                return ActionType.STANDARD_SCALE, (
+                    f"Column '{col}' is a financial metric with approximately normal distribution (skew={stats['skewness']:.2f}). "
+                    "StandardScaler (Z-score) is the standard choice."
+                ), None
+
+        # 7. Count / Volume data (units_sold, prospect_count)
+        if semantic == "COUNT":
+            if outlier_pct > 10.0 or kurtosis > 10.0 or skew_raw > 3.0:
+                return ActionType.ROBUST_SCALE, (
+                    f"Column '{col}' is a count metric with heavy-tailed outliers ({outlier_pct:.1f}% beyond IQR, kurtosis={kurtosis:.1f}). "
+                    "RobustScaler normalizes using median and IQR without distorting count structure."
+                ), None
+            elif skew_raw > 1.0 and is_positive:
+                return ActionType.LOG1P_TRANSFORM, (
+                    f"Column '{col}' is a non-negative count variable with positive skew (skew={stats['skewness']:.2f}). "
+                    "Log1p compresses the count range while preserving non-negative ordering."
+                ), None
+            elif skew_abs < 1.0:
+                return ActionType.STANDARD_SCALE, (
+                    f"Column '{col}' is a count variable with near-symmetric distribution (skew={stats['skewness']:.2f}). "
+                    "StandardScaler standardizes the count scale."
+                ), None
+
+        # 8. Duration / Latency (response_time_days)
+        if semantic == "DURATION":
+            if skew_abs < 1.0 and kurtosis < 5.0:
+                return ActionType.STANDARD_SCALE, (
+                    f"Column '{col}' represents continuous duration with approximately normal distribution (skew={stats['skewness']:.2f}). "
+                    "StandardScaler standardizes the time range without collapsing continuous durations."
+                ), None
+            elif skew_raw > 1.0 and is_positive:
+                return ActionType.LOG1P_TRANSFORM, (
+                    f"Column '{col}' represents continuous duration with positive skew (skew={stats['skewness']:.2f}). "
+                    "Log1p compresses long duration tails while maintaining continuous time resolution."
+                ), None
+            elif outlier_pct > 5.0:
+                return ActionType.ROBUST_SCALE, (
+                    f"Column '{col}' represents continuous duration with outliers ({outlier_pct:.1f}% beyond IQR). "
+                    "RobustScaler scales via median and IQR."
+                ), None
+
+        # 9. Datetime components (year, month, etc.)
+        if semantic == "DATETIME_COMPONENT":
+            return ActionType.STANDARD_SCALE, (
+                f"Column '{col}' is a discrete datetime component. StandardScaler centers "
+                "and standardizes the component for modeling."
+            ), None
+
+        # 10. General continuous distribution fallback
+        if skew_raw > 2.0 and is_positive:
             return ActionType.LOG1P_TRANSFORM, (
                 f"Column '{col}' is highly right-skewed (skew={stats['skewness']:.2f}) "
                 "with all positive values. Log1p compresses the range."
-            )
+            ), None
 
-        # Skewed, positive → Box-Cox
-        if skew > 1.0 and is_positive and stats["min"] > 0:
+        if skew_raw > 1.0 and is_positive and stats["min"] > 0:
             return ActionType.BOXCOX_TRANSFORM, (
                 f"Column '{col}' is moderately skewed (skew={stats['skewness']:.2f}) "
-                "with all positive values. Box-Cox finds the optimal power "
-                "transformation via MLE."
-            )
+                "with all positive values. Box-Cox finds the optimal power transformation via MLE."
+            ), None
 
-        # Skewed with negatives → Yeo-Johnson
-        if skew > 1.0:
+        if skew_abs > 1.0:
             return ActionType.YEOJOHNSON_TRANSFORM, (
                 f"Column '{col}' is skewed (skew={stats['skewness']:.2f}) and contains "
                 "zero/negative values. Yeo-Johnson handles all value ranges."
-            )
+            ), None
 
-        # Heavy outliers → RobustScaler
-        outlier_pct = self._estimate_outlier_pct(stats)
         if outlier_pct > 5.0 or kurtosis > 10:
             return ActionType.ROBUST_SCALE, (
                 f"Column '{col}' has significant outliers ({outlier_pct:.1f}% beyond IQR) "
                 f"or heavy tails (kurtosis={kurtosis:.1f}). RobustScaler uses "
                 "median/IQR instead of mean/std."
-            )
+            ), None
 
-        # Approximately normal → StandardScaler
-        if skew < 1.0:
+        if skew_abs < 1.0:
             return ActionType.STANDARD_SCALE, (
                 f"Column '{col}' is approximately normal (skew={stats['skewness']:.2f}). "
                 "StandardScaler (Z-score) is the standard choice."
-            )
+            ), None
 
-        # Default → MinMaxScaler
         return ActionType.MINMAX_SCALE, (
-            f"Column '{col}' has a bounded distribution. MinMaxScaler maps to [0,1]."
-        )
+            f"Column '{col}' has a bounded distribution. MinMaxScaler maps to [0, 1]."
+        ), None
 
     def _is_bimodal(self, col: str) -> bool:
-        """Quick bimodality check using Hartigan's dip test approximation."""
+        """Quick bimodality check using KDE local maxima."""
         series = self.df[col].dropna()
         if len(series) < 20:
             return False
@@ -167,26 +372,27 @@ class ScalingHandler:
         except Exception:
             return False
 
-    def _estimate_outlier_pct(self, stats: dict) -> float:
+    def _estimate_outlier_pct(self, col: str, stats: dict) -> float:
         """Estimate percentage of outliers using IQR."""
         iqr = stats["q3"] - stats["q1"]
         if iqr == 0:
             return 0.0
         lower = stats["q1"] - 1.5 * iqr
         upper = stats["q3"] + 1.5 * iqr
-        col_data = next(
-            (self.df[c].dropna() for c in self.df.select_dtypes(include=[np.number]).columns
-             if float(self.df[c].dropna().mean()) == stats["mean"]),
-            None
-        )
-        if col_data is None:
+        col_data = self.df[col].dropna() if col in self.df.columns else None
+        if col_data is None or len(col_data) == 0:
             return 0.0
         outlier_count = ((col_data < lower) | (col_data > upper)).sum()
         return float(outlier_count / len(col_data) * 100)
 
     # ── Build action ──────────────────────────────────────────────────
     def _build_action(
-        self, col: str, strategy: ActionType, reasoning: str, stats: dict,
+        self,
+        col: str,
+        strategy: ActionType,
+        reasoning: str,
+        stats: dict,
+        threshold: Optional[float] = None,
     ) -> CleaningAction:
         preview_vals = self.df[col].dropna().head(3).tolist()
 
@@ -204,6 +410,17 @@ class ScalingHandler:
             UserOption(key="skip", label="Skip"),
         ]
 
+        if strategy == ActionType.BINARIZE:
+            thresh_str = f"{threshold:.2f}" if threshold is not None else "threshold"
+            recommendation = f"Binarize '{col}' into 0/1 using cutoff threshold {thresh_str}."
+            impact_desc = f"Binarizes {stats['count']} values in '{col}' into 0/1 indicator."
+        elif strategy in (ActionType.LOG1P_TRANSFORM, ActionType.BOXCOX_TRANSFORM, ActionType.YEOJOHNSON_TRANSFORM):
+            recommendation = f"Apply {strategy.value.replace('_', ' ')} to '{col}'."
+            impact_desc = f"Transforms all {stats['count']} values in '{col}' using {strategy.value.replace('_', ' ')}."
+        else:
+            recommendation = f"Apply {strategy.value.replace('_', ' ')} to '{col}'."
+            impact_desc = f"Scales all {stats['count']} values in '{col}'."
+
         return CleaningAction(
             category=ActionCategory.FEATURE_SCALING,
             action_type=strategy,
@@ -213,7 +430,7 @@ class ScalingHandler:
                 f"skew={stats['skewness']:.2f}, kurtosis={stats['kurtosis']:.2f}, "
                 f"range=[{stats['min']:.2f}, {stats['max']:.2f}]."
             ),
-            recommendation=f"Apply {strategy.value.replace('_', ' ')} to '{col}'.",
+            recommendation=recommendation,
             reasoning=reasoning,
             target_columns=[col],
             preview=PreviewSample(
@@ -222,7 +439,7 @@ class ScalingHandler:
             ),
             impact=ImpactEstimate(
                 rows_before=self.n_rows, rows_after=self.n_rows,
-                description=f"Scales all {stats['count']} values in '{col}'.",
+                description=impact_desc,
             ),
             options=all_options,
             metadata={
@@ -230,13 +447,16 @@ class ScalingHandler:
                 "kurtosis": stats["kurtosis"],
                 "is_positive": stats["is_positive"],
                 "is_sparse": stats["is_sparse"],
+                "threshold": threshold,
             },
         )
 
     # ── Static execution methods ──────────────────────────────────────
 
     @staticmethod
-    def apply_scaling(df: pd.DataFrame, col: str, method: str) -> pd.DataFrame:
+    def apply_scaling(
+        df: pd.DataFrame, col: str, method: str, threshold: Optional[float] = None,
+    ) -> pd.DataFrame:
         """Apply a scaling method to a column."""
         if col not in df.columns or not pd.api.types.is_numeric_dtype(df[col]):
             return df
@@ -304,7 +524,7 @@ class ScalingHandler:
                 pass
 
         elif method == "binarize":
-            threshold = float(non_null.median())
-            df[col] = (series >= threshold).astype(int)
+            cutoff = threshold if threshold is not None else float(non_null.median())
+            df[col] = (series >= cutoff).astype(int)
 
         return df

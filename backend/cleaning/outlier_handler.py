@@ -15,6 +15,7 @@ from cleaning.cleaning_models import (
     CleaningAction, ActionType, ActionConfidence, ActionCategory,
     ImpactEstimate, PreviewSample, UserOption,
     OutlierReport, OutlierDetail, ColumnOutlierSummary, OutlierMethod,
+    OutlierClassification,
 )
 
 
@@ -37,13 +38,36 @@ _BUSINESS_RULES: list[dict[str, Any]] = [
 class OutlierHandler:
     """Multi-method outlier detection engine."""
 
-    def __init__(self, df: pd.DataFrame, file_id: str, profile: Any = None):
+    def __init__(
+        self,
+        df: pd.DataFrame,
+        file_id: str,
+        profile: Any = None,
+        target_column: Optional[str] = None,
+    ):
         self.df = df
         self.file_id = file_id
         self.n_rows = len(df)
         self.n_cols = len(df.columns)
         self.profile = profile
+        self.target_column = target_column
+
+        if not self.target_column:
+            try:
+                from state import get_target_state
+                ts = get_target_state(file_id)
+                if ts and ts.get("target_column"):
+                    self.target_column = ts.get("target_column")
+            except Exception:
+                pass
+
+        if not self.target_column and self.profile:
+            self.target_column = getattr(self.profile, "target_column", None)
+
         self.numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        self.predictor_numeric_cols = [
+            c for c in self.numeric_cols if c != self.target_column
+        ]
 
     # ── Public entry ──────────────────────────────────────────────────
     def analyze(self) -> tuple[list[CleaningAction], OutlierReport]:
@@ -104,16 +128,31 @@ class OutlierHandler:
             # Deduplicate outliers by row index (same row flagged by multiple methods)
             col_outliers = self._merge_outlier_details(col_outliers)
 
-            # Compute error likelihood
+            # LEVEL 2: Within-group / contextual outlier evaluation
+            grouping_dim, grouping_cols = self._find_meaningful_grouping_dimension(col, series)
+            subgroup_normal_count = 0
+            within_group_outliers_count = 0
+            if grouping_dim and grouping_cols:
+                subgroup_normal_count, within_group_outliers_count = self._evaluate_group_outliers(
+                    col, series, col_outliers, grouping_dim, grouping_cols
+                )
+
+            # Classify outliers into separated concepts (statistical, contextual, quality, confirmed invalid)
             for od in col_outliers:
-                od.error_likelihood = self._estimate_error_likelihood(od, stats)
-                od.is_likely_error = od.error_likelihood > 0.6
-                od.error_reasoning = self._explain_error_likelihood(od, stats)
+                self._classify_outlier(od, stats)
 
             if col_outliers:
                 total_outs = len(col_outliers)
-                likely_errors = sum(1 for o in col_outliers if o.is_likely_error)
-                treatment, reason = self._recommend_treatment(col, col_outliers, stats)
+                stat_count = sum(1 for o in col_outliers if o.classification == OutlierClassification.STATISTICAL_OUTLIER)
+                context_count = sum(1 for o in col_outliers if o.classification == OutlierClassification.CONTEXTUAL_OUTLIER)
+                qual_count = sum(1 for o in col_outliers if o.classification == OutlierClassification.POTENTIAL_DATA_QUALITY)
+                invalid_count = sum(1 for o in col_outliers if o.classification == OutlierClassification.CONFIRMED_INVALID)
+                likely_errors = invalid_count  # Strictly evidence-based confirmed invalid values
+                treatment, reason = self._recommend_treatment(
+                    col, col_outliers, stats,
+                    grouping_dimension=grouping_dim,
+                    subgroup_normal_count=subgroup_normal_count
+                )
 
                 summary = ColumnOutlierSummary(
                     column=col,
@@ -121,6 +160,13 @@ class OutlierHandler:
                     outlier_pct=round(total_outs / len(series) * 100, 2),
                     methods_used=methods_used,
                     likely_errors=likely_errors,
+                    statistical_outliers_count=stat_count,
+                    contextual_outliers_count=context_count,
+                    potential_quality_issues_count=qual_count,
+                    confirmed_invalid_count=invalid_count,
+                    grouping_dimension=grouping_dim,
+                    subgroup_normal_count=subgroup_normal_count,
+                    within_group_outliers_count=within_group_outliers_count,
                     sample_outliers=col_outliers[:10],
                     distribution_stats=stats,
                     recommended_treatment=treatment,
@@ -133,8 +179,8 @@ class OutlierHandler:
                 action = self._build_action(col, summary)
                 actions.append(action)
 
-        # Multivariate outlier detection (Isolation Forest + DBSCAN + LOF)
-        if len(self.numeric_cols) >= 3:
+        # Multivariate outlier detection on predictor features X (Isolation Forest + DBSCAN + LOF)
+        if len(self.predictor_numeric_cols) >= 3:
             mv_actions, mv_outliers = self._multivariate_detect()
             actions.extend(mv_actions)
             report.multivariate_outliers = mv_outliers
@@ -308,8 +354,14 @@ class OutlierHandler:
 
     # ── Multivariate Detection (sklearn) ─────────────────────────────
     def _multivariate_detect(self) -> tuple[list[CleaningAction], list[dict]]:
+        assert self.target_column is None or self.target_column not in self.predictor_numeric_cols, (
+            f"Target '{self.target_column}' must not enter predictor multivariate outlier detection!"
+        )
         actions: list[CleaningAction] = []
         mv_outliers: list[dict] = []
+
+        if len(self.predictor_numeric_cols) < 3:
+            return actions, mv_outliers
 
         try:
             from sklearn.ensemble import IsolationForest
@@ -317,8 +369,8 @@ class OutlierHandler:
             from sklearn.cluster import DBSCAN
             from sklearn.preprocessing import StandardScaler
 
-            # Prepare data — sample for speed
-            df_num = self.df[self.numeric_cols].dropna()
+            # Prepare predictor feature data -- strictly excluding target y
+            df_num = self.df[self.predictor_numeric_cols].dropna()
             if len(df_num) < 20:
                 return actions, mv_outliers
             if len(df_num) > 10_000:
@@ -342,7 +394,7 @@ class OutlierHandler:
             db_labels = db.fit_predict(X)
             db_outlier_idx = df_num.index[db_labels == -1].tolist()
 
-            # Consensus: flagged by ≥2 methods
+            # Consensus: flagged by >=2 methods
             from collections import Counter
             all_flagged: list[int] = iso_outlier_idx + lof_outlier_idx + db_outlier_idx
             counts = Counter(all_flagged)
@@ -363,7 +415,7 @@ class OutlierHandler:
                     mv_outliers.append({
                         "row_index": int(idx),
                         "methods": methods,
-                        "values": self.df.loc[idx, self.numeric_cols].to_dict(),
+                        "values": self.df.loc[idx, self.predictor_numeric_cols].to_dict(),
                     })
 
                 action = CleaningAction(
@@ -372,15 +424,15 @@ class OutlierHandler:
                     confidence=ActionConfidence.JUDGMENT_CALL,
                     evidence=(
                         f"Multivariate analysis detected {n_mv} rows ({mv_pct}%) as outliers. "
-                        f"Methods: Isolation Forest, LOF, DBSCAN — flagged rows confirmed by ≥2 methods."
+                        f"Methods: Isolation Forest, LOF, DBSCAN -- flagged rows confirmed by >=2 methods."
                     ),
-                    recommendation=f"Review {n_mv} multivariate outlier rows across {len(self.numeric_cols)} numeric columns.",
+                    recommendation=f"Review {n_mv} multivariate outlier rows across {len(self.predictor_numeric_cols)} numeric predictor columns.",
                     reasoning=(
                         "Multivariate outliers are points that look normal in any single dimension "
-                        "but are unusual when all features are considered together. Consensus "
+                        "but are unusual when all predictor features are considered together. Consensus "
                         "across multiple algorithms increases confidence."
                     ),
-                    target_columns=self.numeric_cols,
+                    target_columns=self.predictor_numeric_cols,
                     impact=ImpactEstimate(
                         rows_before=self.n_rows, rows_after=self.n_rows,
                         rows_affected=n_mv, rows_affected_pct=mv_pct,
@@ -436,107 +488,309 @@ class OutlierHandler:
                 by_row[od.row_index] = od
         return list(by_row.values())
 
-    def _estimate_error_likelihood(self, od: OutlierDetail, stats: dict) -> float:
-        """Estimate 0–1 probability that this outlier is a data entry error."""
-        score = 0.0
-        count = 0
-
-        # Factor 1: deviation magnitude
-        if od.z_score is not None:
-            dev_score = min(abs(od.z_score) / 10, 1.0)
-            score += dev_score
-            count += 1
-        if od.iqr_multiple is not None:
-            dev_score = min(od.iqr_multiple / 10, 1.0)
-            score += dev_score
-            count += 1
-        if od.modified_z_score is not None:
-            dev_score = min(abs(od.modified_z_score) / 10, 1.0)
-            score += dev_score
-            count += 1
-
-        # Factor 2: number of methods that flagged it
-        method_score = min(len(od.detection_methods) / 4, 1.0)
-        score += method_score
-        count += 1
-
-        # Factor 3: business rule violation is strong evidence
+    def _classify_outlier(self, od: OutlierDetail, stats: dict) -> None:
+        """
+        Classify an outlier observation into one of the 4 mutually distinct concepts:
+        1. Confirmed invalid value / data-entry error (requires concrete evidence: violated business rules, impossible range)
+        2. Contextual/group outlier (unusual only relative to temporal envelope or subgroup)
+        3. Potential data-quality issue (multivariate density anomalies)
+        4. Statistical outlier (distributional rule: IQR, Z-score, modified Z-score)
+        """
+        # Concept 4: Confirmed invalid value / data-entry error
+        # Requires concrete additional evidence (e.g. impossible domain range, violated business constraint)
         if OutlierMethod.BUSINESS_RULE in od.detection_methods:
-            score += 0.8
-            count += 1
+            od.classification = OutlierClassification.CONFIRMED_INVALID
+            od.is_likely_error = True
+            od.error_likelihood = 1.0
+            od.classification_reason = "Violates business constraint / domain range: confirmed invalid value."
+            od.error_reasoning = od.classification_reason
+            return
 
-        # Factor 4: isolation (is the value far from any cluster?)
-        data_range = stats["max"] - stats["min"]
-        if data_range > 0:
-            normalized_distance = abs(od.value - stats["median"]) / data_range
-            score += min(normalized_distance * 2, 1.0)
-            count += 1
+        # Concept 2: Contextual / group outlier
+        # Case A: Level 2 evaluation established it is normal within its peer group
+        if od.is_group_outlier is False:
+            od.classification = OutlierClassification.CONTEXTUAL_OUTLIER
+            od.is_likely_error = False
+            od.error_likelihood = 0.0
+            od.contextual_explanation = "Globally unusual but normal for this product group"
+            od.classification_reason = "Globally unusual but normal for this product group"
+            od.error_reasoning = "Globally unusual but normal for this product group"
+            return
 
-        return round(score / max(count, 1), 3)
+        # Case B: Level 2 evaluation established it is unusual even within its peer group
+        if od.is_group_outlier is True:
+            od.classification = OutlierClassification.STATISTICAL_OUTLIER
+            od.is_likely_error = False
+            od.error_likelihood = 0.0
+            od.contextual_explanation = "Unusual even within its peer group."
+            od.classification_reason = "Unusual even within its peer group."
+            od.error_reasoning = "Unusual even within its peer group."
+            return
+
+        if OutlierMethod.TIMESERIES_ENVELOPE in od.detection_methods:
+            od.classification = OutlierClassification.CONTEXTUAL_OUTLIER
+            od.is_likely_error = False
+            od.error_likelihood = 0.0
+            od.classification_reason = "Contextual outlier: unusual relative to its subgroup/temporal context; manual review recommended."
+            od.error_reasoning = od.classification_reason
+            return
+
+        # Concept 3: Potential data-quality issue
+        if OutlierMethod.DBSCAN in od.detection_methods or OutlierMethod.LOF in od.detection_methods:
+            od.classification = OutlierClassification.POTENTIAL_DATA_QUALITY
+            od.is_likely_error = False
+            od.error_likelihood = 0.0
+            od.classification_reason = "Potential data-quality issue: suspicious density deviation; manual review recommended."
+            od.error_reasoning = od.classification_reason
+            return
+
+        # Concept 1: Statistical outlier (IQR, Z-score, modified Z-score, Isolation Forest)
+        # Statistical outlier algorithms only establish that an observation is unusual under a distributional rule.
+        # It does NOT prove that the value is an erroneous data entry.
+        od.classification = OutlierClassification.STATISTICAL_OUTLIER
+        od.is_likely_error = False
+        od.error_likelihood = 0.0
+        od.classification_reason = "Statistically unusual observation; manual review recommended."
+        od.error_reasoning = "Statistically unusual observation; manual review recommended."
+
+    def _estimate_error_likelihood(self, od: OutlierDetail, stats: dict) -> float:
+        """
+        Return error likelihood. Statistical algorithms alone NEVER invent an error probability.
+        Only confirmed invalid values (e.g. business rule violations) have non-zero error likelihood.
+        """
+        if OutlierMethod.BUSINESS_RULE in od.detection_methods or od.classification == OutlierClassification.CONFIRMED_INVALID:
+            return 1.0
+        return 0.0
 
     def _explain_error_likelihood(self, od: OutlierDetail, stats: dict) -> str:
-        """Generate human-readable error likelihood explanation."""
-        parts: list[str] = []
-        if od.z_score is not None:
-            parts.append(f"{abs(od.z_score):.1f} standard deviations from mean")
-        if od.iqr_multiple is not None:
-            parts.append(f"{od.iqr_multiple:.1f}× IQR from median")
-        if len(od.detection_methods) > 1:
-            parts.append(f"flagged by {len(od.detection_methods)} independent methods")
-        if OutlierMethod.BUSINESS_RULE in od.detection_methods:
-            parts.append("violates expected domain range")
-        if od.error_likelihood > 0.7:
-            parts.append("high probability of data entry error")
-        elif od.error_likelihood > 0.4:
-            parts.append("moderate probability — could be legitimate extreme")
+        """Return standardized explanation for the observation."""
+        if OutlierMethod.BUSINESS_RULE in od.detection_methods or od.classification == OutlierClassification.CONFIRMED_INVALID:
+            return "Violates business constraint / domain range: confirmed invalid value."
+        if od.is_group_outlier is False:
+            return "Globally unusual but normal for this product group"
+        if od.is_group_outlier is True:
+            return "Unusual even within its peer group."
+        if OutlierMethod.TIMESERIES_ENVELOPE in od.detection_methods:
+            return "Contextual outlier: unusual relative to its subgroup/temporal context; manual review recommended."
+        if OutlierMethod.DBSCAN in od.detection_methods or OutlierMethod.LOF in od.detection_methods:
+            return "Potential data-quality issue: suspicious density deviation; manual review recommended."
+        return "Statistically unusual observation; manual review recommended."
+
+    def _find_meaningful_grouping_dimension(
+        self, col: str, series: pd.Series
+    ) -> tuple[Optional[str], Optional[list[str]]]:
+        """
+        Identify the most meaningful grouping dimension for a numeric column.
+        Evaluates compound (category + subcategory), subcategory, category,
+        channel, region, and other categorical dimensions.
+        Calculates ANOVA eta-squared (proportion of variance explained).
+        Returns (dimension_label, list_of_column_names) if eta_sq >= 0.10.
+        """
+        candidate_specs: list[tuple[str, list[str]]] = []
+
+        # 1. Compound dimension if both category and subcategory exist
+        if "category" in self.df.columns and "subcategory" in self.df.columns and col not in ("category", "subcategory"):
+            candidate_specs.append(("category + subcategory", ["category", "subcategory"]))
+
+        # 2. Individual domain dimensions
+        for dim in ["subcategory", "category", "channel", "region"]:
+            if dim in self.df.columns and dim != col:
+                candidate_specs.append((dim, [dim]))
+
+        # 3. Other categorical columns with moderate cardinality
+        for c in self.df.columns:
+            if c != col and c not in ("category", "subcategory", "channel", "region"):
+                if self.df[c].dtype == "object" or self.df[c].dtype.name == "category":
+                    nunique = int(self.df[c].nunique())
+                    if 2 <= nunique <= min(30, max(2, len(self.df) // 3)):
+                        candidate_specs.append((c, [c]))
+
+        best_label: Optional[str] = None
+        best_cols: Optional[list[str]] = None
+        best_score = -1.0
+
+        for label, cols in candidate_specs:
+            try:
+                if len(cols) == 1:
+                    grp_series = self.df[cols[0]].astype(str)
+                else:
+                    grp_series = self.df[cols[0]].astype(str) + " / " + self.df[cols[1]].astype(str)
+
+                valid_idx = series.index.intersection(grp_series.dropna().index)
+                if len(valid_idx) < 10:
+                    continue
+
+                vals = series.loc[valid_idx]
+                grps = grp_series.loc[valid_idx]
+
+                n_grps = grps.nunique()
+                if n_grps < 2 or n_grps > len(vals) // 2:
+                    continue
+
+                grand_mean = float(vals.mean())
+                ss_tot = float(((vals - grand_mean) ** 2).sum())
+                if ss_tot <= 0:
+                    continue
+
+                grouped = vals.groupby(grps)
+                counts = grouped.count()
+                if counts.mean() < 2.5:
+                    continue
+
+                ss_between = float((counts * (grouped.mean() - grand_mean) ** 2).sum())
+                eta_sq = ss_between / ss_tot
+
+                if eta_sq >= 0.10:
+                    # Give compound dimension slight preference if both category and subcategory are informative
+                    score = eta_sq + (0.05 if len(cols) > 1 else 0.0)
+                    if score > best_score:
+                        best_score = score
+                        best_label = label
+                        best_cols = cols
+            except Exception:
+                continue
+
+        return best_label, best_cols
+
+    def _evaluate_group_outliers(
+        self,
+        col: str,
+        series: pd.Series,
+        global_outliers: list[OutlierDetail],
+        grouping_dim_label: str,
+        grouping_cols: list[str],
+    ) -> tuple[int, int]:
+        """
+        LEVEL 2: Evaluate global outliers within peer groups.
+        Distinguishes:
+        - 'Globally unusual but normal for this product group'
+        - 'Unusual even within its peer group.'
+        Returns (subgroup_normal_count, within_group_outliers_count).
+        """
+        subgroup_normal_count = 0
+        within_group_outliers_count = 0
+
+        if len(grouping_cols) == 1:
+            grp_series = self.df[grouping_cols[0]].astype(str)
         else:
-            parts.append("likely a legitimate extreme value")
-        return "; ".join(parts)
+            grp_series = self.df[grouping_cols[0]].astype(str) + " / " + self.df[grouping_cols[1]].astype(str)
+
+        # Precompute group statistics
+        group_stats: dict[str, dict[str, float]] = {}
+        for g_name, group_data in series.groupby(grp_series):
+            vals = group_data.dropna()
+            n = len(vals)
+            if n < 3:
+                continue
+            q1 = float(vals.quantile(0.25))
+            q3 = float(vals.quantile(0.75))
+            iqr = q3 - q1
+            med = float(vals.median())
+            std = float(vals.std()) if n > 1 else 0.0
+            mean = float(vals.mean())
+
+            if iqr > 0:
+                lower_fence = q1 - 1.5 * iqr
+                upper_fence = q3 + 1.5 * iqr
+            elif std > 0:
+                lower_fence = mean - 2.5 * std
+                upper_fence = mean + 2.5 * std
+            else:
+                lower_fence = float(vals.min())
+                upper_fence = float(vals.max())
+
+            group_stats[str(g_name)] = {
+                "count": n,
+                "q1": round(q1, 2),
+                "q3": round(q3, 2),
+                "median": round(med, 2),
+                "iqr": round(iqr, 2),
+                "lower_fence": round(lower_fence, 2),
+                "upper_fence": round(upper_fence, 2),
+            }
+
+        # Evaluate each global outlier within its group
+        for od in global_outliers:
+            od.is_global_outlier = True
+            od.grouping_dimension = grouping_dim_label
+
+            if od.row_index in grp_series.index:
+                g_val = str(grp_series.loc[od.row_index])
+                od.group_name = g_val
+                g_stat = group_stats.get(g_val)
+
+                if g_stat:
+                    od.group_stats = g_stat
+                    val = od.value
+                    is_within = (val >= g_stat["lower_fence"] and val <= g_stat["upper_fence"])
+
+                    if is_within:
+                        od.is_group_outlier = False
+                        od.contextual_explanation = "Globally unusual but normal for this product group"
+                        subgroup_normal_count += 1
+                    else:
+                        od.is_group_outlier = True
+                        od.contextual_explanation = "Unusual even within its peer group."
+                        within_group_outliers_count += 1
+                else:
+                    od.is_group_outlier = True
+                    od.contextual_explanation = "Unusual even within its peer group."
+                    within_group_outliers_count += 1
+
+        return subgroup_normal_count, within_group_outliers_count
 
     def _recommend_treatment(
-        self, col: str, outliers: list[OutlierDetail], stats: dict
+        self,
+        col: str,
+        outliers: list[OutlierDetail],
+        stats: dict,
+        grouping_dimension: Optional[str] = None,
+        subgroup_normal_count: int = 0,
     ) -> tuple[ActionType, str]:
         """Recommend treatment based on outlier characteristics."""
         total = len(outliers)
-        likely_errors = sum(1 for o in outliers if o.is_likely_error)
-        error_ratio = likely_errors / total if total > 0 else 0
-
+        confirmed_invalids = sum(1 for o in outliers if o.classification == OutlierClassification.CONFIRMED_INVALID)
         has_business_violations = any(
             OutlierMethod.BUSINESS_RULE in o.detection_methods for o in outliers
         )
 
-        # Business rule violations → cap at boundary
-        if has_business_violations and error_ratio > 0.8:
+        # Business rule violations → cap at boundary or replace
+        if has_business_violations and confirmed_invalids > 0:
             return ActionType.REPLACE_BOUNDARY, (
-                "Most outliers violate business rules suggesting data entry errors. "
-                "Replacing with boundary values corrects implausible data."
+                f"{confirmed_invalids} value(s) violate business constraints / domain ranges. "
+                "Replacing with boundary values corrects invalid data."
             )
 
-        # High error ratio + few outliers → remove rows
-        if error_ratio > 0.7 and total < self.n_rows * 0.02:
-            return ActionType.REMOVE_OUTLIER_ROWS, (
-                f"Only {total} rows affected ({total / self.n_rows * 100:.1f}%) and most appear "
-                "to be errors. Removal has minimal impact on dataset size."
-            )
-
-        # Moderate outliers → winsorize
-        if error_ratio > 0.3:
-            return ActionType.WINSORIZE, (
-                "Mix of likely errors and extreme values. Winsorizing caps at 1st/99th "
-                "percentile — preserving the observation while limiting distortion."
+        # Distinct subgroup scale differences → DO NOT automatically winsorize or log transform
+        if subgroup_normal_count > 0:
+            dim_str = f" across '{grouping_dimension}'" if grouping_dimension else ""
+            return ActionType.FLAG_OUTLIER, (
+                f"Column '{col}' exhibits distinct subgroup scale behavior{dim_str}. "
+                f"{subgroup_normal_count} observation(s) are globally unusual but normal for their product group. "
+                "Do not automatically winsorize observations that are merely extreme because different groups have different scales. "
+                "Flagging or group-stratified modeling recommended to preserve subgroup distributions."
             )
 
         # Highly skewed data → log transform
         if stats.get("skewness", 0) > 2.0 and stats.get("min", 0) > 0:
             return ActionType.LOG_TRANSFORM, (
-                "Highly right-skewed distribution with all positive values. Log transform "
-                "compresses the range and reduces outlier leverage."
+                "Statistically unusual observation; manual review recommended. "
+                "Highly right-skewed distribution with all positive values: log transform "
+                "compresses the range and reduces outlier leverage without discarding data."
+            )
+
+        # Moderate outliers in heavy tail → winsorize
+        if total > self.n_rows * 0.05:
+            return ActionType.WINSORIZE, (
+                "Statistically unusual observation; manual review recommended. "
+                "Winsorizing caps at 1st/99th percentile, limiting extreme leverage "
+                "while preserving all observations."
             )
 
         # Default → flag and keep
         return ActionType.FLAG_OUTLIER, (
-            "Outliers appear to be legitimate extreme values. Flagging preserves them "
-            "while enabling downstream filtering."
+            "Statistically unusual observation; manual review recommended. "
+            "Flagging preserves records while enabling downstream filtering."
         )
 
     def _build_action(self, col: str, summary: ColumnOutlierSummary) -> CleaningAction:
@@ -552,23 +806,62 @@ class OutlierHandler:
                 row_data = {col: str(self.df.iloc[idx][col]) if col in self.df.columns else ""}
                 before_rows.append(row_data)
 
-        options = [
-            UserOption(key="flag", label="Flag and Keep (add _is_outlier column)", is_default=True),
-            UserOption(key="winsorize", label="Winsorize at 1st/99th percentile"),
-            UserOption(key="cap_iqr", label="Cap at IQR fence"),
-            UserOption(key="remove", label="Remove outlier rows"),
-            UserOption(key="log", label="Log transform column"),
-            UserOption(key="ignore", label="Leave unchanged"),
-        ]
+        if summary.subgroup_normal_count > 0:
+            options = [
+                UserOption(key="flag", label="Flag Outliers and Keep (preserve subgroup scales)", is_default=True),
+                UserOption(key="stratified_scale", label="Apply Group-Stratified Modeling / Scaling"),
+                UserOption(key="ignore", label="Leave unchanged"),
+                UserOption(key="winsorize", label="Winsorize globally (Not recommended: distorts subgroup scale)"),
+                UserOption(key="cap_iqr", label="Cap at IQR fence"),
+                UserOption(key="remove", label="Remove outlier rows"),
+            ]
+        else:
+            options = [
+                UserOption(key="flag", label="Flag and Keep (add _is_outlier column)", is_default=True),
+                UserOption(key="winsorize", label="Winsorize at 1st/99th percentile"),
+                UserOption(key="cap_iqr", label="Cap at IQR fence"),
+                UserOption(key="remove", label="Remove outlier rows"),
+                UserOption(key="log", label="Log transform column"),
+                UserOption(key="ignore", label="Leave unchanged"),
+            ]
+
+        if summary.likely_errors > 0:
+            evidence_str = (
+                f"Column '{col}': {summary.total_outliers} outliers detected ({summary.outlier_pct}%) "
+                f"using [{methods_str}], including {summary.likely_errors} confirmed invalid value(s) "
+                f"violating business constraints."
+            )
+            desc_str = (
+                f"{summary.total_outliers} outlier values in '{col}' "
+                f"({summary.likely_errors} confirmed invalid / data-entry error(s))."
+            )
+        elif summary.subgroup_normal_count > 0:
+            dim_str = f" across '{summary.grouping_dimension}'" if summary.grouping_dimension else ""
+            evidence_str = (
+                f"Column '{col}': {summary.total_outliers} global statistical outliers evaluated{dim_str}. "
+                f"{summary.subgroup_normal_count} observation(s) are globally unusual but normal for this product group; "
+                f"{summary.within_group_outliers_count} are unusual even within their peer group. "
+                "Statistically unusual observation; manual review recommended."
+            )
+            desc_str = (
+                f"{summary.total_outliers} global outliers in '{col}' ({summary.subgroup_normal_count} normal within product group). "
+                "Do not automatically winsorize observations that are merely extreme because different groups have different scales."
+            )
+        else:
+            evidence_str = (
+                f"Column '{col}': {summary.total_outliers} statistical outliers detected ({summary.outlier_pct}%) "
+                f"using [{methods_str}]. Statistically unusual observation; manual review recommended."
+            )
+            desc_str = (
+                f"{summary.total_outliers} statistical outliers in '{col}'. "
+                "Statistically unusual observation; manual review recommended."
+            )
 
         return CleaningAction(
             category=ActionCategory.OUTLIERS,
             action_type=summary.recommended_treatment,
             confidence=ActionConfidence.JUDGMENT_CALL,
-            evidence=(
-                f"Column '{col}': {summary.total_outliers} outliers detected ({summary.outlier_pct}%) "
-                f"using [{methods_str}]. {summary.likely_errors} appear to be data entry errors."
-            ),
+            evidence=evidence_str,
             recommendation=(
                 f"Apply {summary.recommended_treatment.value.replace('_', ' ')} to '{col}'."
             ),
@@ -584,15 +877,19 @@ class OutlierHandler:
                 rows_after=self.n_rows - (summary.total_outliers if summary.recommended_treatment == ActionType.REMOVE_OUTLIER_ROWS else 0),
                 rows_affected=summary.total_outliers,
                 rows_affected_pct=summary.outlier_pct,
-                description=(
-                    f"{summary.total_outliers} outlier values in '{col}' "
-                    f"({summary.likely_errors} likely errors)."
-                ),
+                description=desc_str,
             ),
             options=options,
             metadata={
                 "total_outliers": summary.total_outliers,
                 "likely_errors": summary.likely_errors,
+                "statistical_outliers": summary.statistical_outliers_count,
+                "contextual_outliers": summary.contextual_outliers_count,
+                "potential_quality_issues": summary.potential_quality_issues_count,
+                "confirmed_invalid": summary.confirmed_invalid_count,
+                "grouping_dimension": summary.grouping_dimension,
+                "subgroup_normal_count": summary.subgroup_normal_count,
+                "within_group_outliers_count": summary.within_group_outliers_count,
                 "methods": [m.value for m in summary.methods_used],
                 "stats": stats,
             },

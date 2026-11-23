@@ -1,0 +1,16 @@
+{
+  "pythonVersion": "3.11",
+  "include": ["."],
+  "exclude": ["venv", ".venv", "__pycache__", ".prism_cache", ".pytest_cache"],
+  "extraPaths": ["."],
+  "executionEnvironments": [
+    {
+      "root": ".",
+      "extraPaths": ["."]
+    }
+  ],
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "warning",
+  "reportMissingModuleSource": "none",
+  "reportAttributeAccessIssue": "warning"
+}

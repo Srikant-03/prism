@@ -58,6 +58,9 @@ class TargetDetector:
         'email', 'phone', 'address', 'city', 'state', 'zip', 'country',
         'description', 'comment', 'note', 'text', 'body',
         'file', 'image', 'photo', 'avatar',
+        # Temporal metadata columns — never prediction targets
+        'year', 'month', 'quarter', 'week', 'weekday', 'hour', 'day',
+        'hour_bucket', 'month_name',
     ]
 
     @staticmethod

@@ -130,12 +130,26 @@ class SemanticTypeDetector:
         if ip_match / sample_size > 0.7:
             return SemanticType.IP_ADDRESS, min(ip_match / sample_size, 0.99)
 
+        # ── Datetime (string-encoded) ──
+        date_hints = any(h in col_lower for h in [
+            "date", "time", "timestamp", "created", "updated", "modified",
+            "born", "dob", "start", "end", "expir", "year_month", "day",
+        ])
+        try:
+            parsed = pd.to_datetime(sample, format="mixed", errors="coerce")
+            dt_ratio = parsed.notna().sum() / sample_size
+            if dt_ratio > 0.7:
+                conf = dt_ratio * (0.95 if date_hints else 0.85)
+                return SemanticType.DATETIME, min(conf, 0.95)
+        except Exception:
+            pass
+
         # ── Phone ──
         phone_hints = any(h in col_lower for h in ["phone", "tel", "mobile", "cell", "fax"])
         phone_match = sample.str.match(PHONE_RE.pattern, na=False).sum()
         if phone_match / sample_size > 0.6 and phone_hints:
             return SemanticType.PHONE, min(phone_match / sample_size * 0.9, 0.95)
-        if phone_match / sample_size > 0.85:
+        if phone_match / sample_size > 0.85 and not date_hints:
             return SemanticType.PHONE, min(phone_match / sample_size * 0.8, 0.90)
 
         # ── Currency ──
@@ -180,19 +194,7 @@ class SemanticTypeDetector:
             if binary_match > 80:
                 return SemanticType.BINARY_ENCODED, 0.80
 
-        # ── Datetime (string-encoded) ──
-        try:
-            parsed = pd.to_datetime(sample, format="mixed", errors="coerce")
-            dt_ratio = parsed.notna().sum() / sample_size
-            if dt_ratio > 0.7:
-                date_hints = any(h in col_lower for h in [
-                    "date", "time", "timestamp", "created", "updated", "modified",
-                    "born", "dob", "start", "end", "expir",
-                ])
-                conf = dt_ratio * (0.95 if date_hints else 0.80)
-                return SemanticType.DATETIME, min(conf, 0.95)
-        except Exception:
-            pass
+
 
         # ── ID / Key ──
         distinct_ratio = non_null.nunique() / len(non_null) if len(non_null) > 0 else 0

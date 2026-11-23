@@ -19,7 +19,6 @@ router = APIRouter(prefix="/api/ml-readiness", tags=["ml-readiness"])
 async def get_ml_readiness(file_id: str):
     """Generate a comprehensive ML Readiness Report Card for a dataset."""
     from state import get_df, get_profile
-    from profiling.target_detector import TargetDetector
     from cleaning.imbalance_handler import ImbalanceHandler
 
     df = get_df(file_id)
@@ -30,24 +29,51 @@ async def get_ml_readiness(file_id: str):
     if profile is None:
         raise HTTPException(status_code=400, detail="Dataset must be profiled first")
 
-    cross_analysis = getattr(profile, "cross_column_analysis", None)
-    if not cross_analysis:
-        raise HTTPException(status_code=400, detail="Cross-column profiling data is missing")
+    # 1. Target Detection — read from the authoritative shared state.
+    # DO NOT re-run TargetDetector.analyze() here; that would produce an
+    # independent result that can diverge from what profiling detected.
+    from state import get_target_state
+    target_state = get_target_state(file_id)
 
-    # 1. Target Detection
-    detector = TargetDetector()
-    target_analysis = detector.analyze(df, profile, cross_analysis)
+    if target_state is None:
+        # Profiling hasn't run yet, or the persistence step failed.
+        # Fall back to running TargetDetector once and persisting the result.
+        from profiling.target_detector import TargetDetector as _TD
+        from state import set_target_state
+        stored_result = get_profile(file_id)
+        # get_profile returns the ProfilingResult object; DatasetProfile is .profile
+        dataset_profile = (
+            getattr(stored_result, 'profile', None)
+            or (stored_result.get('profile') if isinstance(stored_result, dict) else None)
+            or profile  # last resort: profile was already fetched above
+        )
+        cross_analysis_raw = getattr(dataset_profile, 'cross_analysis', None) or {}
+        from profiling.cross_column_models import CorrelationAnalysis
+        from profiling.correlation_analyzer import CorrelationAnalyzer
+        corr_obj = CorrelationAnalysis(
+            correlation_matrix=cross_analysis_raw.get('correlations', {}).get('correlation_matrix', {})
+            if isinstance(cross_analysis_raw, dict) else {},
+            strongest_pairs=[],
+            mutual_information={},
+        )
+        _detector = _TD()
+        _ta = _detector.analyze(df, dataset_profile, corr_obj)
+        set_target_state(file_id, _ta)
+        target_state = get_target_state(file_id)
 
-    if not target_analysis.is_target_detected:
+    if not target_state or not target_state.get('target_column'):
         return {
-            "status": "not_ready",
-            "score": 0,
-            "message": "No suitable target variable detected. Cannot assess ML readiness without a target.",
-            "target": None,
+            'status': 'not_ready',
+            'score': 0,
+            'message': 'No suitable target variable detected. Profile the dataset first.',
+            'target': None,
+            'is_heuristic': True,
         }
 
-    target = target_analysis.target_column
-    problem_type = target_analysis.problem_type
+    target = target_state['target_column']
+    problem_type = target_state.get('problem_type')
+    is_heuristic = target_state.get('is_heuristic', True)
+    confidence = target_state.get('confidence', 0.0)
     
     # 2. Imbalance & Class Distribution
     imbalance_data = {}
@@ -119,12 +145,21 @@ async def get_ml_readiness(file_id: str):
     else:
         ceiling = f"~{min(0.99, avg_predictive_power + 0.5):.0%} Accuracy"
 
+    candidate_note = (
+        f"No target was explicitly specified. '{target}' is a candidate target based on heuristic analysis."
+        if is_heuristic else None
+    )
+
     return {
         "status": "ready" if score >= 60 else "needs_cleaning",
         "score": score,
         "grade": grade,
         "problem_type": problem_type,
         "target_column": target,
+        "is_user_defined": not is_heuristic,
+        "is_heuristic": is_heuristic,
+        "confidence": confidence,
+        "candidate_note": candidate_note,
         "estimated_performance_ceiling": ceiling,
         "metrics": {
             "imbalance": imbalance_data,

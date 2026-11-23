@@ -1,28 +1,21 @@
-from google import genai
-import sys
-import os
-from dotenv import load_dotenv
+"""
+Tests for API key pool initialization and behavior.
+"""
+import pytest
+from llm.api_manager import APIKeyManager
 
-load_dotenv()
+def test_empty_api_key_pool():
+    km = APIKeyManager([])
+    assert km.are_all_keys_exhausted() is True
+    st = km.get_status()
+    assert st["total_keys"] == 0
+    assert st["all_exhausted"] is True
+    assert st["has_available_keys"] is False
 
-keys_str = os.getenv("GEMINI_API_KEYS", "")
-print(f"Loaded {len(keys_str.split(','))} keys from .env")
-
-keys = [k.strip() for k in keys_str.split(",") if k.strip()]
-
-print("Testing Keys...")
-working_keys = []
-for i, key in enumerate(keys):
-    try:
-        client = genai.Client(api_key=key.strip())
-        resp = client.models.generate_content(model="gemini-2.0-flash", contents="Say hello")
-        print(f"Key {i} (...{key[-4:]}) SUCCESS: {resp.text.strip()}")
-        working_keys.append(key)
-        break # One working key is enough to prove it!
-    except Exception as e:
-        print(f"Key {i} (...{key[-4:]}) FAILED: {type(e).__name__}")
-        
-if working_keys:
-    print(f"\nSUCCESS! Found a working API key: ...{working_keys[-1][-4:]}")
-else:
-    print("\nALL 38 KEYS FAILED (429 Quota Exceeded).")
+def test_api_key_pool_with_keys():
+    km = APIKeyManager(["key-1", "key-2"])
+    assert km.are_all_keys_exhausted() is False
+    st = km.get_status()
+    assert st["total_keys"] == 2
+    assert st["all_exhausted"] is False
+    assert st["has_available_keys"] is True

@@ -8,7 +8,7 @@ DashboardModel, WidgetModel, and request/response types.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional, Any
+from typing import Optional, Any, Literal
 from pydantic import BaseModel, Field
 import uuid as _uuid
 
@@ -36,6 +36,16 @@ class AggregationType(str, Enum):
     MIN = "min"
     MAX = "max"
     MEDIAN = "median"
+    NONE = "none"
+
+
+class TimeGrain(str, Enum):
+    """Temporal bucketing granularity for date/time x-axes."""
+    DAY = "day"
+    WEEK = "week"
+    MONTH = "month"
+    QUARTER = "quarter"
+    YEAR = "year"
     NONE = "none"
 
 
@@ -85,6 +95,13 @@ class ChartConfig(BaseModel):
 
     # Aggregation
     aggregation: AggregationType = AggregationType.SUM
+
+    # Temporal x-axis bucketing (e.g. 'month' → GROUP BY YYYY-MM)
+    x_axis_time_grain: Optional[TimeGrain] = Field(
+        None,
+        description="Temporal bucket for the x-axis: 'day', 'week', 'month', 'quarter', 'year'. "
+                    "When set, dates are truncated to this granularity before aggregation.",
+    )
 
     # Filters
     filters: list[FilterCondition] = Field(default_factory=list)

@@ -23,6 +23,8 @@ class CorrelationAnalysis(BaseModel):
     strongest_pairs: List[CorrelationPair] = Field(default_factory=list, description="Top strongest correlated pairs across all metrics")
     multicollinearity: MulticollinearityReport = Field(default_factory=lambda: MulticollinearityReport(has_multicollinearity=False, vif_scores={}, warnings=[]), description="Multicollinearity detection via VIF")
     mutual_information: Dict[str, Dict[str, float]] = Field(default_factory=dict, description="Pair-wise Mutual Information scores")
+    deterministic_formulas: List[Dict[str, Any]] = Field(default_factory=list, description="Detected deterministic formulas among numeric columns")
+
 
 # -------------------------------------------------------------------
 # Target Detection
@@ -52,11 +54,37 @@ class TimeSeriesComponent(BaseModel):
     residual: List[float] = Field(..., description="Residual component")
     timestamps: List[str] = Field(..., description="Time index (ISO format strings) matching component arrays")
 
+class EventTrendComponent(BaseModel):
+    feature: str = Field(..., description="Numeric column name")
+    timestamps: List[str] = Field(default_factory=list, description="Sorted event timestamp strings")
+    values: List[float] = Field(default_factory=list, description="Observed event values")
+    rolling_mean: List[float] = Field(default_factory=list, description="Rolling window trend values")
+    rolling_std: List[float] = Field(default_factory=list, description="Rolling window volatility")
+    aggregation_used: Optional[str] = Field(None, description="Aggregation method applied if aggregated (e.g. 'sum', 'mean')")
+    explanation: str = Field("", description="Explanation of the trend and data nature")
+
+class TemporalDiagnostic(BaseModel):
+    is_regular: bool = Field(False, description="Whether timestamps have a uniform regular frequency")
+    has_duplicates: bool = Field(False, description="Whether timestamps contain duplicate rows")
+    duplicate_count: int = Field(0, description="Count of duplicate timestamp occurrences")
+    total_records: int = Field(0, description="Total records evaluated")
+    unique_timestamps: int = Field(0, description="Count of unique dates/timestamps")
+    is_monotonically_sorted: bool = Field(False, description="Whether raw rows were in chronological order")
+    series_type: str = Field("event_transactions", description="'regular_time_series' | 'event_transactions'")
+    sampling_summary: str = Field("", description="Summary of sampling frequency, gaps, and irregularities")
+    decomposition_eligible: bool = Field(False, description="Whether data satisfies classical decomposition assumptions")
+    decomposition_ineligibility_reason: Optional[str] = Field(None, description="Reason if classical decomposition is skipped")
+    transformation_explanation: Optional[str] = Field(None, description="Explanation of transformation/aggregation used before analysis")
+
 class TemporalAnalysis(BaseModel):
     has_temporal_patterns: bool = Field(..., description="True if useful time-series patterns found")
     primary_time_col: Optional[str] = Field(None, description="The datetime column used for indexing")
     decompositions: Dict[str, TimeSeriesComponent] = Field(default_factory=dict, description="STL decompositions for top numeric columns")
     detected_periodicities: List[str] = Field(default_factory=list, description="e.g. 'Weekly dips on weekends', 'End of month spikes'")
+    diagnostic: Optional[TemporalDiagnostic] = Field(None, description="Diagnostic of timestamp regularity and transaction structure")
+    event_trends: Dict[str, EventTrendComponent] = Field(default_factory=dict, description="Event-level temporal trends for continuous features")
+    analysis_mode: str = Field("event_trend", description="'classical_decomposition' | 'event_trend'")
+    transformation_used: Optional[str] = Field(None, description="Human-readable description of data transformation applied")
 
 class GeoAnalysis(BaseModel):
     has_geo_patterns: bool = Field(..., description="True if useful geographic entities found")

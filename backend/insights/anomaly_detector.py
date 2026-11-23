@@ -1,6 +1,7 @@
 from typing import List
 from profiling.profiling_models import DatasetProfile
 from insights.insight_models import AnomalyWarning, AnomalySeverity
+from insights.relationship_classifier import RelationshipClassifier, RelationshipType
 
 class AnomalyDetector:
     """
@@ -67,12 +68,13 @@ class AnomalyDetector:
             if col.numeric:
                 outliers = col.numeric.box_outliers or []
                 if len(outliers) > (profile.total_rows * 0.05):
+                    pct = (len(outliers) / profile.total_rows) * 100 if profile.total_rows > 0 else 0
                     warnings.append(AnomalyWarning(
                         feature=col.name,
                         severity=AnomalySeverity.INFO,
                         category="Distribution",
-                        description=f"More than 5% of records are statistical outliers.",
-                        recommendation="Consider robust scaling or capping outliers before modeling."
+                        description=f"{pct:.1f}% of records are statistical outliers ({len(outliers)} observations). Statistically unusual observation; manual review recommended.",
+                        recommendation="Review extreme values against business domain context before applying robust scaling or winsorization."
                     ))
 
         # 5. Cross-Column Anomalies
@@ -90,18 +92,69 @@ class AnomalyDetector:
                     recommendation="Apply PCA or drop redundant columns (check Matrix for VIF scores)."
                 ))
             
-            # Perfect Correlations (Leakage)
+            # High Association Analysis (Classified via RelationshipClassifier)
+            target_col = target_analysis.get("target_column") if target_analysis else None
+            semantic_map = {col.name: getattr(col, "semantic_type", None) for col in profile.columns}
+
             for pair in correlations.get("strongest_pairs", []):
                 score = pair.get("score", 0.0)
                 col1 = pair.get("col1")
                 col2 = pair.get("col2")
                 if col1 is not None and col2 is not None and abs(score) >= 0.99 and col1 != col2:
+                    c1_s = semantic_map.get(col1)
+                    c2_s = semantic_map.get(col2)
+                    col1_semantic = c1_s.value if hasattr(c1_s, "value") else str(c1_s or "")
+                    col2_semantic = c2_s.value if hasattr(c2_s, "value") else str(c2_s or "")
+                    cls = RelationshipClassifier.classify_pair(
+                        col1=col1,
+                        col2=col2,
+                        col1_semantic=col1_semantic,
+                        col2_semantic=col2_semantic,
+                        target_column=target_col,
+                        score=score,
+                        metric=pair.get("metric"),
+                    )
+                    warn_feature = cls.col2 if getattr(cls, "type", None) == RelationshipType.FUNCTIONAL_DEPENDENCY else col1
                     warnings.append(AnomalyWarning(
-                        feature=col1,
+                        feature=warn_feature,
+                        severity=cls.severity,
+                        category=cls.category,
+                        description=cls.description,
+                        recommendation=cls.recommendation
+                    ))
+
+            # Deterministic Formula / Mathematical Dependency Analysis
+            det_formulas = correlations.get("deterministic_formulas", [])
+            for formula_dict in det_formulas:
+                dep = formula_dict.get("dependent")
+                operands = formula_dict.get("operands", [])
+                op1 = operands[0] if len(operands) > 0 else "feature_1"
+                op2 = operands[1] if len(operands) > 1 else "feature_2"
+                is_target_leakage = bool(target_col and dep == target_col)
+                if is_target_leakage:
+                    warnings.append(AnomalyWarning(
+                        feature=dep,
                         severity=AnomalySeverity.CRITICAL,
                         category="Data Leakage",
-                        description=f"Nearly perfect correlation (r={score:.2f}) with '{col2}'.",
-                        recommendation="One of these is likely a duplicate or directly derived from the other. Drop one."
+                        description=(
+                            f"`{dep}` is deterministically derived from `{op1}` and `{op2}`. "
+                            f"Using `{op1}` and `{op2}` to predict `{dep}` should be classified as direct target leakage."
+                        ),
+                        recommendation=(
+                            f"Do not use `{op1}` and `{op2}` together to predict `{dep}` as they deterministically "
+                            f"reconstruct the target. Drop one or both predictor features."
+                        )
+                    ))
+                else:
+                    warnings.append(AnomalyWarning(
+                        feature=dep,
+                        severity=AnomalySeverity.LOW,
+                        category="Deterministic Redundancy",
+                        description=f"`{dep}` is deterministically derived from `{op1}` and `{op2}`.",
+                        recommendation=(
+                            f"Keeping all three may introduce redundant information and multicollinearity. "
+                            f"Consider dropping `{dep}` (or one of its components) for linear models."
+                        )
                     ))
 
             # Target Imbalance

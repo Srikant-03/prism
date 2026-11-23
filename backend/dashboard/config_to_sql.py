@@ -15,6 +15,7 @@ from dashboard.chart_config_models import (
     ChartType,
     AggregationType,
     FilterCondition,
+    TimeGrain,
 )
 from sql.query_builder import QueryBuilder
 
@@ -32,6 +33,29 @@ def _agg_to_sql(agg: AggregationType) -> str:
         AggregationType.MEDIAN: "MEDIAN",
         AggregationType.NONE: "",
     }.get(agg, "")
+
+
+def _time_grain_sql_expr(col: str, grain: TimeGrain) -> tuple[str, str]:
+    """Return (SELECT expression, alias) for temporal bucketing in DuckDB.
+
+    Examples:
+        month  -> strftime(DATE_TRUNC('month', TRY_CAST("date" AS DATE)), '%Y-%m')
+        day    -> CAST(TRY_CAST("date" AS DATE) AS VARCHAR)
+        week   -> strftime(DATE_TRUNC('week', TRY_CAST("date" AS DATE)), '%Y-W%W')
+        quarter-> strftime(DATE_TRUNC('quarter', TRY_CAST("date" AS DATE)), '%Y') || '-Q' || QUARTER(TRY_CAST("date" AS DATE))
+        year   -> strftime(TRY_CAST("date" AS DATE), '%Y')
+    """
+    cast_expr = f'TRY_CAST("{col}" AS DATE)'
+    trunc_expr = f"DATE_TRUNC('{grain.value}', {cast_expr})"
+
+    fmt_map = {
+        TimeGrain.DAY:     f"CAST({cast_expr} AS VARCHAR)",
+        TimeGrain.WEEK:    f"strftime({trunc_expr}, '%Y-W%W')",
+        TimeGrain.MONTH:   f"strftime({trunc_expr}, '%Y-%m')",
+        TimeGrain.QUARTER: f"strftime({trunc_expr}, '%Y') || '-Q' || QUARTER({cast_expr})",
+        TimeGrain.YEAR:    f"strftime({cast_expr}, '%Y')",
+    }
+    return fmt_map.get(grain, f'"{col}"'), col
 
 
 def _filter_to_condition(f: FilterCondition) -> dict:
@@ -114,9 +138,15 @@ def config_to_sql(
     else:
         # X-axis (category/dimension)
         if config.x_axis:
-            columns.append({"column": config.x_axis})
-            if needs_aggregation:
-                group_by_cols.append(config.x_axis)
+            if config.x_axis_time_grain and config.x_axis_time_grain != TimeGrain.NONE:
+                grain_expr, alias = _time_grain_sql_expr(config.x_axis, config.x_axis_time_grain)
+                columns.append({"expression": grain_expr, "alias": config.x_axis})
+                if needs_aggregation:
+                    group_by_cols.append(grain_expr)
+            else:
+                columns.append({"column": config.x_axis})
+                if needs_aggregation:
+                    group_by_cols.append(config.x_axis)
 
         # Group-by (series/segment)
         if config.group_by:
@@ -163,10 +193,18 @@ def config_to_sql(
 
     # ── Sort ──
     if config.sort_by:
-        spec["order_by"] = [{"column": config.sort_by, "direction": config.sort_direction.value}]
+        if config.x_axis and config.sort_by == config.x_axis and config.x_axis_time_grain and config.x_axis_time_grain != TimeGrain.NONE:
+            grain_expr, _ = _time_grain_sql_expr(config.x_axis, config.x_axis_time_grain)
+            spec["order_by"] = [{"column": grain_expr, "direction": config.sort_direction.value, "is_expression": True}]
+        else:
+            spec["order_by"] = [{"column": config.sort_by, "direction": config.sort_direction.value}]
     elif config.x_axis and config.chart_type in (ChartType.LINE, ChartType.AREA):
         # Time-series charts should sort by x-axis
-        spec["order_by"] = [{"column": config.x_axis, "direction": "asc"}]
+        if config.x_axis_time_grain and config.x_axis_time_grain != TimeGrain.NONE:
+            grain_expr, _ = _time_grain_sql_expr(config.x_axis, config.x_axis_time_grain)
+            spec["order_by"] = [{"column": grain_expr, "direction": "asc", "is_expression": True}]
+        else:
+            spec["order_by"] = [{"column": config.x_axis, "direction": "asc"}]
 
     # ── Limit ──
     if config.limit:
@@ -206,7 +244,11 @@ def _fallback_sql(
             select_parts.append(f"{col_str} AS value")
     else:
         if config.x_axis:
-            select_parts.append(f'"{config.x_axis}"')
+            if config.x_axis_time_grain and config.x_axis_time_grain != TimeGrain.NONE:
+                grain_expr, alias = _time_grain_sql_expr(config.x_axis, config.x_axis_time_grain)
+                select_parts.append(f'{grain_expr} AS "{config.x_axis}"')
+            else:
+                select_parts.append(f'"{config.x_axis}"')
         if config.group_by:
             select_parts.append(f'"{config.group_by}"')
         if config.y_axis:
@@ -254,7 +296,11 @@ def _fallback_sql(
     # GROUP BY
     group_cols = []
     if config.x_axis and needs_agg:
-        group_cols.append(f'"{config.x_axis}"')
+        if config.x_axis_time_grain and config.x_axis_time_grain != TimeGrain.NONE:
+            grain_expr, _ = _time_grain_sql_expr(config.x_axis, config.x_axis_time_grain)
+            group_cols.append(grain_expr)
+        else:
+            group_cols.append(f'"{config.x_axis}"')
     if config.group_by and needs_agg:
         group_cols.append(f'"{config.group_by}"')
     if group_cols:
@@ -262,9 +308,17 @@ def _fallback_sql(
 
     # ORDER BY
     if config.sort_by:
-        parts.append(f'ORDER BY "{config.sort_by}" {config.sort_direction.value.upper()}')
+        if config.x_axis and config.sort_by == config.x_axis and config.x_axis_time_grain and config.x_axis_time_grain != TimeGrain.NONE:
+            grain_expr, _ = _time_grain_sql_expr(config.x_axis, config.x_axis_time_grain)
+            parts.append(f'ORDER BY {grain_expr} {config.sort_direction.value.upper()}')
+        else:
+            parts.append(f'ORDER BY "{config.sort_by}" {config.sort_direction.value.upper()}')
     elif config.x_axis and config.chart_type in (ChartType.LINE, ChartType.AREA):
-        parts.append(f'ORDER BY "{config.x_axis}" ASC')
+        if config.x_axis_time_grain and config.x_axis_time_grain != TimeGrain.NONE:
+            grain_expr, _ = _time_grain_sql_expr(config.x_axis, config.x_axis_time_grain)
+            parts.append(f'ORDER BY {grain_expr} ASC')
+        else:
+            parts.append(f'ORDER BY "{config.x_axis}" ASC')
 
     # LIMIT
     if config.limit:

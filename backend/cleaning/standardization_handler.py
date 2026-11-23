@@ -5,9 +5,11 @@ casing, whitespace, unicode, synonyms, units, precision, phone, email, URL, curr
 
 from __future__ import annotations
 
+import os
 import re
 import unicodedata
 from collections import Counter
+from pathlib import Path
 from typing import Any, Optional
 
 import numpy as np
@@ -28,12 +30,13 @@ _CURRENCY_COL_PATTERNS = re.compile(r"(?i)(price|cost|amount|fee|revenue|salary|
 class StandardizationHandler:
     """Data standardization and consistency engine."""
 
-    def __init__(self, df: pd.DataFrame, file_id: str, profile: Any = None):
+    def __init__(self, df: pd.DataFrame, file_id: str, profile: Any = None, raw_df: Optional[pd.DataFrame] = None):
         self.df = df
         self.file_id = file_id
         self.n_rows = len(df)
         self.n_cols = len(df.columns)
         self.profile = profile
+        self.raw_df = raw_df
 
     # ── Public entry ──────────────────────────────────────────────────
     def analyze(self) -> tuple[list[CleaningAction], dict]:
@@ -114,8 +117,10 @@ class StandardizationHandler:
         for col in num_cols:
             prec = self._check_precision(col)
             if prec:
-                report["precision_issues"].append(prec)
-                actions.append(self._build_precision_action(col, prec))
+                report.setdefault("precision_analysis", {})[col] = prec
+                if prec.get("has_meaningful_inconsistency"):
+                    report["precision_issues"].append(prec)
+                    actions.append(self._build_precision_action(col, prec))
 
         # 10. Unit inconsistency (numeric columns)
         for col in num_cols:
@@ -541,69 +546,211 @@ class StandardizationHandler:
         )
 
     # ── 9. Precision check ────────────────────────────────────────────
+    def _get_raw_column_strings(self, col: str) -> Optional[list[str]]:
+        """Retrieve raw textual representation for a column before numeric conversion."""
+        # 1. Check self.raw_df
+        if self.raw_df is not None and col in self.raw_df.columns:
+            return self.raw_df[col].dropna().astype(str).tolist()
+
+        # 2. Check profile raw table if present
+        if hasattr(self, "profile") and self.profile is not None:
+            raw_table = getattr(self.profile, "raw_table", None)
+            if isinstance(raw_table, pd.DataFrame) and col in raw_table.columns:
+                return raw_table[col].dropna().astype(str).tolist()
+
+        # 3. Check file_id or upload / workspace files
+        candidates: list[Path] = []
+        if self.file_id:
+            fid_path = Path(str(self.file_id))
+            if fid_path.is_file():
+                candidates.append(fid_path)
+            try:
+                from config import AppConfig
+                if hasattr(AppConfig, "UPLOAD_DIR") and AppConfig.UPLOAD_DIR.is_dir():
+                    candidates.extend(list(AppConfig.UPLOAD_DIR.glob(f"{self.file_id}*")))
+                    candidates.extend(list(AppConfig.UPLOAD_DIR.glob("*.csv")))
+            except Exception:
+                pass
+
+        # Check working directory for test / workspace CSVs
+        for p in [Path("dashboard_test_data.csv"), Path("c:/abbu/dashboard_test_data.csv")]:
+            if p.is_file() and p not in candidates:
+                candidates.append(p)
+
+        for path in candidates:
+            try:
+                sample_df = pd.read_csv(path, nrows=500, dtype=str, encoding_errors="ignore")
+                if col in sample_df.columns:
+                    if self.raw_df is None:
+                        self.raw_df = sample_df
+                    return sample_df[col].dropna().astype(str).tolist()
+            except Exception:
+                continue
+
+        return None
+
     def _check_precision(self, col: str) -> Optional[dict]:
         series = self.df[col].dropna()
         if not pd.api.types.is_float_dtype(series):
             return None
+        if series.empty:
+            return None
 
-        # Count decimal places
+        # 1. Try to get source text representations
+        raw_strings = self._get_raw_column_strings(col)
+
         decimals: Counter = Counter()
-        for val in series.head(200):
-            s = f"{val:.20f}".rstrip("0")
-            if "." in s:
-                dec = len(s.split(".")[1])
-            else:
-                dec = 0
-            decimals[dec] += 1
+        if raw_strings is not None and len(raw_strings) > 0:
+            for s in raw_strings[:500]:
+                clean_s = str(s).strip().lstrip("$€£¥₹₽₩").replace(",", "")
+                if not clean_s or clean_s.lower() in ("nan", "null", "none", "na", ""):
+                    continue
+                if "." in clean_s:
+                    # Strip exponential notation if present
+                    frac_part = clean_s.split(".")[1].split("e")[0].split("E")[0]
+                    dec = len(frac_part)
+                else:
+                    dec = 0
+                decimals[dec] += 1
+        else:
+            # Fallback to float conversion when source text is not available
+            # NEVER use f"{val:.20f}" which exposes IEEE 754 float representation noise!
+            for val in series.head(500):
+                try:
+                    fval = float(val)
+                except (ValueError, TypeError):
+                    continue
+                if np.isnan(fval) or np.isinf(fval):
+                    continue
+                if fval.is_integer():
+                    decimals[0] += 1
+                    continue
 
-        if len(decimals) <= 1:
+                # Eliminate binary float representation noise (e.g. 0.30000000000000004 -> 1)
+                found_dec = None
+                for d in range(0, 7):
+                    if np.isclose(fval, round(fval, d), atol=1e-7, rtol=1e-7):
+                        found_dec = d
+                        break
+                if found_dec is not None:
+                    decimals[found_dec] += 1
+                else:
+                    # Non-terminating or higher precision, cap at 6 to avoid IEEE float storage noise
+                    s = str(fval)
+                    if "." in s:
+                        dec = min(len(s.split(".")[1]), 6)
+                    else:
+                        dec = 0
+                    decimals[dec] += 1
+
+        if not decimals:
             return None
 
-        # Find most common precision
-        dominant = decimals.most_common(1)[0]
-        inconsistent = sum(v for k, v in decimals.items() if k != dominant[0])
-        if inconsistent < 3:
-            return None
+        # Dominant precision is the mode of decimal counts
+        dominant_prec, dominant_count = decimals.most_common(1)[0]
+
+        # Exceptional precisions (any precision different from dominant)
+        exceptional = {k: v for k, v in sorted(decimals.items()) if k != dominant_prec}
+        inconsistent_count = sum(exceptional.values())
+
+        # Excess precision: values with strictly MORE decimal places than dominant precision
+        # (values with fewer decimal places are standard omitted trailing zeros like 10.5 vs 10.50)
+        excess_count = sum(v for k, v in decimals.items() if k > dominant_prec)
+
+        # Only recommend rounding when there is meaningful excess precision
+        has_meaningful_inconsistency = bool(excess_count >= 3 and dominant_prec <= 6)
 
         return {
             "column": col,
-            "decimal_counts": dict(decimals),
-            "dominant_precision": dominant[0],
-            "inconsistent_count": inconsistent,
+            "decimal_counts": dict(sorted(decimals.items())),
+            "dominant_precision": dominant_prec,
+            "exceptional_precisions": exceptional,
+            "inconsistent_count": inconsistent_count,
+            "excess_precision_count": excess_count,
+            "has_meaningful_inconsistency": has_meaningful_inconsistency,
         }
 
     def _build_precision_action(self, col: str, info: dict) -> CleaningAction:
+        dominant_prec = min(int(info.get("dominant_precision", 2)), 6)
+        excess_cnt = info.get("excess_precision_count", info.get("inconsistent_count", 0))
         return CleaningAction(
             category=ActionCategory.DATA_STANDARDIZATION,
             action_type=ActionType.STANDARDIZE_PRECISION,
             confidence=ActionConfidence.JUDGMENT_CALL,
             evidence=(
-                f"Column '{col}': inconsistent float precision: {info['decimal_counts']}. "
-                f"Dominant precision: {info['dominant_precision']} decimal places."
+                f"Column '{col}' has {excess_cnt} values with excess decimal precision "
+                f"beyond the dominant {dominant_prec} decimal places. "
+                f"Distribution: {info.get('decimal_counts', {})}. "
+                f"Exceptional precisions: {info.get('exceptional_precisions', {})}."
             ),
-            recommendation=f"Round '{col}' to {info['dominant_precision']} decimal places.",
-            reasoning="Inconsistent precision can affect comparisons and aggregations.",
+            recommendation=f"Round '{col}' to {dominant_prec} decimal places.",
+            reasoning="Inconsistent excess precision can introduce calculation noise and affect comparisons.",
             target_columns=[col],
             impact=ImpactEstimate(
                 rows_before=self.n_rows, rows_after=self.n_rows,
-                description=f"Rounds {info['inconsistent_count']} values.",
+                description=f"Rounds {excess_cnt} values with excess precision to {dominant_prec} decimal places.",
             ),
             options=[
-                UserOption(key=str(info["dominant_precision"]), label=f"Round to {info['dominant_precision']} decimals", is_default=True),
-                UserOption(key="2", label="Round to 2 decimals"),
-                UserOption(key="4", label="Round to 4 decimals"),
+                UserOption(key=str(dominant_prec), label=f"Round to {dominant_prec} decimals", is_default=True),
+                UserOption(key="2", label="Round to 2 decimals", is_default=(dominant_prec == 2)),
+                UserOption(key="4", label="Round to 4 decimals", is_default=(dominant_prec == 4)),
                 UserOption(key="skip", label="Skip"),
             ],
             metadata=info,
         )
 
     # ── 10. Unit inconsistency ────────────────────────────────────────
+    def _is_semantically_ineligible_for_units(self, col: str, series: pd.Series) -> bool:
+        """
+        Check if a column is semantically ineligible for physical unit inconsistency.
+        Excludes satisfaction scores, ratings, percentages, rates, counts,
+        currency/monetary amounts, time durations, and identifiers.
+        """
+        col_lower = col.lower()
+
+        # If column name specifically contains physical measurement keywords, it is eligible
+        if re.search(r"(?i)(height|length|width|depth|distance|dimension|elevation|altitude|weight|mass|payload|temp|volume|fluid|capacity)", col_lower):
+            return False
+
+        # 1. Satisfaction scores / ratings / Likert scales
+        if re.search(r"(?i)(satisfaction|rating|score|csat|nps|grade|stars?|feedback|sentiment|eval)", col_lower):
+            return True
+        # Small bounded positive scales (e.g. 1-5 or 0-10) with typical score/scale names
+        if series.min() >= 0 and series.max() <= 10 and re.search(r"(?i)(level|index|scale)", col_lower):
+            return True
+
+        # 2. Percentages / rates / proportions / ratios
+        if re.search(r"(?i)(pct|percent|percentage|ratio|rate|margin|discount|return|churn|prob|probability|conversion|growth)", col_lower):
+            return True
+
+        # 3. Counts / quantities
+        if re.search(r"(?i)(count|quantity|qty|units?|num_|number_of|prospect|inventory|clicks|visits|impressions|downloads|leads|\bitems?\b|\borders?\b|salesperson)", col_lower):
+            return True
+
+        # 4. Currency / monetary / financial amounts
+        if re.search(r"(?i)(price|cost|amount|salary|income|revenue|profit|fee|budget|spend|aov|gpm|ebitda|tax|balance|val|value|gross|net|pnl)", col_lower):
+            return True
+
+        # 5. Time duration / temporal metadata
+        if re.search(r"(?i)(days?|hours?|hrs?|minutes?|mins?|seconds?|secs?|weeks?|months?|years?|duration|response_time|elapsed|tenure|latency|timestamp|epoch|weekday|quarter|hour_bucket)", col_lower):
+            return True
+
+        # 6. Identifiers / codes / rankings / coordinates
+        if re.search(r"(?i)(id|code|rank|index|zip|postal|lat|latitude|lon|longitude|row|session)", col_lower):
+            return True
+
+        return False
+
     def _check_unit_inconsistency(self, col: str) -> Optional[dict]:
         series = self.df[col].dropna()
         if len(series) < 20:
             return None
 
-        # Check for bimodal distribution suggesting mixed units
+        # Exclude non-physical measurement domains
+        if self._is_semantically_ineligible_for_units(col, series):
+            return None
+
+        # Check for bimodal/multimodal distribution
         try:
             from scipy.stats import gaussian_kde
             kde = gaussian_kde(series.values)
@@ -618,28 +765,48 @@ class StandardizationHandler:
             if len(peaks) < 2:
                 return None
 
-            # Check if peak ratio suggests unit conversion (common ratios)
-            common_ratios = {
-                2.2046: "kg/lbs", 0.4536: "lbs/kg",
-                2.54: "inches/cm", 0.3937: "cm/inches",
-                1.6093: "miles/km", 0.6214: "km/miles",
-                33.814: "liters/oz", 0.02957: "oz/liters",
-                1.8: "celsius/fahrenheit",
-            }
-
             ratio = peaks[0]["x"] / peaks[1]["x"] if peaks[1]["x"] != 0 else 0
             inv_ratio = peaks[1]["x"] / peaks[0]["x"] if peaks[0]["x"] != 0 else 0
             detected_unit = None
 
-            for r, label in common_ratios.items():
-                if 0.9 < ratio / r < 1.1 or 0.9 < inv_ratio / r < 1.1:
-                    detected_unit = label
-                    break
+            # Physical domain matching: Require BOTH semantic and statistical evidence
+            # 1. Weight / Mass
+            is_weight = bool(re.search(r"(?i)(weight|mass|payload|gross_weight|net_weight|cargo|load_weight)", col))
+            if is_weight:
+                if 0.95 < ratio / 2.2046 < 1.05 or 0.95 < inv_ratio / 2.2046 < 1.05:
+                    detected_unit = "kg/lbs"
+
+            # 2. Length / Distance / Dimension
+            is_length = bool(re.search(r"(?i)(height|length|width|depth|distance|dimension|elevation|altitude|thickness|diameter)", col))
+            if is_length:
+                if 0.95 < ratio / 2.54 < 1.05 or 0.95 < inv_ratio / 2.54 < 1.05:
+                    detected_unit = "inches/cm"
+                elif 0.95 < ratio / 3.2808 < 1.05 or 0.95 < inv_ratio / 3.2808 < 1.05:
+                    detected_unit = "meters/feet"
+                elif 0.95 < ratio / 1.6093 < 1.05 or 0.95 < inv_ratio / 1.6093 < 1.05:
+                    detected_unit = "miles/km"
+
+            # 3. Temperature (Affine conversion F = 1.8 * C + 32)
+            is_temp = bool(re.search(r"(?i)(temperature|temp|temp_c|temp_f)", col))
+            if is_temp:
+                p1 = min(peaks[0]["x"], peaks[1]["x"])
+                p2 = max(peaks[0]["x"], peaks[1]["x"])
+                expected_f = 1.8 * p1 + 32.0
+                if -50 < p1 < 60 and abs(p2 - expected_f) <= max(5.0, 0.15 * p2):
+                    detected_unit = "celsius/fahrenheit"
+
+            # 4. Volume / Fluid
+            is_volume = bool(re.search(r"(?i)(volume|liquid|fluid|capacity)", col))
+            if is_volume:
+                if 0.95 < ratio / 3.785 < 1.05 or 0.95 < inv_ratio / 3.785 < 1.05:
+                    detected_unit = "liters/gallons"
+                elif 0.95 < ratio / 33.814 < 1.05 or 0.95 < inv_ratio / 33.814 < 1.05:
+                    detected_unit = "liters/oz"
 
             return {
                 "column": col,
                 "n_peaks": len(peaks),
-                "peak_positions": [p["x"] for p in peaks[:3]],
+                "peak_positions": [round(p["x"], 2) for p in peaks[:3]],
                 "suspected_units": detected_unit,
                 "ratio": round(ratio, 4),
             }
@@ -648,26 +815,50 @@ class StandardizationHandler:
             return None
 
     def _build_unit_action(self, col: str, info: dict) -> CleaningAction:
-        unit_text = f" (suspected: {info['suspected_units']})" if info["suspected_units"] else ""
+        suspected = info.get("suspected_units")
+        if suspected:
+            evidence_str = (
+                f"Column '{col}': bimodal distribution matches {suspected} conversion "
+                f"(peaks at {info['peak_positions']})."
+            )
+            recommendation_str = f"Standardize measurement units in '{col}' to a single convention ({suspected})."
+            reasoning_str = (
+                f"Values in '{col}' exhibit two distinct modes consistent with {suspected} unit mixing. "
+                "Harmonizing units prevents scale distortion in downstream analytics."
+            )
+            options = [
+                UserOption(key="convert", label=f"Convert to standard unit ({suspected})", is_default=True),
+                UserOption(key="flag", label="Flag Rows for Review"),
+                UserOption(key="skip", label="Skip"),
+            ]
+        else:
+            evidence_str = (
+                f"Column '{col}': Multiple modes detected. Investigate whether this reflects subgroup structure or mixed measurement conventions. "
+                f"({info['n_peaks']} peaks at {info['peak_positions']})."
+            )
+            recommendation_str = f"Investigate distribution of '{col}' across subgroups or measurement conventions."
+            reasoning_str = (
+                "Multiple modes detected. Investigate whether this reflects subgroup structure or mixed measurement conventions."
+            )
+            options = [
+                UserOption(key="investigate", label="Investigate Subgroups / Segments", is_default=True),
+                UserOption(key="flag", label="Flag Rows for Review"),
+                UserOption(key="skip", label="Skip"),
+            ]
+
         return CleaningAction(
             category=ActionCategory.DATA_STANDARDIZATION,
             action_type=ActionType.FIX_UNIT_INCONSISTENCY,
             confidence=ActionConfidence.JUDGMENT_CALL,
-            evidence=(
-                f"Column '{col}': bimodal distribution with {info['n_peaks']} peaks "
-                f"at {info['peak_positions']}{unit_text}."
-            ),
-            recommendation=f"Investigate potential unit inconsistency in '{col}'.",
-            reasoning="Bimodal distribution in a numeric column may indicate mixed units.",
+            evidence=evidence_str,
+            recommendation=recommendation_str,
+            reasoning=reasoning_str,
             target_columns=[col],
             impact=ImpactEstimate(
                 rows_before=self.n_rows, rows_after=self.n_rows,
-                description="May require manual review of unit conversion.",
+                description="Review distribution for subgroup segmentation or unit conventions.",
             ),
-            options=[
-                UserOption(key="flag", label="Flag Rows for Review", is_default=True),
-                UserOption(key="skip", label="Skip"),
-            ],
+            options=options,
             metadata=info,
         )
 

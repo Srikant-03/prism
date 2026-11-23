@@ -22,6 +22,49 @@ _history = {}
 
 
 import re as _re
+from urllib.parse import urlparse
+import ipaddress
+import socket
+
+def _validate_origin_url(url: str):
+    """Validate origin URL to prevent SSRF and local file disclosure."""
+    parsed = urlparse(url.strip())
+    scheme = parsed.scheme.lower()
+    if scheme not in ("http", "https"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Disallowed origin_url scheme '{scheme}'. Only http and https are allowed.",
+        )
+
+    hostname = (parsed.hostname or "").lower()
+    if not hostname:
+        raise HTTPException(status_code=400, detail="Disallowed origin_url: missing hostname.")
+
+    if hostname in ("localhost", "metadata.google.internal") or hostname.endswith(".localhost"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Disallowed origin_url host '{hostname}'. Localhost and cloud metadata services are blocked.",
+        )
+
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if ip.is_loopback or ip.is_private or ip.is_link_local or ip.is_reserved or str(ip) == "169.254.169.254":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Disallowed origin_url IP '{hostname}': private, loopback, or metadata addresses blocked.",
+            )
+    except ValueError:
+        # Hostname is a domain name — check if it resolves to a loopback or metadata IP
+        try:
+            resolved_ip = socket.gethostbyname(hostname)
+            ip = ipaddress.ip_address(resolved_ip)
+            if ip.is_loopback or str(ip) == "169.254.169.254":
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Disallowed origin_url target '{hostname}' resolves to blocked IP '{resolved_ip}'.",
+                )
+        except (socket.gaierror, ValueError):
+            pass
 
 def _parse_cron_interval_seconds(cron_expr: str) -> int:
     """Very simple cron parser — returns interval in seconds. Handles '*/N * * * *' patterns."""
@@ -53,6 +96,8 @@ class MonitorRequest(BaseModel):
 @router.post("/schedule")
 async def schedule_monitor(request: MonitorRequest, background_tasks: BackgroundTasks):
     """Schedule a recurring freshness check for a dataset."""
+    _validate_origin_url(request.origin_url)
+
     from state import get_df
 
     baseline = get_df(request.file_id)

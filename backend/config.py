@@ -130,7 +130,9 @@ class AppConfig:
     PORT: int = int(os.getenv("PORT", 8000))
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     CORS_ORIGINS: list = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
-    API_KEY: str = os.getenv("DATA_INTEL_API_KEY", "dev-secret-key-123")
+    # Pre-shared authentication secret for backend API routing.
+    # In production, set DATA_INTEL_API_KEY to a secure random token in backend/.env.
+    API_KEY: str = os.getenv("DATA_INTEL_API_KEY", "change-me-to-a-secure-secret")
     RATE_LIMIT: str = os.getenv("RATE_LIMIT", "60/minute")            # General API rate limit
     RATE_LIMIT_UPLOAD: str = os.getenv("RATE_LIMIT_UPLOAD", "10/minute")  # Stricter limit for uploads
 

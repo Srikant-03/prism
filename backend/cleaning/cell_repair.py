@@ -116,12 +116,12 @@ def _detect_numeric_anomalies(series: pd.Series, col_name: str) -> list[dict]:
                 corrected = val / factor
                 if abs(corrected - mean) < 2 * std:
                     suggested = round(corrected, 2)
-                    reasoning = f"Value {val} appears to be a {factor}× entry error — likely should be {suggested}"
+                    reasoning = f"Value {val} is a candidate {factor}× unit scale mismatch — suggested value {suggested} (manual review recommended)"
                     break
 
         if not suggested:
             suggested = round(mean, 2)
-            reasoning = f"Value {val} is {z_scores[idx]:.1f} standard deviations from the mean ({mean:.2f})"
+            reasoning = f"Value {val} is {z_scores[idx]:.1f} standard deviations from mean ({mean:.2f}). Statistically unusual observation; manual review recommended."
 
         suggestions.append({
             "id": str(uuid.uuid4())[:8],

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 import hashlib
+import threading
 from typing import Any, Optional
 
 import duckdb
@@ -22,7 +23,15 @@ class SQLEngine:
     """
 
     def __init__(self):
-        self.conn = duckdb.connect(database=":memory:")
+        # Disable external access to prevent arbitrary file read via read_csv, etc.
+        # Set max_memory to 2GB to guard against unbounded memory exhaustion (SEC-04, REL-01).
+        self.conn = duckdb.connect(
+            database=":memory:",
+            config={
+                "enable_external_access": "false",
+                "max_memory": "2GB",
+            }
+        )
         self._tables: dict[str, dict[str, Any]] = {}  # name -> metadata
         self._query_cache: dict[str, dict] = {}       # SQL hash -> query result
 
@@ -97,8 +106,17 @@ class SQLEngine:
         """Get top distinct values for a column (for autocomplete)."""
         if table_name not in self._tables:
             return []
+            
+        # Strict validation: column_name must exist in the table's registered columns
+        valid_columns = {col["name"] for col in self._tables[table_name]["columns"]}
+        if column_name not in valid_columns:
+            return []
+            
+        safe_table = table_name.replace('"', '""')
+        safe_col = column_name.replace('"', '""')
+        
         try:
-            sql = f'SELECT DISTINCT "{column_name}" FROM "{table_name}" WHERE "{column_name}" IS NOT NULL ORDER BY "{column_name}" LIMIT {limit}'
+            sql = f'SELECT DISTINCT "{safe_col}" FROM "{safe_table}" WHERE "{safe_col}" IS NOT NULL ORDER BY "{safe_col}" LIMIT {limit}'
             result = self.conn.execute(sql).fetchall()
             return [row[0] for row in result]
         except Exception:
@@ -124,29 +142,37 @@ class SQLEngine:
 
     # ── Query execution ───────────────────────────────────────────────
 
-    def execute(self, sql: str, params: Optional[list] = None) -> dict:
+    def execute(self, sql: str, params: Optional[list] = None, timeout_seconds: float = 30.0) -> dict:
         """
         Execute a SQL query and return results.
         Only SELECT statements and CREATE VIEW are allowed.
         """
-        stripped = sql.strip().upper()
-        forbidden = ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "TRUNCATE", "GRANT", "REVOKE"]
-        first_word = stripped.split()[0] if stripped else ""
-
-        # Allow CREATE VIEW but block other CREATE statements
-        if first_word == "CREATE" and "VIEW" not in stripped.split()[:3]:
+        # Remove all string literals and quoted identifiers to safely check keywords
+        clean_sql = re.sub(r"'(?:''|[^'])*'", "", sql)
+        clean_sql = re.sub(r'"(?:""|[^"])*"', "", clean_sql)
+        clean_sql = clean_sql.upper()
+        
+        forbidden_keywords = {"INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "TRUNCATE", 
+                              "GRANT", "REVOKE", "PRAGMA", "COPY", "ATTACH", "DETACH", "CALL"}
+        
+        words = re.findall(r'[A-Z]+', clean_sql)
+        if any(w in forbidden_keywords for w in words):
             return {
                 "success": False,
-                "error": "Only CREATE VIEW is allowed.",
+                "error": "Write operations and restricted commands are not allowed.",
                 "columns": [], "rows": [], "row_count": 0,
             }
-        if first_word in forbidden:
-            return {
-                "success": False,
-                "error": f"Write operations are not allowed. Got: {first_word}",
-                "columns": [], "rows": [], "row_count": 0,
-            }
+        
+        if "CREATE" in words:
+            if not re.search(r'\bCREATE\s+(?:OR\s+REPLACE\s+)?VIEW\b', clean_sql):
+                return {
+                    "success": False,
+                    "error": "Only CREATE VIEW is allowed.",
+                    "columns": [], "rows": [], "row_count": 0,
+                }
 
+        timer = threading.Timer(timeout_seconds, self.conn.interrupt)
+        timer.start()
         try:
             import time
             start = time.time()
@@ -184,13 +210,22 @@ class SQLEngine:
                 "sql": sql,
             }
 
-        except Exception as e:
+        except (duckdb.InterruptException, Exception) as e:
+            if isinstance(e, duckdb.InterruptException) or "interrupted" in str(e).lower():
+                return {
+                    "success": False,
+                    "error": f"Query execution timed out after {timeout_seconds}s.",
+                    "columns": [], "rows": [], "row_count": 0,
+                    "sql": sql,
+                }
             return {
                 "success": False,
                 "error": str(e),
                 "columns": [], "rows": [], "row_count": 0,
                 "sql": sql,
             }
+        finally:
+            timer.cancel()
 
     # ── Explain Plan ──────────────────────────────────────────────────
 
@@ -241,7 +276,7 @@ class SQLEngine:
         """List all user-created views."""
         try:
             result = self.conn.execute(
-                "SELECT view_name FROM information_schema.tables WHERE table_type = 'VIEW'"
+                "SELECT table_name FROM information_schema.tables WHERE table_type = 'VIEW'"
             ).fetchall()
             return [r[0] for r in result]
         except Exception:

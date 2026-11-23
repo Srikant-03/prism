@@ -68,13 +68,24 @@ class BriefingGenerator:
             if len(rankings) > 1:
                 findings.append(f"Second strongest driver is '{rankings[1].feature}'.")
         
-        critical_anomalies = [a for a in anomalies if a.severity == AnomalySeverity.CRITICAL]
+        critical_anomalies = [
+            a for a in anomalies 
+            if a.severity == AnomalySeverity.CRITICAL
+            and a.category not in ("Feature Redundancy", "Deterministic Redundancy", "Functional Dependency", "Redundant Feature", "Strong Association")
+        ]
         if critical_anomalies:
             findings.append(f"CRITICAL RISK: {critical_anomalies[0].description} ({critical_anomalies[0].feature})")
             
         high_anomalies = [a for a in anomalies if a.severity == getattr(AnomalySeverity, 'HIGH', 'High')]
         if high_anomalies:
             findings.append(f"High Severity Warning: {high_anomalies[0].description} ({high_anomalies[0].feature})")
+
+        redundancy_anomalies = [
+            a for a in anomalies
+            if a.category in ("Deterministic Redundancy", "Functional Dependency", "Feature Redundancy")
+        ]
+        if redundancy_anomalies:
+            findings.append(f"Feature Redundancy: {redundancy_anomalies[0].description}")
 
         if not findings:
             findings.append("No critical statistical deviations detected.")
@@ -121,7 +132,7 @@ class BriefingGenerator:
             elif col.numeric:
                 layman = f"This is numerical data. On average, the value is around {col.numeric.mean:.2f}. "
                 if col.numeric.std_dev and col.numeric.std_dev > abs(col.numeric.mean):
-                    layman += "The values vary wildly, meaning you have some extremely high or low outliers."
+                    layman += "The values exhibit high variance with statistically unusual observations in the distribution tails (manual review recommended)."
                 else:
                     layman += "Most of the numbers are clustered reliably around the average."
             elif col.categorical:

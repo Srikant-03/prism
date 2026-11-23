@@ -1,0 +1,144 @@
+date,month_name,quarter,year,category,subcategory,region,country,channel,salesperson,revenue,cost,profit,units_sold,avg_order_value,customer_satisfaction,response_time_days,discount_pct,return_rate,funnel_stage,prospect_count,weekday,hour_bucket
+2023-01-10,January,Q1,2023,Electronics,Smartphones,North,USA,Online,Alice,35185.13,20778.6,14406.53,10,3518.51,3.6,2.0,,9.1,Awareness,128,Monday,00-06
+2023-01-11,January,Q1,2023,Clothing,Formal Wear,South,Mexico,Offline,Carol,4666.69,2236.96,2429.73,140,33.33,3.8,0.7,5.5,6.6,Interest,794,Tuesday,06-09
+2023-01-12,January,Q1,2023,Food,Fresh Produce,East,Canada,Partner,Eve,1572.01,638.23,933.78,314,5.01,4.1,1.9,14.7,9.9,Consideration,1008,Wednesday,09-12
+2023-01-13,January,Q1,2023,Sports,Water Sports,West,UK,Online,Bob,6404.91,3919.09,2485.82,64,100.08,3.7,1.5,23.9,4.7,Intent,107,Thursday,12-15
+2023-01-14,January,Q1,2023,Home & Garden,Bedding,North,USA,Offline,Dave,6114.42,3163.45,2950.97,30,203.81,4.2,5.7,18.2,6.9,Purchase,35,Friday,15-18
+2023-02-15,February,Q1,2023,Electronics,Smartphones,South,Mexico,Partner,Alice,34131.1,21271.41,12859.69,10,3413.11,4.7,4.5,21.5,7.4,Awareness,129,Saturday,18-21
+2023-02-16,February,Q1,2023,Clothing,Formal Wear,East,Canada,Online,Carol,3900.41,1897.14,2003.27,117,33.34,3.6,1.0,5.8,2.1,Interest,746,Sunday,21-24
+2023-02-17,February,Q1,2023,Food,Fresh Produce,West,UK,Offline,Eve,1819.7,718.04,1101.66,363,5.01,3.7,1.9,,3.9,Consideration,1705,Monday,00-06
+2023-02-18,February,Q1,2023,Sports,Water Sports,North,USA,Partner,Bob,6387.97,3874.61,2513.36,63,101.4,3.3,5.2,4.1,5.2,Intent,150,Tuesday,06-09
+2023-02-19,February,Q1,2023,Home & Garden,Bedding,South,Mexico,Online,Dave,7286.4,3663.95,3622.45,36,202.4,4.4,6.0,19.4,3.5,Purchase,29,Wednesday,09-12
+2023-03-20,March,Q1,2023,Electronics,Smartphones,East,Canada,Offline,Alice,35102.17,21257.87,13844.3,10,3510.22,3.4,6.6,21.9,4.5,Awareness,127,Thursday,12-15
+2023-03-21,March,Q1,2023,Clothing,Formal Wear,West,UK,Partner,Carol,4479.98,2332.85,2147.13,134,33.43,3.9,2.2,6.2,7.2,Interest,848,Friday,15-18
+2023-03-22,March,Q1,2023,Food,Fresh Produce,North,USA,Online,Eve,1878.91,781.46,1097.45,375,5.01,3.8,1.9,24.9,6.6,Consideration,1254,Saturday,18-21
+2023-03-23,March,Q1,2023,Sports,Water Sports,South,Mexico,Offline,Bob,5710.86,3292.76,2418.1,57,100.19,4.3,5.6,10.6,1.7,Intent,108,Sunday,21-24
+2023-03-24,March,Q1,2023,Home & Garden,Bedding,East,Canada,Partner,Dave,8272.86,4148.47,4124.39,41,201.78,4.9,6.1,,1.1,Purchase,44,Monday,00-06
+2023-04-25,April,Q2,2023,Electronics,Smartphones,West,UK,Online,Alice,39726.25,24721.33,15004.92,11,3611.48,3.5,4.7,2.8,5.8,Awareness,129,Tuesday,06-09
+2023-04-26,April,Q2,2023,Clothing,Formal Wear,North,USA,Offline,Carol,5288.91,2743.85,2545.06,158,33.47,3.5,3.8,4.5,11.0,Interest,1269,Wednesday,09-12
+2023-04-27,April,Q2,2023,Food,Fresh Produce,South,Mexico,Partner,Eve,1804.26,731.73,1072.53,360,5.01,4.2,1.5,19.1,6.9,Consideration,1600,Thursday,12-15
+2023-04-28,April,Q2,2023,Sports,Water Sports,East,Canada,Online,Bob,6700.46,3819.49,2880.97,67,100.01,3.6,0.6,23.2,10.7,Intent,151,Friday,15-18
+2023-04-29,April,Q2,2023,Home & Garden,Bedding,West,UK,Offline,Dave,7234.28,3457.24,3777.04,36,200.95,4.8,6.7,2.1,6.3,Purchase,29,Saturday,18-21
+2023-05-10,May,Q2,2023,Electronics,Smartphones,North,USA,Partner,Alice,42606.02,27117.95,15488.07,12,3550.5,3.3,3.6,13.7,3.9,Awareness,165,Sunday,21-24
+2023-05-11,May,Q2,2023,Clothing,Formal Wear,South,Mexico,Online,Carol,4903.92,2381.29,2522.63,147,33.36,4.1,5.2,,3.2,Interest,951,Monday,00-06
+2023-05-12,May,Q2,2023,Food,Fresh Produce,East,Canada,Offline,Eve,2247.57,912.5,1335.07,449,5.01,3.9,3.9,3.0,3.5,Consideration,1679,Tuesday,06-09
+2023-05-13,May,Q2,2023,Sports,Water Sports,West,UK,Partner,Bob,7154.54,4176.87,2977.67,71,100.77,3.4,1.0,15.8,3.5,Intent,165,Wednesday,09-12
+2023-05-14,May,Q2,2023,Home & Garden,Bedding,North,USA,Online,Dave,8719.27,4172.54,4546.73,43,202.77,3.5,4.8,5.4,2.5,Purchase,50,Thursday,12-15
+2023-06-15,June,Q2,2023,Electronics,Smartphones,South,Mexico,Offline,Alice,41524.64,25674.92,15849.72,12,3460.39,4.6,5.7,4.8,2.1,Awareness,140,Friday,15-18
+2023-06-16,June,Q2,2023,Clothing,Formal Wear,East,Canada,Partner,Carol,5002.56,2493.03,2509.53,150,33.35,4.5,4.9,24.6,2.1,Interest,1009,Saturday,18-21
+2023-06-17,June,Q2,2023,Food,Fresh Produce,West,UK,Online,Eve,1958.04,811.54,1146.5,391,5.01,3.5,1.7,11.2,5.6,Consideration,1425,Sunday,21-24
+2023-06-18,June,Q2,2023,Sports,Water Sports,North,USA,Offline,Bob,6693.4,4186.03,2507.37,66,101.42,3.9,6.1,,7.1,Intent,108,Monday,00-06
+2023-06-19,June,Q2,2023,Home & Garden,Bedding,South,Mexico,Partner,Dave,9178.54,4743.48,4435.06,45,203.97,4.9,6.5,21.2,2.8,Purchase,44,Tuesday,06-09
+2023-07-20,July,Q3,2023,Electronics,Smartphones,East,Canada,Online,Alice,38994.35,23937.25,15057.1,11,3544.94,3.1,3.0,24.6,3.9,Awareness,146,Wednesday,09-12
+2023-07-21,July,Q3,2023,Clothing,Formal Wear,West,UK,Offline,Carol,5190.95,2575.49,2615.46,155,33.49,4.9,7.0,13.9,8.9,Interest,935,Thursday,12-15
+2023-07-22,July,Q3,2023,Food,Fresh Produce,North,USA,Partner,Eve,1993.27,834.68,1158.59,398,5.01,4.2,4.0,18.7,1.6,Consideration,1645,Friday,15-18
+2023-07-23,July,Q3,2023,Sports,Water Sports,South,Mexico,Online,Bob,7355.24,4568.8,2786.44,73,100.76,3.3,6.7,2.0,3.0,Intent,151,Saturday,18-21
+2023-07-24,July,Q3,2023,Home & Garden,Bedding,East,Canada,Offline,Dave,8767.95,4267.89,4500.06,43,203.91,3.2,6.3,6.2,7.5,Purchase,45,Sunday,21-24
+2023-08-25,August,Q3,2023,Electronics,Smartphones,West,UK,Partner,Alice,42327.63,26462.71,15864.92,12,3527.3,4.0,6.6,,3.2,Awareness,156,Monday,00-06
+2023-08-26,August,Q3,2023,Clothing,Formal Wear,North,USA,Online,Carol,5047.23,2497.32,2549.91,151,33.43,4.3,2.4,7.9,9.3,Interest,876,Tuesday,06-09
+2023-08-27,August,Q3,2023,Food,Fresh Produce,South,Mexico,Offline,Eve,2137.47,897.61,1239.86,427,5.01,5.0,1.0,5.3,3.9,Consideration,2004,Wednesday,09-12
+2023-08-28,August,Q3,2023,Sports,Water Sports,East,Canada,Partner,Bob,8279.83,5156.32,3123.51,82,100.97,3.7,1.5,20.8,8.7,Intent,171,Thursday,12-15
+2023-08-29,August,Q3,2023,Home & Garden,Bedding,West,UK,Online,Dave,9692.42,4920.83,4771.59,48,201.93,3.0,5.8,7.5,8.3,Purchase,56,Friday,15-18
+2023-09-10,September,Q3,2023,Electronics,Smartphones,North,USA,Offline,Alice,36342.91,21666.06,14676.85,10,3634.29,3.2,4.1,6.8,7.7,Awareness,130,Saturday,18-21
+2023-09-11,September,Q3,2023,Clothing,Formal Wear,South,Mexico,Partner,Carol,4629.5,2345.82,2283.68,138,33.55,3.5,3.7,22.6,10.3,Interest,808,Sunday,21-24
+2023-09-12,September,Q3,2023,Food,Fresh Produce,East,Canada,Online,Eve,1961.79,767.19,1194.6,392,5.0,3.0,5.5,,8.0,Consideration,1418,Monday,00-06
+2023-09-13,September,Q3,2023,Sports,Water Sports,West,UK,Offline,Bob,7422.15,4476.3,2945.85,74,100.3,3.9,0.6,1.9,10.7,Intent,171,Tuesday,06-09
+2023-09-14,September,Q3,2023,Home & Garden,Bedding,North,USA,Partner,Dave,8091.18,4180.95,3910.23,40,202.28,4.2,1.5,3.2,4.4,Purchase,46,Wednesday,09-12
+2023-10-15,October,Q4,2023,Electronics,Smartphones,South,Mexico,Online,Alice,45109.28,28976.56,16132.72,13,3469.94,4.8,1.9,6.2,2.1,Awareness,173,Thursday,12-15
+2023-10-16,October,Q4,2023,Clothing,Formal Wear,East,Canada,Offline,Carol,5754.18,2850.15,2904.03,172,33.45,4.2,1.5,23.2,10.5,Interest,1433,Friday,15-18
+2023-10-17,October,Q4,2023,Food,Fresh Produce,West,UK,Partner,Eve,2263.16,939.79,1323.37,452,5.01,3.0,5.3,8.3,11.2,Consideration,2026,Saturday,18-21
+2023-10-18,October,Q4,2023,Sports,Water Sports,North,USA,Online,Bob,8018.97,4960.9,3058.07,80,100.24,3.5,5.6,2.7,10.6,Intent,182,Sunday,21-24
+2023-10-19,October,Q4,2023,Home & Garden,Bedding,South,Mexico,Offline,Dave,7817.11,4032.29,3784.82,39,200.44,3.9,2.5,,9.7,Purchase,34,Monday,00-06
+2023-11-20,November,Q4,2023,Electronics,Smartphones,East,Canada,Partner,Alice,45807.64,27529.2,18278.44,13,3523.66,3.7,6.1,24.2,4.1,Awareness,164,Tuesday,06-09
+2023-11-21,November,Q4,2023,Clothing,Formal Wear,West,UK,Online,Carol,6336.98,3320.94,3016.04,190,33.35,4.1,6.6,2.9,11.7,Interest,1158,Wednesday,09-12
+2023-11-22,November,Q4,2023,Food,Fresh Produce,North,USA,Offline,Eve,2900.65,1133.05,1767.6,580,5.0,3.2,3.3,18.2,4.5,Consideration,2418,Thursday,12-15
+2023-11-23,November,Q4,2023,Sports,Water Sports,South,Mexico,Partner,Bob,9125.99,5412.73,3713.26,91,100.29,4.2,2.2,17.7,1.0,Intent,212,Friday,15-18
+2023-11-24,November,Q4,2023,Home & Garden,Bedding,East,Canada,Online,Dave,10499.98,5365.19,5134.79,52,201.92,4.5,4.9,9.1,1.8,Purchase,55,Saturday,18-21
+2023-12-25,December,Q4,2023,Electronics,Smartphones,West,UK,Offline,Alice,55537.9,33792.74,21745.16,16,3471.12,4.7,5.2,7.5,4.4,Awareness,184,Sunday,21-24
+2023-12-26,December,Q4,2023,Clothing,Formal Wear,North,USA,Partner,Carol,7073.1,3464.28,3608.82,212,33.36,3.3,3.2,,11.3,Interest,1589,Monday,00-06
+2023-12-27,December,Q4,2023,Food,Fresh Produce,South,Mexico,Online,Eve,3192.03,1291.56,1900.47,638,5.0,3.6,4.1,0.0,4.2,Consideration,2480,Tuesday,06-09
+2023-12-28,December,Q4,2023,Sports,Water Sports,East,Canada,Offline,Bob,10352.96,6307.88,4045.08,103,100.51,3.9,3.4,5.3,6.2,Intent,239,Wednesday,09-12
+2023-12-29,December,Q4,2023,Home & Garden,Bedding,West,UK,Partner,Dave,12458.47,6023.48,6434.99,62,200.94,3.2,3.9,15.8,4.7,Purchase,69,Thursday,12-15
+2024-01-10,January,Q1,2024,Electronics,Smartphones,North,USA,Online,Alice,42638.92,26892.94,15745.98,12,3553.24,3.4,1.8,0.6,3.7,Awareness,142,Friday,15-18
+2024-01-11,January,Q1,2024,Clothing,Formal Wear,South,Mexico,Offline,Carol,5453.48,2610.26,2843.22,163,33.46,3.8,4.6,4.9,8.7,Interest,1138,Saturday,18-21
+2024-01-12,January,Q1,2024,Food,Fresh Produce,East,Canada,Partner,Eve,1877.61,762.76,1114.85,375,5.01,3.0,5.4,19.3,2.2,Consideration,1455,Sunday,21-24
+2024-01-13,January,Q1,2024,Sports,Water Sports,West,UK,Online,Bob,6452.1,4048.55,2403.55,64,100.81,4.0,0.8,,3.7,Intent,145,Monday,00-06
+2024-01-14,January,Q1,2024,Home & Garden,Bedding,North,USA,Offline,Dave,7936.66,4087.94,3848.72,39,203.5,4.3,6.9,14.9,11.5,Purchase,45,Tuesday,06-09
+2024-02-15,February,Q1,2024,Electronics,Smartphones,South,Mexico,Partner,Alice,42705.78,27058.17,15647.61,12,3558.82,4.0,5.9,13.7,10.9,Awareness,158,Wednesday,09-12
+2024-02-16,February,Q1,2024,Clothing,Formal Wear,East,Canada,Online,Carol,5159.13,2517.45,2641.68,154,33.5,3.5,4.6,19.1,6.7,Interest,1132,Thursday,12-15
+2024-02-17,February,Q1,2024,Food,Fresh Produce,West,UK,Offline,Eve,1959.77,750.79,1208.98,391,5.01,3.6,2.3,8.0,6.9,Consideration,1337,Friday,15-18
+2024-02-18,February,Q1,2024,Sports,Water Sports,North,USA,Partner,Bob,6780.45,4147.17,2633.28,67,101.2,4.4,0.9,10.2,7.0,Intent,129,Saturday,18-21
+2024-02-19,February,Q1,2024,Home & Garden,Bedding,South,Mexico,Online,Dave,7698.35,3818.44,3879.91,38,202.59,4.8,4.3,17.4,10.4,Purchase,42,Sunday,21-24
+2024-03-20,March,Q1,2024,Electronics,Smartphones,East,Canada,Offline,Alice,42125.42,24827.27,17298.15,12,3510.45,3.7,5.4,,10.4,Awareness,170,Monday,00-06
+2024-03-21,March,Q1,2024,Clothing,Formal Wear,West,UK,Partner,Carol,5318.11,2724.87,2593.24,159,33.45,4.1,4.4,5.5,3.4,Interest,1084,Tuesday,06-09
+2024-03-22,March,Q1,2024,Food,Fresh Produce,North,USA,Online,Eve,1915.55,753.66,1161.89,383,5.0,4.4,3.1,4.1,6.1,Consideration,1303,Wednesday,09-12
+2024-03-23,March,Q1,2024,Sports,Water Sports,South,Mexico,Offline,Bob,7831.46,4476.6,3354.86,78,100.4,3.8,4.2,0.7,8.1,Intent,133,Thursday,12-15
+2024-03-24,March,Q1,2024,Home & Garden,Bedding,East,Canada,Partner,Dave,8601.64,4107.41,4494.23,43,200.04,3.8,1.9,8.2,9.4,Purchase,40,Friday,15-18
+2024-04-25,April,Q2,2024,Electronics,Smartphones,West,UK,Online,Alice,47665.03,30533.23,17131.8,14,3404.64,3.5,1.0,0.5,6.9,Awareness,201,Saturday,18-21
+2024-04-26,April,Q2,2024,Clothing,Formal Wear,North,USA,Offline,Carol,5394.76,2737.88,2656.88,161,33.51,4.6,4.7,18.9,11.4,Interest,991,Sunday,21-24
+2024-04-27,April,Q2,2024,Food,Fresh Produce,South,Mexico,Partner,Eve,1973.17,761.83,1211.34,394,5.01,3.3,4.9,,7.2,Consideration,1398,Monday,00-06
+2024-04-28,April,Q2,2024,Sports,Water Sports,East,Canada,Online,Bob,8238.3,5074.91,3163.39,82,100.47,3.3,4.4,18.7,2.3,Intent,184,Tuesday,06-09
+2024-04-29,April,Q2,2024,Home & Garden,Bedding,West,UK,Offline,Dave,10009.9,4808.81,5201.09,50,200.2,3.1,2.5,16.9,11.5,Purchase,47,Wednesday,09-12
+2024-05-10,May,Q2,2024,Electronics,Smartphones,North,USA,Partner,Alice,49737.17,29529.54,20207.63,14,3552.65,4.4,4.6,2.5,9.5,Awareness,191,Thursday,12-15
+2024-05-11,May,Q2,2024,Clothing,Formal Wear,South,Mexico,Online,Carol,6048.11,2909.46,3138.65,181,33.41,5.0,5.6,8.7,5.7,Interest,1201,Friday,15-18
+2024-05-12,May,Q2,2024,Food,Fresh Produce,East,Canada,Offline,Eve,2363.52,930.4,1433.12,472,5.01,4.7,5.8,2.6,11.6,Consideration,1990,Saturday,18-21
+2024-05-13,May,Q2,2024,Sports,Water Sports,West,UK,Partner,Bob,8938.78,5474.45,3464.33,89,100.44,3.9,5.3,24.1,4.0,Intent,199,Sunday,21-24
+2024-05-14,May,Q2,2024,Home & Garden,Bedding,North,USA,Online,Dave,9530.09,4757.18,4772.91,47,202.77,3.9,5.3,,4.0,Purchase,53,Monday,00-06
+2024-06-15,June,Q2,2024,Electronics,Smartphones,South,Mexico,Offline,Alice,52124.68,30981.51,21143.17,15,3474.98,4.8,2.1,11.6,7.7,Awareness,171,Tuesday,06-09
+2024-06-16,June,Q2,2024,Clothing,Formal Wear,East,Canada,Partner,Carol,5308.93,2747.62,2561.31,159,33.39,3.4,1.9,19.9,4.7,Interest,1282,Wednesday,09-12
+2024-06-17,June,Q2,2024,Food,Fresh Produce,West,UK,Online,Eve,2528.27,988.68,1539.59,505,5.01,3.0,6.7,2.1,8.9,Consideration,2010,Thursday,12-15
+2024-06-18,June,Q2,2024,Sports,Water Sports,North,USA,Offline,Bob,8968.97,5483.96,3485.01,89,100.77,4.3,3.7,19.8,2.0,Intent,158,Friday,15-18
+2024-06-19,June,Q2,2024,Home & Garden,Bedding,South,Mexico,Partner,Dave,10090.47,4947.46,5143.01,50,201.81,4.2,3.6,13.3,5.7,Purchase,54,Saturday,18-21
+2024-06-30,June,Q2,2024,Electronics,Smartphones,North,USA,Online,Alice,500,300,200,5,100.0,3.5,8.0,,12.0,Awareness,12500,Monday,09-12
+2024-06-30,June,Q2,2024,Electronics,Smartphones,South,Mexico,Online,Bob,1800,1000,800,15,120.0,3.8,6.8,,10.2,Interest,7200,Monday,09-12
+2024-06-30,June,Q2,2024,Electronics,Smartphones,East,Canada,Online,Carol,4200,2400,1800,30,140.0,4.0,5.6,,8.4,Consideration,4100,Monday,09-12
+2024-06-30,June,Q2,2024,Electronics,Smartphones,West,UK,Online,Dave,8500,4800,3700,55,154.55,4.2,4.4,,6.6,Intent,1800,Monday,09-12
+2024-06-30,June,Q2,2024,Electronics,Smartphones,North,USA,Online,Eve,18000,10000,8000,110,163.64,4.6,3.2,,4.8,Purchase,750,Monday,09-12
+2024-03-01,March,Q1,2024,Electronics,Scatter Test,North,USA,Online,Alice,11419.11,6280.51,5138.6,30,422.93,1.0,5.0,,12.0,Awareness,71,Monday,00-06
+2024-03-02,March,Q1,2024,Clothing,Scatter Test,South,Mexico,Offline,Bob,8481.15,4664.63,3816.52,8,565.41,1.2,5.3,28.5,12.4,Interest,108,Tuesday,06-09
+2024-03-03,March,Q1,2024,Food,Scatter Test,East,Canada,Partner,Carol,11292.4,6210.82,5081.58,18,564.62,1.4,5.1,29.3,11.5,Consideration,154,Wednesday,09-12
+2024-03-04,March,Q1,2024,Sports,Scatter Test,West,UK,Online,Dave,8435.68,4639.62,3796.06,19,766.88,1.6,4.4,5.4,10.0,Intent,283,Thursday,12-15
+2024-03-05,March,Q1,2024,Home & Garden,Scatter Test,North,USA,Offline,Eve,4261.5,2343.83,1917.67,4,710.25,1.8,4.6,,10.9,Purchase,74,Friday,15-18
+2024-03-06,March,Q1,2024,Electronics,Scatter Test,South,Mexico,Partner,Alice,26449.74,14547.36,11902.38,32,912.06,2.1,3.9,0.4,9.3,Awareness,255,Saturday,18-21
+2024-03-07,March,Q1,2024,Clothing,Scatter Test,East,Canada,Online,Bob,9604.8,5282.64,4322.16,4,960.48,2.3,3.9,25.9,8.5,Interest,43,Sunday,21-24
+2024-03-08,March,Q1,2024,Food,Scatter Test,West,UK,Offline,Carol,7238.77,3981.32,3257.45,37,1034.11,2.5,4.1,1.6,8.0,Consideration,298,Monday,00-06
+2024-03-09,March,Q1,2024,Sports,Scatter Test,North,USA,Partner,Dave,8413.02,4627.16,3785.86,16,1201.86,2.7,3.5,,8.8,Intent,320,Tuesday,06-09
+2024-03-10,March,Q1,2024,Home & Garden,Scatter Test,South,Mexico,Online,Eve,29409.12,16175.02,13234.1,15,1225.38,2.9,4.0,11.4,8.6,Purchase,162,Wednesday,09-12
+2024-03-11,March,Q1,2024,Electronics,Scatter Test,East,Canada,Offline,Alice,24257.34,13341.54,10915.8,20,1347.63,3.1,3.6,1.8,8.2,Awareness,60,Thursday,12-15
+2024-03-12,March,Q1,2024,Clothing,Scatter Test,West,UK,Partner,Bob,15857.71,8721.74,7135.97,41,1441.61,3.3,3.1,19.8,6.1,Interest,98,Friday,15-18
+2024-03-13,March,Q1,2024,Food,Scatter Test,North,USA,Online,Carol,14583.2,8020.76,6562.44,1,1458.32,3.5,3.1,,6.6,Consideration,250,Saturday,18-21
+2024-03-14,March,Q1,2024,Sports,Scatter Test,South,Mexico,Offline,Dave,17959.2,9877.56,8081.64,19,1496.6,3.7,3.2,21.1,5.7,Intent,361,Sunday,21-24
+2024-03-15,March,Q1,2024,Home & Garden,Scatter Test,East,Canada,Partner,Eve,20375.55,11206.55,9169.0,41,1567.35,3.9,3.0,24.1,4.6,Purchase,68,Monday,00-06
+2024-03-16,March,Q1,2024,Electronics,Scatter Test,West,UK,Online,Alice,43428.25,23885.54,19542.71,10,1737.13,4.2,3.0,24.8,3.6,Awareness,94,Tuesday,06-09
+2024-03-17,March,Q1,2024,Clothing,Scatter Test,North,USA,Offline,Bob,44563.68,24510.02,20053.66,48,1856.82,4.4,2.8,,4.8,Interest,234,Wednesday,09-12
+2024-03-18,March,Q1,2024,Food,Scatter Test,South,Mexico,Partner,Carol,49407.3,27174.02,22233.28,20,1829.9,4.6,2.5,28.3,3.5,Consideration,262,Thursday,12-15
+2024-03-19,March,Q1,2024,Sports,Scatter Test,East,Canada,Online,Dave,47040.96,25872.53,21168.43,3,1960.04,4.8,2.5,22.0,3.2,Intent,23,Friday,15-18
+2024-03-20,March,Q1,2024,Home & Garden,Scatter Test,West,UK,Offline,Eve,51599.86,28379.92,23219.94,37,1984.61,5.0,2.1,0.6,3.0,Purchase,430,Saturday,18-21
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,North,USA,Online,Alice,5503.64,3027.0,2476.64,10,203.84,3.9,3.6,3.6,6.7,Purchase,182,Monday,00-06
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,South,Mexico,Online,Alice,12585.18,6921.85,5663.33,16,193.62,3.7,2.3,17.2,4.6,Purchase,197,Monday,00-06
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,East,Canada,Online,Alice,8441.1,4642.61,3798.49,56,112.55,3.1,1.4,2.3,8.2,Purchase,151,Monday,00-06
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,West,UK,Online,Alice,12724.05,6998.23,5725.82,5,171.95,3.9,1.2,12.5,6.0,Purchase,133,Monday,00-06
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,North,USA,Online,Alice,11879.88,6533.93,5345.95,31,304.61,4.1,4.7,14.0,3.0,Purchase,181,Tuesday,06-09
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,South,Mexico,Online,Alice,9915.33,5453.43,4461.9,35,396.61,3.6,1.1,4.5,8.7,Purchase,49,Tuesday,06-09
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,East,Canada,Online,Alice,7998.82,4399.35,3599.47,20,333.28,4.0,3.9,5.5,8.7,Purchase,140,Tuesday,06-09
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,West,UK,Online,Alice,5168.5,2842.68,2325.82,75,224.72,3.8,4.7,17.6,8.9,Purchase,90,Tuesday,06-09
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,North,USA,Online,Alice,12044.78,6624.63,5420.15,58,250.93,4.9,3.0,5.7,4.4,Purchase,170,Wednesday,09-12
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,South,Mexico,Online,Alice,9539.0,5246.45,4292.55,67,397.46,3.9,2.9,15.3,5.0,Purchase,102,Wednesday,09-12
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,East,Canada,Online,Alice,13304.82,7317.65,5987.17,35,170.57,3.8,4.4,6.4,5.8,Purchase,117,Wednesday,09-12
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,West,UK,Online,Alice,7019.02,3860.46,3158.56,24,103.22,4.9,1.5,6.6,2.8,Purchase,132,Wednesday,09-12
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,North,USA,Online,Alice,3296.25,1812.94,1483.31,63,549.38,4.4,2.6,3.1,5.8,Purchase,87,Thursday,12-15
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,South,Mexico,Online,Alice,6401.3,3520.72,2880.58,55,426.75,4.7,4.4,7.6,4.5,Purchase,144,Thursday,12-15
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,East,Canada,Online,Alice,13340.98,7337.54,6003.44,9,1026.23,3.5,3.7,4.5,2.7,Purchase,45,Thursday,12-15
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,West,UK,Online,Alice,11884.81,6536.65,5348.16,17,194.83,3.3,2.2,,4.6,Purchase,34,Thursday,12-15
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,North,USA,Online,Alice,5813.78,3197.58,2616.2,52,96.9,3.3,3.1,15.9,3.4,Purchase,40,Friday,15-18
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,South,Mexico,Online,Alice,9923.39,5457.86,4465.53,53,283.53,4.0,3.3,12.8,5.7,Purchase,190,Friday,15-18
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,East,Canada,Online,Alice,2122.17,1167.19,954.98,64,51.76,4.4,1.6,6.9,6.7,Purchase,183,Friday,15-18
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,West,UK,Online,Alice,14506.38,7978.51,6527.87,37,230.26,4.7,1.8,9.7,3.9,Purchase,166,Friday,15-18
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,North,USA,Online,Alice,6666.47,3666.56,2999.91,42,158.73,3.0,4.3,0.2,8.9,Purchase,32,Saturday,18-21
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,South,Mexico,Online,Alice,13838.02,7610.91,6227.11,68,337.51,4.6,1.9,4.4,3.5,Purchase,84,Saturday,18-21
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,East,Canada,Online,Alice,10810.94,5946.02,4864.92,22,635.94,4.8,3.6,8.8,6.6,Purchase,53,Saturday,18-21
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,West,UK,Online,Alice,3171.73,1744.45,1427.28,42,68.95,4.5,1.7,,6.3,Purchase,113,Saturday,18-21
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,North,USA,Online,Alice,8901.08,4895.59,4005.49,39,342.35,3.5,4.3,16.1,8.0,Purchase,106,Sunday,21-24
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,South,Mexico,Online,Alice,12455.02,6850.26,5604.76,64,889.64,3.3,4.9,14.5,9.8,Purchase,162,Sunday,21-24
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,East,Canada,Online,Alice,6755.08,3715.29,3039.79,55,1125.85,3.5,1.5,15.0,4.1,Purchase,117,Sunday,21-24
+2024-01-15,January,Q1,2024,Electronics,Heatmap Test,West,UK,Online,Alice,12691.42,6980.28,5711.14,52,705.08,4.3,2.9,18.9,4.6,Purchase,176,Sunday,21-24

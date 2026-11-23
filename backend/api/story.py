@@ -241,7 +241,10 @@ async def generate_story(request: StoryRequest):
                     c2 = p.get("col2") if isinstance(p, dict) else getattr(p, "col2", "")
                     sc = p.get("score", 0) if isinstance(p, dict) else getattr(p, "score", 0)
                     met = p.get("metric", "Correlation") if isinstance(p, dict) else getattr(p, "metric", "Correlation")
-                    corr_bullets.append(f"Strong association between '{c1}' ↔ '{c2}' ({met}: {sc:.3f}).")
+                    if met in ("Functional Dependency", "Deterministic Derivation"):
+                        corr_bullets.append(f"Deterministic dependency: `{c2}` is deterministically determined by `{c1}`.")
+                    else:
+                        corr_bullets.append(f"Strong association between '{c1}' ↔ '{c2}' ({met}: {sc:.3f}).")
 
         if not corr_bullets and len(numeric_cols) >= 2:
             corr_mat = df[numeric_cols].corr()
@@ -276,8 +279,20 @@ async def generate_story(request: StoryRequest):
                     sev = getattr(a, "severity", "") or (a.get("severity", "") if isinstance(a, dict) else "")
                     desc = getattr(a, "description", "") or (a.get("description", "") if isinstance(a, dict) else "")
                     feat = getattr(a, "feature", "") or (a.get("feature", "") if isinstance(a, dict) else "")
+                    cat = getattr(a, "category", "") or (a.get("category", "") if isinstance(a, dict) else "")
                     sev_str = sev.value if hasattr(sev, "value") else str(sev)
-                    anomaly_bullets.append(f"[{sev_str.upper()}] Feature '{feat}': {desc}")
+
+                    if cat in ("Feature Redundancy", "Deterministic Redundancy", "Functional Dependency", "Redundant Feature"):
+                        prefix = "ℹ️ Redundancy:"
+                    elif str(sev_str).upper() == "CRITICAL":
+                        prefix = "[CRITICAL RISK]"
+                    elif str(sev_str).upper() == "HIGH":
+                        prefix = "[HIGH]"
+                    else:
+                        prefix = "[ADVISORY]"
+
+                    feat_str = f"Feature '{feat}': " if feat else ""
+                    anomaly_bullets.append(f"{prefix} {feat_str}{desc}")
 
         if not anomaly_bullets:
             anomaly_bullets = [
@@ -297,34 +312,61 @@ async def generate_story(request: StoryRequest):
             "tags": ["Anomalies", "Outliers", "Risk"]
         })
 
-        # ── 8. Predictive Drivers & Target Analysis ───────────────────
+        # ── 8. Predictive Drivers & Target Analysis ─────────────────
+        # Read the authoritative target state produced by the profiling engine.
+        # NEVER independently infer target_col from column position or numeric list.
+        from state import get_target_state
+        _target_state = get_target_state(request.file_id) or {}
+        target_col = _target_state.get('target_column')
+        _is_user_defined = _target_state.get('is_user_defined', False)
+        _is_heuristic = _target_state.get('is_heuristic', True)
+        _confidence = _target_state.get('confidence', 0.0)
+
+        # Build slide subtitle based on target confirmation status
+        if target_col and _is_user_defined:
+            slide8_subtitle = f"Target metric '{target_col}' feature attribution ranking (user-confirmed)"
+        elif target_col and _is_heuristic:
+            slide8_subtitle = (
+                f"No target was explicitly specified. '{target_col}' is a candidate target "
+                f"based on heuristic analysis (confidence: {_confidence:.0%})."
+            )
+        else:
+            slide8_subtitle = 'No target column identified -- feature importance relative to all columns'
+
         target_bullets = []
-        target_col = "value" if "value" in df.columns else (numeric_cols[0] if numeric_cols else df.columns[0])
-        
         if insights:
-            rankings = getattr(insights, "feature_importance", None) or (insights.get("feature_ranking", None) if isinstance(insights, dict) else None)
+            rankings = getattr(insights, 'feature_importance', None) or (insights.get('feature_ranking', None) if isinstance(insights, dict) else None)
             if rankings and isinstance(rankings, list):
                 for r in rankings[:4]:
-                    name = getattr(r, "feature", "") or (r.get("feature", "") if isinstance(r, dict) else "")
-                    score = getattr(r, "importance_score", 0) or (r.get("importance_score", 0) if isinstance(r, dict) else 0)
+                    name = getattr(r, 'feature', '') or (r.get('feature', '') if isinstance(r, dict) else '')
+                    score = getattr(r, 'importance_score', 0) or (r.get('importance_score', 0) if isinstance(r, dict) else 0)
                     target_bullets.append(f"Predictive Driver '{name}': Importance Score = {score:.1f}/100.")
 
         if not target_bullets:
-            target_bullets = [
-                f"Primary target metric candidate identified as '{target_col}'.",
-                "Secondary predictive drivers include business size tier, industry classification, and location attributes."
-            ]
+            if target_col:
+                target_bullets = [
+                    f"Primary target metric candidate identified as '{target_col}'.",
+                    'Secondary predictive drivers include business size tier, industry classification, and location attributes.'
+                ]
+            else:
+                target_bullets = [
+                    'No target column was identified. Upload a labeled dataset to enable predictive analysis.',
+                    'Feature importance is shown relative to all columns without a defined target.'
+                ]
 
         slides.append({
-            "id": _uid(),
-            "type": "insight",
-            "category": "Predictive Intelligence",
-            "title": "Key Predictive Drivers",
-            "subtitle": f"Target metric '{target_col}' feature attribution ranking",
-            "content": "\n".join(f"• {b}" for b in target_bullets),
-            "bullets": target_bullets,
-            "badge": "TARGET ANALYSIS",
-            "tags": ["Machine Learning", "Feature Importance"]
+            'id': _uid(),
+            'type': 'insight',
+            'category': 'Predictive Intelligence',
+            'title': 'Key Predictive Drivers',
+            'subtitle': slide8_subtitle,
+            'content': '\n'.join(f'\u2022 {b}' for b in target_bullets),
+            'bullets': target_bullets,
+            'badge': 'TARGET ANALYSIS',
+            'tags': ['Machine Learning', 'Feature Importance'],
+            'target_column': target_col,
+            'is_heuristic': _is_heuristic,
+            'is_user_defined': _is_user_defined,
         })
 
         # ── 9. Strategic Recommendations ──────────────────────────────
@@ -397,6 +439,37 @@ async def generate_story(request: StoryRequest):
 
 
 # ── Export Handlers ───────────────────────────────────────────────────
+
+
+class TargetOverrideRequest(BaseModel):
+    file_id: str
+    target_column: str
+
+
+@router.post("/target")
+async def set_story_target(request: TargetOverrideRequest):
+    """
+    Override the heuristic target column with an explicit user selection.
+
+    Once called, all downstream modules (ml_readiness, story slide 8,
+    feature_ranker) will use this user-confirmed target instead of the
+    heuristic candidate, satisfying requirement: every module reads the
+    same authoritative target state.
+    """
+    from state import get_df, set_user_target
+    df = get_df(request.file_id)
+    if df is None:
+        raise HTTPException(status_code=404, detail="Dataset not found.")
+    try:
+        state = set_user_target(request.file_id, request.target_column, df.columns.tolist())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {
+        "status": "ok",
+        "message": f"Target column set to '{request.target_column}'. All downstream analyses will use this target.",
+        "target_state": state,
+    }
+
 
 @router.post("/export")
 async def export_story(request: ExportStoryRequest):

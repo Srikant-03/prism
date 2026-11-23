@@ -8,9 +8,10 @@
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![DuckDB](https://img.shields.io/badge/DuckDB-In--Memory_Analytics-FFF000?style=for-the-badge&logo=duckdb&logoColor=black)](https://duckdb.org/)
+[![ECharts](https://img.shields.io/badge/Charts-Apache_ECharts-AA344D?style=for-the-badge&logo=apacheecharts&logoColor=white)](https://echarts.apache.org/)
 [![Google Gemini](https://img.shields.io/badge/AI-Google_Gemini-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/)
 [![Privacy First](https://img.shields.io/badge/Privacy-100%25_Local_Data-green?style=for-the-badge&logo=shield&logoColor=white)](#-privacy--security-manifesto)
 
@@ -100,9 +101,9 @@ flowchart TD
 ---
 
 ### 📊 3. AI Business Intelligence & Power BI Alternative
-* **Self-Service Auto-Dashboards:** PRISM analyzes column semantics to calculate the exact visualizations (bar, line, scatter, heatmap) that convey maximum business value.
+* **Self-Service Auto-Dashboards:** PRISM analyzes column semantics to calculate the exact visualizations (bar, line, scatter, heatmap, KPI) that convey maximum business value.
 * **Visual Query Builder:** Construct complex multi-table joins, filters, and aggregations visually without writing a single line of SQL code.
-* **Interactive Relationship Graphs:** Visualize cross-table foreign key links and column correlations through node-link relationship diagrams powered by React Flow.
+* **Interactive Relationship & Correlation Visualizers:** Visualize cross-table foreign key links and column correlations through interactive charts powered by Apache ECharts and AG Grid.
 
 ---
 
@@ -175,20 +176,43 @@ start.bat
 
 ```text
 PRISM PLATFORM
-├── FRONTEND LAYER (React 18 + TypeScript + Vite)
+├── FRONTEND LAYER (React 19 + TypeScript + Vite)
 │   ├── UI Framework: Ant Design (Custom Glassmorphism Theme)
-│   ├── Visualizations: Recharts, React Flow
+│   ├── Data Grid: AG Grid Community (High-performance spreadsheet views)
+│   ├── Visualizations: Apache ECharts, Recharts
 │   └── State & API: Custom Hooks, Async File Streaming
 │
 ├── BACKEND ENGINE (Python 3.10+ FastAPI)
-│   ├── Analytical Engine: DuckDB (In-Memory Columnar OLAP)
+│   ├── Analytical Engine: DuckDB (In-Memory Columnar OLAP with Memory & Timeout Guardrails)
 │   ├── Data Processing: Pandas, OpenPyXL, PyArrow
-│   ├── Safety & Ingestion: Python-Magic, ZipFile Streamer
-│   └── LLM Reasoning: Google GenAI SDK (Gemini Flash/Pro)
+│   ├── Safety & Ingestion: Isolated Temp Extraction, Zip Slip & SSRF Protection
+│   └── LLM Reasoning: Google GenAI SDK (Gemini Flash/Pro multi-key failover manager)
 │
 └── EXPORT & REPORTING
     ├── Document Generators: ReportLab (PDF), Python-Docx (DOCX)
     └── Serialization: Parquet, JSON, CSV Exporters
+```
+
+---
+
+## 🧪 Testing & Verification
+
+PRISM includes comprehensive test harnesses for both backend and frontend layers:
+
+### Run Backend Tests (Pytest)
+```bash
+# From repository root
+backend\venv\Scripts\python.exe -m pytest -v
+```
+
+### Run Frontend Tests (Vitest)
+```bash
+npm --prefix frontend test -- --run
+```
+
+### Run Production Build & Typecheck
+```bash
+npm --prefix frontend run build
 ```
 
 ---

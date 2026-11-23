@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Optional
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
 
 from chat.engine import get_chat_engine
 
@@ -19,7 +19,8 @@ class ChatRequest(BaseModel):
 
 
 class ContextUpdate(BaseModel):
-    schema: Optional[dict] = None
+    model_config = ConfigDict(populate_by_name=True)
+    schema_data: Optional[dict] = Field(default=None, alias="schema")
     profile_summary: Optional[dict] = None
     cleaning_step: Optional[dict] = None
     query: Optional[str] = None
@@ -40,8 +41,8 @@ async def chat_message(request: ChatRequest):
 async def update_context(request: ContextUpdate):
     """Update the AI's awareness of the current dataset state."""
     ctx = get_chat_engine().context
-    if request.schema:
-        ctx.set_schema(request.schema)
+    if request.schema_data:
+        ctx.set_schema(request.schema_data)
     if request.profile_summary:
         ctx.set_profile(request.profile_summary)
     if request.cleaning_step:

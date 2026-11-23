@@ -1,7 +1,7 @@
 """
 Leakage Handler — Detects data leakage patterns:
 temporal proxies, near-perfect predictors, ID encoding, future-looking columns.
-All leakage suspects are flagged with CRITICAL severity.
+All leakage suspects are flagged with severity proportional to their leakage type.
 """
 
 from __future__ import annotations
@@ -16,6 +16,19 @@ from cleaning.cleaning_models import (
     CleaningAction, ActionType, ActionConfidence, ActionCategory,
     ImpactEstimate, UserOption,
 )
+
+
+def _is_date_derived_column(col_name: str, other_col_name: str) -> bool:
+    """Return True if col_name and other_col_name share a date-derivation relationship."""
+    try:
+        from insights.relationship_classifier import _is_date_derived_name, _normalise
+        n_col = _normalise(col_name)
+        n_other = _normalise(other_col_name)
+        col_is_date = "date" in n_col or "time" in n_col or _is_date_derived_name(col_name)
+        other_is_date = "date" in n_other or "time" in n_other or _is_date_derived_name(other_col_name)
+        return bool(col_is_date and other_is_date)
+    except Exception:
+        return False
 
 # Columns that semantically refer to the future
 _FUTURE_PATTERNS = [
@@ -42,6 +55,11 @@ class LeakageHandler:
         self, df: pd.DataFrame, file_id: str,
         target_column: Optional[str] = None,
         profile: Any = None,
+        prediction_timestamp: Optional[Any] = None,
+        feature_timestamps: Optional[dict[str, Any]] = None,
+        target_timestamp: Optional[Any] = None,
+        metadata: Optional[dict[str, Any]] = None,
+        business_rules: Optional[list[str] | dict[str, Any]] = None,
     ):
         self.df = df
         self.file_id = file_id
@@ -49,6 +67,11 @@ class LeakageHandler:
         self.n_cols = len(df.columns)
         self.target_column = target_column
         self.profile = profile
+        self.prediction_timestamp = prediction_timestamp
+        self.feature_timestamps = feature_timestamps or {}
+        self.target_timestamp = target_timestamp
+        self.metadata = metadata or {}
+        self.business_rules = business_rules or []
 
     # ── Public entry ──────────────────────────────────────────────────
     def analyze(self) -> tuple[list[CleaningAction], dict]:
@@ -98,13 +121,28 @@ class LeakageHandler:
                 report["future_columns"].append(future)
                 actions.append(self._build_future_action(col, future))
 
-        report["leakage_suspects"] = [a.target_columns[0] for a in actions]
+        # 5. Deterministic formula reconstruction of target (Direct Target Leakage)
+        formula_leaks = self._detect_formula_target_leakage(target)
+        report["formula_target_leakage"] = formula_leaks
+        for fl in formula_leaks:
+            actions.append(self._build_formula_leakage_action(fl, target))
+
+        report["leakage_suspects"] = [a.target_columns[0] for a in actions if a.target_columns]
         return actions, report
 
     # ── Target identification ─────────────────────────────────────────
     def _identify_target(self) -> Optional[str]:
         if self.target_column and self.target_column in self.df.columns:
             return self.target_column
+
+        # Try shared target state
+        try:
+            from state import get_target_state
+            t_state = get_target_state(self.file_id)
+            if t_state and t_state.target_column and t_state.target_column in self.df.columns:
+                return t_state.target_column
+        except Exception:
+            pass
 
         # Auto-detect
         target_names = ["target", "label", "class", "y", "outcome", "survived",
@@ -121,6 +159,10 @@ class LeakageHandler:
 
         for col in self.df.columns:
             if col == target:
+                continue
+
+            # Skip columns that are known date-derivations of each other or target
+            if _is_date_derived_column(col, target):
                 continue
 
             try:
@@ -175,7 +217,7 @@ class LeakageHandler:
             elif self.df[col].dtype == object:
                 sample = self.df[col].dropna().head(20)
                 try:
-                    parsed = pd.to_datetime(sample, errors="coerce")
+                    parsed = pd.to_datetime(sample, format="mixed", errors="coerce")
                     if parsed.notna().mean() > 0.8:
                         dt_cols.append(col)
                 except Exception:
@@ -187,7 +229,7 @@ class LeakageHandler:
         # Check if any datetime column has a temporal ordering that predicts the target
         for col in dt_cols:
             try:
-                dt = pd.to_datetime(self.df[col], errors="coerce")
+                dt = pd.to_datetime(self.df[col], format="mixed", errors="coerce")
                 valid = dt.notna()
                 if valid.sum() < 10:
                     continue
@@ -208,7 +250,7 @@ class LeakageHandler:
                 else:
                     # For categorical target, check if datetime ordering separates classes
                     groups = self.df[valid].groupby(target_series[valid])[col].apply(
-                        lambda x: pd.to_datetime(x, errors="coerce").mean()
+                        lambda x: pd.to_datetime(x, format="mixed", errors="coerce").mean()
                     )
                     if len(groups) >= 2:
                         if groups.nunique() == len(groups):
@@ -276,18 +318,117 @@ class LeakageHandler:
         return results
 
     # ── 4. Future-looking columns ─────────────────────────────────────
+    def _verify_confirmed_future_leakage(self, col: str) -> tuple[bool, Optional[str]]:
+        """
+        Verify whether future leakage is factually confirmed via:
+        1. Prediction timestamp vs feature timestamp
+        2. Target timestamp vs feature timestamp
+        3. Explicit metadata (e.g. is_post_prediction=True)
+        4. Documented business rule
+        """
+        # 1. Explicit metadata
+        if isinstance(self.metadata, dict):
+            col_meta = self.metadata.get(col, {})
+            if isinstance(col_meta, dict):
+                if col_meta.get("is_post_prediction") is True:
+                    return True, "explicit metadata declares column as post-prediction"
+                if col_meta.get("available_at_inference") is False:
+                    return True, "explicit metadata declares column not available at inference"
+                if col_meta.get("timing") in ("future", "post_event", "post_prediction"):
+                    return True, f"metadata timing marked as '{col_meta.get('timing')}'"
+
+        # 2. Documented business rules
+        rules = self.business_rules
+        if isinstance(rules, list):
+            for rule in rules:
+                rule_str = str(rule).lower()
+                if col.lower() in rule_str and any(k in rule_str for k in ("post-prediction", "future leakage", "after prediction", "after target", "not available at inference")):
+                    return True, f"documented business rule: '{rule}'"
+        elif isinstance(rules, dict):
+            rule_val = rules.get(col)
+            if rule_val and any(k in str(rule_val).lower() for k in ("post-prediction", "future", "leakage", "after")):
+                return True, f"documented business rule for '{col}': {rule_val}"
+
+        # 3. Timestamps check (prediction timestamp vs feature timestamp)
+        pred_ts = self.prediction_timestamp
+        feat_ts = self.feature_timestamps.get(col)
+
+        if pred_ts is not None and feat_ts is not None:
+            try:
+                p_dt = pd.to_datetime(pred_ts)
+                f_dt = pd.to_datetime(feat_ts)
+                if f_dt > p_dt:
+                    return True, f"feature timestamp ({f_dt}) occurs after prediction timestamp ({p_dt})"
+            except Exception:
+                pass
+
+        # 4. Target timestamp vs feature timestamp
+        target_ts = self.target_timestamp
+        if target_ts is not None and feat_ts is not None:
+            try:
+                t_dt = pd.to_datetime(target_ts)
+                f_dt = pd.to_datetime(feat_ts)
+                if f_dt > t_dt:
+                    return True, f"feature timestamp ({f_dt}) occurs after target timestamp ({t_dt})"
+            except Exception:
+                pass
+
+        # 5. Profile prediction context
+        if self.profile and hasattr(self.profile, "prediction_context"):
+            ctx = getattr(self.profile, "prediction_context")
+            if isinstance(ctx, dict) and col in ctx.get("post_prediction_columns", []):
+                return True, "profile prediction context specifies column is post-prediction"
+
+        return False, None
+
     def _check_future_column(self, col: str) -> Optional[dict]:
+        matched_pattern = None
         for pattern in _FUTURE_PATTERNS:
             if re.search(pattern, col):
-                return {
-                    "column": col,
-                    "pattern": pattern,
-                    "description": (
-                        f"Column '{col}' semantically refers to a future event — "
-                        "this information would not be available at prediction time."
-                    ),
-                }
-        return None
+                matched_pattern = pattern
+                break
+
+        is_confirmed, evidence_detail = self._verify_confirmed_future_leakage(col)
+
+        if not matched_pattern and not is_confirmed:
+            return None
+
+        if is_confirmed:
+            return {
+                "column": col,
+                "pattern": matched_pattern,
+                "is_confirmed": True,
+                "evidence": f"Confirmed future leakage: {evidence_detail}",
+                "description": f"Column '{col}' is confirmed to be post-prediction future leakage ({evidence_detail}).",
+                "recommendation": f"CRITICAL: Remove '{col}' — confirmed post-prediction future leakage.",
+                "reasoning": (
+                    f"'{col}' is proven to be recorded after the prediction event or cutoff time ({evidence_detail}). "
+                    "Using it during training will cause severe future information leakage."
+                ),
+            }
+
+        # Semantic suspicion without factual proof -> CONDITIONAL WARNING
+        warning_msg = (
+            f"'{col}' may cause target/future leakage if this value is only known after the "
+            "prediction timestamp. Confirm feature availability at inference time."
+        )
+        return {
+            "column": col,
+            "pattern": matched_pattern,
+            "is_confirmed": False,
+            "evidence": (
+                f"Column '{col}' matches naming patterns that could refer to post-event outcomes. "
+                "However, the dataset does not establish whether this represents an already observed historical "
+                "metric or a future outcome measured after prediction."
+            ),
+            "description": warning_msg,
+            "recommendation": warning_msg,
+            "reasoning": (
+                f"The column could represent an already observed historical metric or a future outcome measured after prediction. "
+                f"The software does not have enough information to know which one is true without prediction-time context. "
+                f"Confirm feature availability at inference time before deciding to exclude it."
+            ),
+        }
 
     # ── Action builders ───────────────────────────────────────────────
     def _build_predictor_action(self, pred: dict) -> CleaningAction:
@@ -367,26 +508,89 @@ class LeakageHandler:
         )
 
     def _build_future_action(self, col: str, info: dict) -> CleaningAction:
+        is_confirmed = info.get("is_confirmed", False)
+        if is_confirmed:
+            confidence = ActionConfidence.DEFINITIVE
+            recommendation = info.get("recommendation", f"CRITICAL: Remove '{col}' — confirmed post-prediction future leakage.")
+            options = [
+                UserOption(key="remove", label="Remove Column", is_default=True),
+                UserOption(key="keep", label="Keep (I know it's legitimate)"),
+            ]
+        else:
+            confidence = ActionConfidence.JUDGMENT_CALL
+            recommendation = info.get(
+                "recommendation",
+                f"'{col}' may cause target/future leakage if this value is only known after the prediction timestamp. Confirm feature availability at inference time."
+            )
+            options = [
+                UserOption(key="confirm_available", label="Confirm Available at Inference (Keep Column)", is_default=True),
+                UserOption(key="remove", label="Remove Column (Post-Prediction Leakage)"),
+                UserOption(key="investigate", label="Flag for Review"),
+            ]
+
         return CleaningAction(
             category=ActionCategory.DATA_LEAKAGE,
             action_type=ActionType.FLAG_LEAKAGE_FUTURE,
-            confidence=ActionConfidence.JUDGMENT_CALL,
-            evidence=info["description"],
-            recommendation=f"⚠ WARNING: '{col}' may contain future-looking information.",
-            reasoning=(
-                "Columns that semantically refer to future events (outcomes, results, "
-                "follow-ups) provide information not available at prediction time."
-            ),
+            confidence=confidence,
+            evidence=info.get("evidence", info.get("description")),
+            recommendation=recommendation,
+            reasoning=info.get("reasoning"),
             target_columns=[col],
             impact=ImpactEstimate(
                 rows_before=self.n_rows, rows_after=self.n_rows,
-                columns_before=self.n_cols, columns_after=self.n_cols - 1,
+                columns_before=self.n_cols, columns_after=self.n_cols - (1 if is_confirmed else 0),
                 columns_affected=1,
-                description=f"Flags '{col}' as future-looking.",
+                description=f"Flags '{col}' for {'confirmed future leakage' if is_confirmed else 'prediction-time verification'}.",
             ),
-            options=[
-                UserOption(key="remove", label="Remove Column", is_default=True),
-                UserOption(key="keep", label="Keep (it's available at prediction time)"),
-            ],
+            options=options,
             metadata=info,
         )
+
+    def _detect_formula_target_leakage(self, target: str) -> list[dict]:
+        results: list[dict] = []
+        try:
+            from profiling.formula_detector import detect_formula_dependencies
+            formulas = detect_formula_dependencies(self.df, target_column=target)
+            for f in formulas:
+                if f.dependent == target:
+                    op1 = f.operands[0] if len(f.operands) > 0 else "operand1"
+                    op2 = f.operands[1] if len(f.operands) > 1 else "operand2"
+                    results.append({
+                        "dependent": target,
+                        "operands": f.operands,
+                        "formula_expr": f.formula_expr,
+                        "score": f.match_ratio,
+                        "description": f"`{target}` is deterministically derived from `{op1}` and `{op2}`.",
+                        "reasoning": f"Using {op1} and {op2} to predict {target} should be classified as direct target leakage.",
+                        "recommendation": f"⚠ CRITICAL: Drop '{op1}' or '{op2}' — using them to predict '{target}' is direct target leakage.",
+                    })
+        except Exception:
+            pass
+        return results
+
+    def _build_formula_leakage_action(self, fl: dict, target: str) -> CleaningAction:
+        operands = fl["operands"]
+        op1 = operands[0] if len(operands) > 0 else "operand1"
+        op2 = operands[1] if len(operands) > 1 else op1
+        return CleaningAction(
+            category=ActionCategory.DATA_LEAKAGE,
+            action_type=ActionType.FLAG_LEAKAGE_PREDICTOR,
+            confidence=ActionConfidence.DEFINITIVE,
+            evidence=fl["description"],
+            recommendation=fl["recommendation"],
+            reasoning=fl["reasoning"],
+            target_columns=operands,
+            impact=ImpactEstimate(
+                rows_before=self.n_rows, rows_after=self.n_rows,
+                columns_before=self.n_cols, columns_after=self.n_cols - 1,
+                columns_affected=len(operands),
+                description=f"Eliminates direct target leakage into '{target}'.",
+            ),
+            options=[
+                UserOption(key=f"drop_{op1}", label=f"Drop '{op1}'", is_default=True),
+                UserOption(key=f"drop_{op2}", label=f"Drop '{op2}'"),
+                UserOption(key="keep_all", label="Keep all features"),
+            ],
+            metadata=fl,
+        )
+
