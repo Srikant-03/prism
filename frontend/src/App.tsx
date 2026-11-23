@@ -42,12 +42,12 @@ const App: React.FC = () => {
     reset: resetUpload,
   } = useUpload();
   const [chatOpen, setChatOpen] = useState(false);
-  const [activeTabKey, setActiveTabKey] = useState('preview');
+  const [activeTabKey, setActiveTabKey] = useState('dashboard');
   const [pendingSqlQuery, setPendingSqlQuery] = useState<string | undefined>(undefined);
 
   const reset = useCallback(() => {
     resetUpload();
-    setActiveTabKey('preview');
+    setActiveTabKey('dashboard');
     setPendingSqlQuery(undefined);
   }, [resetUpload]);
 
@@ -213,6 +213,33 @@ const App: React.FC = () => {
                 style={{ marginBottom: 20 }}
                 items={[
                   {
+                    key: 'dashboard',
+                    label: <span style={{ color: '#fef08a', fontWeight: 600 }}><DashboardOutlined /> Spectral Canvas</span>,
+                    children: (
+                      <DashboardPage
+                        fileId={state.result.file_id}
+                        columns={state.result.metadata.columns?.map((c: any) => c.name) || []}
+                      />
+                    ),
+                  },
+                  {
+                    key: 'graph',
+                    label: <span><AppstoreOutlined /> Causal Constellation</span>,
+                    children: (
+                      <RelationshipGraph
+                        data={graphData}
+                        loading={graphLoading}
+                        threshold={graphThreshold}
+                        onThresholdChange={setGraphThreshold}
+                      />
+                    ),
+                  },
+                  {
+                    key: 'story',
+                    label: <span><SoundOutlined /> Story Pavilion</span>,
+                    children: <StoryBuilder fileId={state.result.file_id} />,
+                  },
+                  {
                     key: 'preview',
                     label: <span><TableOutlined /> Data Preview</span>,
                     children: <DataPreview result={state.result} />,
@@ -240,16 +267,9 @@ const App: React.FC = () => {
                     children: <ReportPanel fileId={state.result.file_id} />,
                   },
                   {
-                    key: 'graph',
-                    label: <span><AppstoreOutlined /> Relationship Graph</span>,
-                    children: (
-                      <RelationshipGraph
-                        data={graphData}
-                        loading={graphLoading}
-                        threshold={graphThreshold}
-                        onThresholdChange={setGraphThreshold}
-                      />
-                    ),
+                    key: 'compare',
+                    label: <span><SwapOutlined /> Compare</span>,
+                    children: <DatasetDiff fileIdA={state.result.file_id} />,
                   },
                   {
                     key: 'hypotheses',
@@ -280,26 +300,6 @@ const App: React.FC = () => {
                     key: 'insights',
                     label: <span><ExperimentOutlined /> Insights</span>,
                     children: <InsightDashboard fileId={state.result.file_id} insights={(state.result as any).insights || (state.result as any).profile?.insights} />,
-                  },
-                  {
-                    key: 'story',
-                    label: <span><SoundOutlined /> Story Builder</span>,
-                    children: <StoryBuilder fileId={state.result.file_id} />,
-                  },
-                    {
-                    key: 'compare',
-                    label: <span><SwapOutlined /> Compare</span>,
-                    children: <DatasetDiff fileIdA={state.result.file_id} />,
-                  },
-                  {
-                    key: 'dashboard',
-                    label: <span><DashboardOutlined /> AI Dashboard</span>,
-                    children: (
-                      <DashboardPage
-                        fileId={state.result.file_id}
-                        columns={state.result.metadata.columns?.map((c: any) => c.name) || []}
-                      />
-                    ),
                   },
                 ]}
               />

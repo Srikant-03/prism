@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { Layout as AntLayout, Typography, Space, Button, Tooltip, Tour } from 'antd';
 import type { TourProps } from 'antd';
 import {
-    ThunderboltOutlined, BulbOutlined, BulbFilled,
+    BulbOutlined, BulbFilled,
     QuestionCircleOutlined,
 } from '@ant-design/icons';
 import { useTheme } from '../../hooks/useTheme';
@@ -77,15 +77,55 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <Header className="app-header" role="banner">
                 <div className="header-content">
                     <Space align="center" size={12}>
-                        <div className="logo-icon" aria-label="Data Intelligence Platform logo">
-                            <ThunderboltOutlined />
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: 34,
+                                height: 34,
+                                borderRadius: 10,
+                                background: 'linear-gradient(135deg, rgba(244,63,94,0.3) 0%, rgba(245,158,11,0.2) 100%)',
+                                border: '1px solid rgba(255,255,255,0.15)',
+                            }}
+                            aria-label="PRISM logo"
+                        >
+                            <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+                                <polygon
+                                    points="16,3 30,28 2,28"
+                                    fill="url(#layoutPrismGrad)"
+                                    stroke="rgba(255,255,255,0.7)"
+                                    strokeWidth="1.2"
+                                />
+                                <defs>
+                                    <linearGradient id="layoutPrismGrad" x1="0" y1="0" x2="1" y2="1">
+                                        <stop offset="0%" stopColor="rgba(255,255,255,0.9)" />
+                                        <stop offset="40%" stopColor="rgba(244,63,94,0.5)" />
+                                        <stop offset="70%" stopColor="rgba(245,158,11,0.5)" />
+                                        <stop offset="100%" stopColor="rgba(99,102,241,0.5)" />
+                                    </linearGradient>
+                                </defs>
+                            </svg>
                         </div>
                         <div>
-                            <Title level={4} className="header-title">
-                                Data Intelligence Platform
+                            <Title
+                                level={4}
+                                className="header-title"
+                                style={{
+                                    fontFamily: "'Playfair Display', Georgia, serif",
+                                    letterSpacing: '0.12em',
+                                    color: '#fdf4dc',
+                                    fontWeight: 700,
+                                    margin: 0,
+                                }}
+                            >
+                                PRISM
                             </Title>
-                            <Text className="header-subtitle">
-                                Autonomous Data Analysis Engine
+                            <Text
+                                className="header-subtitle"
+                                style={{ fontSize: 10, letterSpacing: '0.08em', color: 'rgba(255,255,255,0.5)' }}
+                            >
+                                Spectral Data Metamorphosis
                             </Text>
                         </div>
                     </Space>
@@ -108,8 +148,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                                 style={{ color: isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)' }}
                             />
                         </Tooltip>
-                        <div className="header-badge">
-                            <Text className="badge-text">v2.0</Text>
+                        <div
+                            style={{
+                                padding: '2px 10px',
+                                borderRadius: 12,
+                                background: 'linear-gradient(135deg, rgba(244,63,94,0.2) 0%, rgba(245,158,11,0.2) 100%)',
+                                border: '1px solid rgba(245,158,11,0.35)',
+                            }}
+                        >
+                            <Text style={{ fontSize: 11, color: '#fef08a', fontWeight: 600 }}>v2.0 • Spectral</Text>
                         </div>
                     </Space>
                 </div>
