@@ -28,7 +28,7 @@ working_keys = []
 for i, key in enumerate(keys):
     try:
         client = genai.Client(api_key=key.strip())
-        resp = client.models.generate_content(model="gemini-2.0-flash", contents="Say hello")
+        resp = client.models.generate_content(model="gemini-2.5-flash", contents="Say hello")
         print(f"Key {i} (...{key[-4:]}) SUCCESS: {resp.text.strip()}")
         working_keys.append(key)
         break

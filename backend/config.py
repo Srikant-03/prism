@@ -117,7 +117,7 @@ class LLMConfig:
     GEMINI_API_KEYS: list[str] = [k.strip() for k in _keys_env.split(",")] if _keys_env else ([GEMINI_API_KEY] if GEMINI_API_KEY else [])
     MODEL_HEAVY: str = os.getenv("LLM_MODEL_HEAVY", "gemini-2.5-flash")
     MODEL_WORKHORSE: str = os.getenv("LLM_MODEL_WORKHORSE", "gemini-2.5-flash")
-    MODEL_TRIAGE: str = os.getenv("LLM_MODEL_TRIAGE", "gemini-2.0-flash")
+    MODEL_TRIAGE: str = os.getenv("LLM_MODEL_TRIAGE", "gemini-2.5-flash")
     TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", 0.1))
     MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", 4096))
 
