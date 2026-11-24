@@ -9,11 +9,10 @@ import { COLOR_PALETTES } from '../../../types/dashboard';
 interface Props { config: ChartConfig; data: Record<string, any>[]; }
 
 const DashboardHeatmapChart: React.FC<Props> = ({ config, data }) => {
-    if (!data || data.length === 0) return null;
-
     const colors = COLOR_PALETTES[config.color_scheme] || COLOR_PALETTES.default;
 
     const option = useMemo(() => {
+        if (!data || data.length === 0) return null;
         const xKey = config.x_axis || Object.keys(data[0] || {})[0];
         const yKey = config.group_by || config.y_axis || Object.keys(data[0] || {})[1];
         const valueKey = config.y_axis || 'value';
@@ -45,6 +44,8 @@ const DashboardHeatmapChart: React.FC<Props> = ({ config, data }) => {
             }],
         };
     }, [config, data, colors]);
+
+    if (!data || data.length === 0 || !option) return null;
 
     return <ReactECharts option={option} style={{ width: '100%', height: '100%' }} />;
 };
