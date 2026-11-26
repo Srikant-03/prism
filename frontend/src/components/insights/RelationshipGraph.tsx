@@ -2,10 +2,11 @@
  * RelationshipGraph — Visualizes column relationships using a force-directed graph.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { Empty, Spin, Tag, Space, Slider } from 'antd';
-import { ShareAltOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { Empty, Spin, Tag, Space, Slider, Segmented } from 'antd';
+import { ShareAltOutlined, InfoCircleOutlined, CompassOutlined, PartitionOutlined } from '@ant-design/icons';
+import CausalConstellation from './CausalConstellation';
 
 interface Node {
     id: string;
@@ -33,6 +34,7 @@ interface Props {
 }
 
 const RelationshipGraph: React.FC<Props> = ({ data, loading, onThresholdChange, threshold = 0.3 }) => {
+    const [viewMode, setViewMode] = useState<'constellation' | 'force'>('constellation');
     const option = useMemo(() => {
         if (!data) return {};
 
@@ -80,6 +82,25 @@ const RelationshipGraph: React.FC<Props> = ({ data, loading, onThresholdChange, 
     }, [data]);
 
     if (loading) return <div style={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spin description="Building graph..." /></div>;
+
+    if (viewMode === 'constellation') {
+        return (
+            <div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+                    <Segmented
+                        value={viewMode}
+                        onChange={(v) => setViewMode(v as any)}
+                        options={[
+                            { label: 'Causal Constellation', value: 'constellation', icon: <CompassOutlined /> },
+                            { label: 'Force Graph', value: 'force', icon: <PartitionOutlined /> },
+                        ]}
+                    />
+                </div>
+                <CausalConstellation />
+            </div>
+        );
+    }
+
     if (!data || data.nodes.length === 0) return <Empty description="No relationships detected with current threshold" />;
 
     return (
@@ -92,7 +113,16 @@ const RelationshipGraph: React.FC<Props> = ({ data, loading, onThresholdChange, 
                     <Tag color="purple">{data.links.length} relationships</Tag>
                 </Space>
                 <Space>
-                    <span style={{ fontSize: 11, opacity: 0.6 }}>Correlation threshold:</span>
+                    <Segmented
+                        value={viewMode}
+                        onChange={(v) => setViewMode(v as any)}
+                        options={[
+                            { label: 'Constellation', value: 'constellation', icon: <CompassOutlined /> },
+                            { label: 'Force', value: 'force', icon: <PartitionOutlined /> },
+                        ]}
+                        size="small"
+                    />
+                    <span style={{ fontSize: 11, opacity: 0.6 }}>Threshold:</span>
                     <Slider
                         min={0} max={100} step={5}
                         value={threshold * 100}
