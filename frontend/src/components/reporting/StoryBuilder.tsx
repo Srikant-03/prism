@@ -8,8 +8,9 @@ import {
     ReadOutlined, DeleteOutlined, ArrowUpOutlined,
     ArrowDownOutlined, PlayCircleOutlined, DownloadOutlined,
     EditOutlined, CopyOutlined, FilePptOutlined, FileTextOutlined, FilePdfOutlined,
-    ThunderboltOutlined
+    ThunderboltOutlined, UnorderedListOutlined
 } from '@ant-design/icons';
+import StoryStudio from './StoryStudio';
 
 import { fetchAuth, API_BASE } from '../../api/client';
 
@@ -60,6 +61,7 @@ const StoryBuilder: React.FC<Props> = ({ fileId }) => {
     const [generating, setGenerating] = useState(false);
     const [exporting, setExporting] = useState(false);
     const [metaInfo, setMetaInfo] = useState<{ domain?: string; quality_score?: number; quality_grade?: string }>({});
+    const [viewMode, setViewMode] = useState<'studio' | 'list'>('studio');
 
     // Auto-generate story on mount if fileId present
     const autoGenerate = useCallback(async () => {
@@ -213,6 +215,27 @@ const StoryBuilder: React.FC<Props> = ({ fileId }) => {
             onClick: copyMarkdown
         }
     ];
+
+    if (viewMode === 'studio') {
+        return (
+            <div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+                    <Button
+                        icon={<UnorderedListOutlined />}
+                        onClick={() => setViewMode('list')}
+                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#f8fafc' }}
+                    >
+                        Switch to Slide Editor List
+                    </Button>
+                </div>
+                <StoryStudio
+                    onExportPPTX={() => exportStory('pptx')}
+                    onExportPDF={() => exportStory('pdf')}
+                    onShare={copyMarkdown}
+                />
+            </div>
+        );
+    }
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

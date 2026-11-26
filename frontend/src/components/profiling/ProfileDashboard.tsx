@@ -14,6 +14,7 @@ import ColumnDetail from './ColumnDetail';
 import CrossColumnDashboard from './CrossColumnDashboard';
 import CleaningDashboard from '../cleaning/CleaningDashboard';
 import SchemaOverride from './SchemaOverride';
+import MetamorphosisView from './MetamorphosisView';
 import { overrideSchema } from '../../api/ingestion';
 import { notification } from 'antd';
 import type { DatasetProfile } from '../../types/profiling';
@@ -133,9 +134,23 @@ const ProfileDashboard: React.FC<ProfileDashboardProps> = ({ profile, fileId }) 
     return (
         <div className="profile-dashboard">
             <Tabs
-                defaultActiveKey="overview"
+                defaultActiveKey="metamorphosis"
                 type="card"
                 items={[
+                    {
+                        key: 'metamorphosis',
+                        label: (
+                            <span style={{ color: '#fbbf24', fontWeight: 600 }}>
+                                ✨ The Metamorphosis
+                            </span>
+                        ),
+                        children: (
+                            <MetamorphosisView
+                                rowCount={profile.total_rows || 245}
+                                colCount={profile.total_columns || 27}
+                            />
+                        ),
+                    },
                     {
                         key: 'overview',
                         label: (
